@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ProposalsController } from './controllers/proposals.controller';
 import { ProposalsService } from './services/proposals.service';
@@ -18,7 +18,7 @@ import { ContractsModule } from '../contracts/contracts.module';
     ]),
     UsersModule,
     CommonModule,
-    ContractsModule,
+    forwardRef(() => ContractsModule),
   ],
   controllers: [ProposalsController],
   providers: [ProposalsService],

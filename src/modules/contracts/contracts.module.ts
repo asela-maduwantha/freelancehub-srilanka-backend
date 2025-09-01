@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ContractsController } from './controllers/contracts.controller';
 import { ContractsService } from './services/contracts.service';
@@ -21,8 +21,8 @@ import { EmailService } from '../../common/services/email.service';
       { name: Proposal.name, schema: ProposalSchema }
     ]),
     UsersModule,
-    ProjectsModule,
-    ProposalsModule,
+    forwardRef(() => ProjectsModule),
+    forwardRef(() => ProposalsModule),
   ],
   controllers: [ContractsController],
   providers: [ContractsService, PdfService, EmailService],

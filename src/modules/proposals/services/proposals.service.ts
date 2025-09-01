@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Proposal, ProposalDocument } from '../schemas/proposal.schema';
@@ -19,6 +19,7 @@ export class ProposalsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     private emailService: EmailService,
+    @Inject(forwardRef(() => ContractsService))
     private contractsService: ContractsService,
   ) {}
 
