@@ -65,7 +65,14 @@ export class ContractsService {
       contractId: savedContract._id
     });
 
-    return savedContract.populate(['projectId', 'clientId', 'freelancerId', 'proposalId']);
+    const populatedContract = await this.contractModel
+      .findById(savedContract._id)
+      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
+      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt');
+
+    return populatedContract!;
   }
 
   async createContractFromProposal(proposalId: string, clientId: string): Promise<{ message: string, contract: Contract }> {
@@ -129,7 +136,11 @@ export class ContractsService {
   }
 
   async getContractByProposalId(proposalId: string): Promise<Contract | null> {
-    return this.contractModel.findOne({ proposalId }).populate(['projectId', 'clientId', 'freelancerId', 'proposalId']);
+    return this.contractModel.findOne({ proposalId })
+      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
+      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt');
   }
 
   async getUserContracts(userId: string): Promise<Contract[]> {
@@ -137,9 +148,10 @@ export class ContractsService {
       .find({
         $or: [{ clientId: userId }, { freelancerId: userId }]
       })
-      .populate('projectId', 'title status budget deadline')
-      .populate('clientId', 'firstName lastName email')
-      .populate('freelancerId', 'firstName lastName email')
+      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
+      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt')
       .sort({ createdAt: -1 });
   }
 
@@ -158,20 +170,20 @@ export class ContractsService {
     // Get all contracts for this project
     return this.contractModel
       .find({ projectId })
-      .populate('projectId', 'title status budget deadline')
-      .populate('clientId', 'firstName lastName email')
-      .populate('freelancerId', 'firstName lastName email')
-      .populate('proposalId', 'proposedBudget milestones')
+      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
+      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt')
       .sort({ createdAt: -1 });
   }
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
     const contract = await this.contractModel
       .findById(contractId)
-      .populate('projectId')
-      .populate('clientId', 'firstName lastName email profilePicture')
-      .populate('freelancerId', 'firstName lastName email profilePicture')
-      .populate('proposalId', 'proposedBudget milestones');
+      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt updatedAt')
+      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount location bio')
+      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills location bio')
+      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt updatedAt');
 
     if (!contract) {
       throw new NotFoundException('Contract not found');

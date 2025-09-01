@@ -257,6 +257,11 @@ export class ProjectsService {
   }
 
   async getClientProjectById(clientId: string, projectId: string): Promise<Project> {
+    // Validate if projectId is a valid ObjectId
+    if (!this.isValidObjectId(projectId)) {
+      throw new BadRequestException('Invalid project ID format');
+    }
+
     const project = await this.projectModel
       .findOne({ _id: projectId, clientId })
       .populate('clientId', 'firstName lastName profilePicture clientProfile')
@@ -272,5 +277,9 @@ export class ProjectsService {
     });
 
     return project;
+  }
+
+  private isValidObjectId(id: string): boolean {
+    return /^[0-9a-fA-F]{24}$/.test(id);
   }
 }

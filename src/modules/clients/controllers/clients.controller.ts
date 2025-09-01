@@ -37,8 +37,23 @@ export class ClientsController {
   async getClientProjectById(
     @Request() req: any,
     @Param('id') projectId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status?: string,
   ) {
     const clientId = req.user.userId;
+
+    // Handle special case for "my-projects" - redirect to get all client projects
+    if (projectId === 'my-projects') {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 10;
+      const query: { page: number; limit: number; status?: string } = { page: pageNum, limit: limitNum };
+      if (status) {
+        query.status = status;
+      }
+      return this.projectsService.getClientProjects(clientId, query);
+    }
+
     return this.projectsService.getClientProjectById(clientId, projectId);
   }
 
