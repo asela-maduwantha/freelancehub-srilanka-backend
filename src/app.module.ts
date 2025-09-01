@@ -19,6 +19,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CommonModule } from './common/common.module';
+import { ClientsModule } from './modules/clients/clients.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { CommonModule } from './common/common.module';
     ReviewsModule,
     AdminModule,
     CommonModule,
+    ClientsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

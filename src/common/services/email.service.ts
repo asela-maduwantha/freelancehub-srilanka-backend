@@ -82,4 +82,38 @@ export class EmailService {
 
     await this.transporter.sendMail(mailOptions);
   }
+
+  async sendContractPDF(to: string, contractId: string, pdfBuffer: Buffer, projectTitle: string): Promise<void> {
+    const mailOptions = {
+      from: this.fromEmail,
+      to,
+      subject: `Contract Signed: ${projectTitle}`,
+      text: `Congratulations! The contract for "${projectTitle}" has been signed by both parties. Please find the contract PDF attached.`,
+      html: `<h2>Contract Signed</h2><p>Congratulations! The contract for <strong>"${projectTitle}"</strong> has been signed by both parties.</p><p>Please find the contract PDF attached to this email.</p>`,
+      attachments: [
+        {
+          filename: `contract-${contractId}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendContractReadyForApproval(to: string, contractId: string, projectTitle: string, isFreelancer: boolean = false): Promise<void> {
+    const role = isFreelancer ? 'freelancer' : 'client';
+    const action = isFreelancer ? 'review and approve' : 'approve';
+    
+    const mailOptions = {
+      from: this.fromEmail,
+      to,
+      subject: `Contract Ready for Your Approval: ${projectTitle}`,
+      text: `The contract for "${projectTitle}" is ready for your ${action}. Please log in to FreelanceHub to ${action} the contract.`,
+      html: `<h2>Contract Ready for Approval</h2><p>The contract for <strong>"${projectTitle}"</strong> is ready for your ${action}.</p><p>Please log in to FreelanceHub to ${action} the contract.</p>`,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
 }

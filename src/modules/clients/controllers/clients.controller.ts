@@ -1,0 +1,69 @@
+import { Controller, Get, UseGuards, Request, Query, Param, Post, Body } from '@nestjs/common';
+import { ProposalsService } from '../../proposals/services/proposals.service';
+import { ProjectsService } from '../../projects/services/projects.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { AcceptProposalDto } from '../../proposals/dto/accept-proposal.dto';
+
+@Controller('clients')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class ClientsController {
+  constructor(
+    private readonly proposalsService: ProposalsService,
+    private readonly projectsService: ProjectsService,
+  ) {}
+
+  @Get('projects')
+  @Roles('client')
+  async getClientProjects(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status?: string,
+  ) {
+    const clientId = req.user.userId;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const query: { page: number; limit: number; status?: string } = { page: pageNum, limit: limitNum };
+    if (status) {
+      query.status = status;
+    }
+    return this.projectsService.getClientProjects(clientId, query);
+  }
+
+  @Get('projects/:id')
+  @Roles('client')
+  async getClientProjectById(
+    @Request() req: any,
+    @Param('id') projectId: string,
+  ) {
+    const clientId = req.user.userId;
+    return this.projectsService.getClientProjectById(clientId, projectId);
+  }
+
+  @Get('proposals')
+  @Roles('client')
+  async getClientProposals(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const clientId = req.user.userId;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    return this.proposalsService.getClientProposals(clientId, pageNum, limitNum);
+  }
+
+  @Post('projects/:projectId/proposals/:proposalId/accept')
+  @Roles('client')
+  async acceptProposal(
+    @Request() req: any,
+    @Param('projectId') projectId: string,
+    @Param('proposalId') proposalId: string,
+    @Body() acceptProposalDto: AcceptProposalDto,
+  ) {
+    const clientId = req.user.userId;
+    return this.proposalsService.acceptProposal(proposalId, clientId, acceptProposalDto);
+  }
+}

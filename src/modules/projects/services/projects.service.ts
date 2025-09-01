@@ -255,4 +255,22 @@ export class ProjectsService {
       }
     };
   }
+
+  async getClientProjectById(clientId: string, projectId: string): Promise<Project> {
+    const project = await this.projectModel
+      .findOne({ _id: projectId, clientId })
+      .populate('clientId', 'firstName lastName profilePicture clientProfile')
+      .populate('freelancerId', 'firstName lastName profilePicture freelancerProfile');
+
+    if (!project) {
+      throw new NotFoundException('Project not found or access denied');
+    }
+
+    // Increment view count
+    await this.projectModel.findByIdAndUpdate(projectId, {
+      $inc: { 'analytics.views': 1 }
+    });
+
+    return project;
+  }
 }

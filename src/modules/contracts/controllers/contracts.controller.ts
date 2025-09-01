@@ -70,6 +70,28 @@ export class ContractsController {
     return this.contractsService.createContract(createContractDto);
   }
 
+  @Post('from-proposal/:proposalId')
+  @ApiOperation({ summary: 'Create contract manually from accepted proposal' })
+  @ApiParam({ name: 'proposalId', description: 'Proposal ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Contract created successfully from proposal',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Contract created successfully from proposal' },
+        contract: { type: 'object' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - proposal not found or not accepted' })
+  @ApiResponse({ status: 403, description: 'Forbidden - no access to proposal' })
+  @ApiResponse({ status: 409, description: 'Conflict - contract already exists for this proposal' })
+  async createContractFromProposal(@Param('proposalId') proposalId: string, @Request() req) {
+    const clientId = req.user.userId;
+    return this.contractsService.createContractFromProposal(proposalId, clientId);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get current user contracts' })
   @ApiResponse({
@@ -276,5 +298,74 @@ export class ContractsController {
     @Body() cancelContractDto: CancelContractDto,
   ) {
     return this.contractsService.cancelContract(contractId, req.user.userId, cancelContractDto);
+  }
+
+  @Post(':id/approve/client')
+  @ApiOperation({ summary: 'Client approves contract' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contract approved by client',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Contract approved by client successfully' },
+        contract: { type: 'object' },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
+  async approveContractByClient(@Param('id') contractId: string, @Request() req) {
+    return this.contractsService.approveContractByClient(contractId, req.user.userId);
+  }
+
+  @Post(':id/approve/freelancer')
+  @ApiOperation({ summary: 'Freelancer approves contract' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contract approved by freelancer',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Contract approved by freelancer successfully' },
+        contract: { type: 'object' },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
+  async approveContractByFreelancer(@Param('id') contractId: string, @Request() req) {
+    return this.contractsService.approveContractByFreelancer(contractId, req.user.userId);
+  }
+
+  @Get(':id/freelancer-view')
+  @ApiOperation({ summary: 'Get contract for freelancer (only after client approval)' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contract details for freelancer',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - not authorized or client not approved yet' })
+  async getContractForFreelancer(@Param('id') contractId: string, @Request() req) {
+    return this.contractsService.getContractForFreelancer(contractId, req.user.userId);
+  }
+
+  @Get(':id/download-pdf')
+  @ApiOperation({ summary: 'Download contract PDF' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF download URL',
+    schema: {
+      type: 'object',
+      properties: {
+        pdfUrl: { type: 'string', example: 'https://api.yourapp.com/contracts/123/pdf' },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
+  async downloadContractPDF(@Param('id') contractId: string, @Request() req) {
+    const pdfUrl = await this.contractsService.downloadContractPDF(contractId, req.user.userId);
+    return { pdfUrl };
   }
 }

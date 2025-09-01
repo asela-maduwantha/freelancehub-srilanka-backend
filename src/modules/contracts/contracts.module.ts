@@ -9,6 +9,8 @@ import { Proposal, ProposalSchema } from '../proposals/schemas/proposal.schema';
 import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ProposalsModule } from '../proposals/proposals.module';
+import { PdfService } from '../../common/services/pdf.service';
+import { EmailService } from '../../common/services/email.service';
 
 @Module({
   imports: [
@@ -23,7 +25,7 @@ import { ProposalsModule } from '../proposals/proposals.module';
     ProposalsModule,
   ],
   controllers: [ContractsController],
-  providers: [ContractsService],
+  providers: [ContractsService, PdfService, EmailService],
   exports: [ContractsService],
 })
 export class ContractsModule {}

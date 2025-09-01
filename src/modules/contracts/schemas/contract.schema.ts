@@ -78,6 +78,35 @@ export class Contract {
   })
   status: 'active' | 'completed' | 'cancelled' | 'disputed';
 
+  @Prop({
+    type: {
+      clientApproved: { type: Boolean, default: false },
+      freelancerApproved: { type: Boolean, default: false },
+      clientApprovedAt: Date,
+      freelancerApprovedAt: Date,
+      approvalOrder: {
+        type: String,
+        enum: ['client_first', 'freelancer_first'],
+        default: 'client_first'
+      }
+    },
+    default: {
+      clientApproved: false,
+      freelancerApproved: false,
+      approvalOrder: 'client_first'
+    }
+  })
+  approvalWorkflow: {
+    clientApproved: boolean;
+    freelancerApproved: boolean;
+    clientApprovedAt?: Date;
+    freelancerApprovedAt?: Date;
+    approvalOrder: 'client_first' | 'freelancer_first';
+  };
+
+  @Prop()
+  pdfUrl?: string;
+
   @Prop({ default: 0 })
   totalPaid: number;
 

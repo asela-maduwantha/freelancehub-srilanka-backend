@@ -7,6 +7,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { UsersModule } from '../users/users.module';
 import { CommonModule } from '../../common/common.module';
+import { ContractsModule } from '../contracts/contracts.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CommonModule } from '../../common/common.module';
     ]),
     UsersModule,
     CommonModule,
+    ContractsModule,
   ],
   controllers: [ProposalsController],
   providers: [ProposalsService],

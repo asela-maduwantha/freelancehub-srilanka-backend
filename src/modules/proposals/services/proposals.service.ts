@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Proposal, ProposalDocument } from '../schemas/proposal.schema';
@@ -9,6 +9,8 @@ import { RejectProposalDto } from '../dto/reject-proposal.dto';
 import { User, UserDocument } from '../../users/schemas/user.schema';
 import { Project, ProjectDocument } from '../../projects/schemas/project.schema';
 import { EmailService } from '../../../common/services/email.service';
+import { ContractsService } from '../../contracts/services/contracts.service';
+import { CreateContractDto } from '../../contracts/dto/create-contract.dto';
 
 @Injectable()
 export class ProposalsService {
@@ -17,6 +19,7 @@ export class ProposalsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     private emailService: EmailService,
+    private contractsService: ContractsService,
   ) {}
 
   async submitProposal(userId: string, projectId?: string, submitProposalDto?: SubmitProposalDto): Promise<Proposal> {
@@ -100,18 +103,43 @@ export class ProposalsService {
     return savedProposal.populate(['freelancerId', 'projectId']);
   }
 
-  async getUserProposals(userId: string): Promise<Proposal[]> {
-    return this.proposalModel
-      .find({ freelancerId: userId })
-      .populate('projectId', 'title status budget deadline')
-      .sort({ createdAt: -1 });
-  }
+  async getUserProposals(userId: string, page: number = 1, limit: number = 10): Promise<{ proposals: Proposal[], total: number, page: number, limit: number }> {
+    const skip = (page - 1) * limit;
+    
+    const [proposals, total] = await Promise.all([
+      this.proposalModel
+        .find({ freelancerId: userId })
+        .populate({
+          path: 'projectId',
+          select: 'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
+          populate: {
+            path: 'clientId',
+            select: 'firstName lastName email profilePicture phone location'
+          }
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.proposalModel.countDocuments({ freelancerId: userId })
+    ]);
 
-  async getProposalById(proposalId: string, userId: string): Promise<Proposal> {
+    return {
+      proposals,
+      total,
+      page,
+      limit
+    };
+  }  async getProposalById(proposalId: string, userId: string): Promise<Proposal> {
     const proposal = await this.proposalModel
       .findById(proposalId)
-      .populate('projectId')
-      .populate('freelancerId', 'firstName lastName email profilePicture');
+      .populate({
+        path: 'projectId',
+        select: 'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
+        populate: {
+          path: 'clientId',
+          select: 'firstName lastName email profilePicture phone location'
+        }
+      });
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -195,7 +223,7 @@ export class ProposalsService {
       .sort({ createdAt: -1 });
   }
 
-  async acceptProposal(proposalId: string, clientId: string, acceptProposalDto: AcceptProposalDto): Promise<{ message: string }> {
+  async acceptProposal(proposalId: string, clientId: string, acceptProposalDto: AcceptProposalDto): Promise<{ message: string, contract: any }> {
     const proposal = await this.proposalModel.findById(proposalId).populate('projectId');
 
     if (!proposal) {
@@ -231,6 +259,38 @@ export class ProposalsService {
       { status: 'rejected' }
     );
 
+    // Check if contract already exists for this proposal
+    const contractExists = await this.contractsService.checkContractExistsForProposal(proposalId);
+    if (contractExists) {
+      // Get the existing contract
+      const existingContract = await this.contractsService.getContractByProposalId(proposalId);
+      return { 
+        message: 'Proposal accepted successfully. Contract already exists for this proposal.', 
+        contract: existingContract 
+      };
+    }
+
+    // Create contract automatically using proposal data
+    const contractDto: CreateContractDto = {
+      projectId: project._id.toString(),
+      proposalId: proposalId,
+      terms: {
+        budget: proposal.proposedBudget,
+        type: (project.budgetType === 'hourly' ? 'hourly' : 'fixed') as 'fixed' | 'hourly',
+        startDate: new Date().toISOString().split('T')[0], // Today's date
+        endDate: new Date(Date.now() + (proposal.proposedDuration.value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // Add duration days
+        paymentSchedule: 'Upon milestone completion'
+      },
+      milestones: proposal.milestones?.map(milestone => ({
+        title: milestone.title,
+        description: milestone.description,
+        amount: milestone.amount,
+        dueDate: milestone.deliveryDate.toISOString().split('T')[0]
+      })) || []
+    };
+
+    const contract = await this.contractsService.createContract(contractDto);
+
     // Send notification to freelancer
     const freelancer = await this.userModel.findById(proposal.freelancerId);
     if (freelancer) {
@@ -242,7 +302,10 @@ export class ProposalsService {
       // );
     }
 
-    return { message: 'Proposal accepted successfully. Contract will be created.' };
+    return { 
+      message: 'Proposal accepted successfully. Contract created and awaiting client approval.', 
+      contract: contract 
+    };
   }
 
   async rejectProposal(proposalId: string, clientId: string, rejectProposalDto: RejectProposalDto): Promise<{ message: string }> {
@@ -282,5 +345,34 @@ export class ProposalsService {
     }
 
     return { message: 'Proposal rejected successfully' };
+  }
+
+  async getClientProposals(clientId: string, page: number = 1, limit: number = 10): Promise<{ proposals: Proposal[], total: number, page: number, limit: number }> {
+    const skip = (page - 1) * limit;
+
+    // First, get all project IDs that belong to this client
+    const clientProjects = await this.projectModel.find({ clientId }, '_id');
+    const projectIds = clientProjects.map(project => project._id);
+
+    const [proposals, total] = await Promise.all([
+      this.proposalModel
+        .find({ projectId: { $in: projectIds } })
+        .populate({
+          path: 'projectId',
+          select: 'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills createdAt updatedAt'
+        })
+        .populate('freelancerId', 'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.proposalModel.countDocuments({ projectId: { $in: projectIds } })
+    ]);
+
+    return {
+      proposals,
+      total,
+      page,
+      limit
+    };
   }
 }

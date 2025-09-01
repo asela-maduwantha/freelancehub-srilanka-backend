@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Contract, ContractDocument } from '../schemas/contract.schema';
@@ -11,6 +11,8 @@ import { CancelContractDto } from '../dto/cancel-contract.dto';
 import { User, UserDocument } from '../../users/schemas/user.schema';
 import { Project, ProjectDocument } from '../../projects/schemas/project.schema';
 import { Proposal, ProposalDocument } from '../../proposals/schemas/proposal.schema';
+import { PdfService } from '../../../common/services/pdf.service';
+import { EmailService } from '../../../common/services/email.service';
 
 @Injectable()
 export class ContractsService {
@@ -19,6 +21,8 @@ export class ContractsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
+    private pdfService: PdfService,
+    private emailService: EmailService,
   ) {}
 
   async createContract(createContractDto: CreateContractDto): Promise<Contract> {
@@ -62,6 +66,70 @@ export class ContractsService {
     });
 
     return savedContract.populate(['projectId', 'clientId', 'freelancerId', 'proposalId']);
+  }
+
+  async createContractFromProposal(proposalId: string, clientId: string): Promise<{ message: string, contract: Contract }> {
+    // Validate proposal exists and is accepted
+    const proposal = await this.proposalModel.findById(proposalId);
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+
+    if (proposal.status !== 'accepted') {
+      throw new BadRequestException('Proposal must be accepted before creating contract');
+    }
+
+    // Validate project exists
+    const project = await this.projectModel.findById(proposal.projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // Validate client has access to this proposal/project
+    if (project.clientId.toString() !== clientId) {
+      throw new ForbiddenException('You do not have permission to create contract for this proposal');
+    }
+
+    // Check if contract already exists for this proposal
+    const existingContract = await this.contractModel.findOne({ proposalId });
+    if (existingContract) {
+      throw new ConflictException('Contract already exists for this proposal');
+    }
+
+    // Create contract using proposal data
+    const contractDto: CreateContractDto = {
+      projectId: proposal.projectId.toString(),
+      proposalId: proposalId,
+      terms: {
+        budget: proposal.proposedBudget,
+        type: (project.budgetType === 'hourly' ? 'hourly' : 'fixed') as 'fixed' | 'hourly',
+        startDate: new Date().toISOString().split('T')[0], // Today's date
+        endDate: new Date(Date.now() + (proposal.proposedDuration.value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // Add duration days
+        paymentSchedule: 'Upon milestone completion'
+      },
+      milestones: proposal.milestones?.map(milestone => ({
+        title: milestone.title,
+        description: milestone.description,
+        amount: milestone.amount,
+        dueDate: milestone.deliveryDate.toISOString().split('T')[0]
+      })) || []
+    };
+
+    const contract = await this.createContract(contractDto);
+
+    return { 
+      message: 'Contract created successfully from proposal', 
+      contract 
+    };
+  }
+
+  async checkContractExistsForProposal(proposalId: string): Promise<boolean> {
+    const existingContract = await this.contractModel.findOne({ proposalId });
+    return !!existingContract;
+  }
+
+  async getContractByProposalId(proposalId: string): Promise<Contract | null> {
+    return this.contractModel.findOne({ proposalId }).populate(['projectId', 'clientId', 'freelancerId', 'proposalId']);
   }
 
   async getUserContracts(userId: string): Promise<Contract[]> {
@@ -315,5 +383,171 @@ export class ContractsService {
     await contract.save();
 
     return { message: 'Contract cancelled successfully' };
+  }
+
+  async approveContractByClient(contractId: string, clientId: string): Promise<{ message: string, contract: Contract }> {
+    const contract = await this.contractModel.findById(contractId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.clientId.toString() !== clientId) {
+      throw new ForbiddenException('Only the client can approve this contract');
+    }
+
+    if (contract.approvalWorkflow.clientApproved) {
+      throw new BadRequestException('Contract already approved by client');
+    }
+
+    contract.approvalWorkflow.clientApproved = true;
+    contract.approvalWorkflow.clientApprovedAt = new Date();
+
+    const updatedContract = await contract.save();
+
+    // If both parties have approved, generate PDF and send emails
+    if (updatedContract.approvalWorkflow.freelancerApproved) {
+      await this.generateAndSendContractPDF(updatedContract);
+    } else {
+      // Send notification to freelancer that contract is ready for approval
+      const freelancer = await this.userModel.findById(updatedContract.freelancerId);
+      const project = await this.projectModel.findById(updatedContract.projectId);
+      if (freelancer && project) {
+        await this.emailService.sendContractReadyForApproval(
+          freelancer.email,
+          (updatedContract as any)._id.toString(),
+          project.title,
+          true
+        );
+      }
+    }
+
+    return { 
+      message: 'Contract approved by client successfully', 
+      contract: updatedContract 
+    };
+  }
+
+  async approveContractByFreelancer(contractId: string, freelancerId: string): Promise<{ message: string, contract: Contract }> {
+    const contract = await this.contractModel.findById(contractId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.freelancerId.toString() !== freelancerId) {
+      throw new ForbiddenException('Only the freelancer can approve this contract');
+    }
+
+    if (contract.approvalWorkflow.freelancerApproved) {
+      throw new BadRequestException('Contract already approved by freelancer');
+    }
+
+    // Check if client has approved first (client_first approval order)
+    if (contract.approvalWorkflow.approvalOrder === 'client_first' && !contract.approvalWorkflow.clientApproved) {
+      throw new BadRequestException('Client must approve the contract first');
+    }
+
+    contract.approvalWorkflow.freelancerApproved = true;
+    contract.approvalWorkflow.freelancerApprovedAt = new Date();
+
+    const updatedContract = await contract.save();
+
+    // If both parties have approved, generate PDF and send emails
+    if (updatedContract.approvalWorkflow.clientApproved) {
+      await this.generateAndSendContractPDF(updatedContract);
+    }
+
+    return { 
+      message: 'Contract approved by freelancer successfully', 
+      contract: updatedContract 
+    };
+  }
+
+  async getContractForFreelancer(contractId: string, freelancerId: string): Promise<Contract | null> {
+    const contract = await this.contractModel.findById(contractId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.freelancerId.toString() !== freelancerId) {
+      throw new ForbiddenException('You do not have permission to view this contract');
+    }
+
+    // Freelancer can only see contract after client has approved it
+    if (!contract.approvalWorkflow.clientApproved) {
+      return null; // Contract not yet visible to freelancer
+    }
+
+    return contract.populate(['projectId', 'clientId', 'freelancerId', 'proposalId']);
+  }
+
+  private async generateAndSendContractPDF(contract: ContractDocument): Promise<void> {
+    try {
+      // Generate PDF
+      const pdfBuffer = await this.pdfService.generateContractPDF(contract);
+      
+      // Save PDF to file
+      const filename = `contract-${contract._id}.pdf`;
+      const filePath = await this.pdfService.savePDFToFile(pdfBuffer, filename);
+      
+      // Update contract with PDF URL
+      contract.pdfUrl = `https://api.yourapp.com/contracts/${contract._id}/pdf`;
+      await contract.save();
+
+      // Get project details for email
+      const project = await this.projectModel.findById(contract.projectId);
+      const projectTitle = project?.title || 'Project';
+
+      // Send emails to both parties
+      const client = await this.userModel.findById(contract.clientId);
+      const freelancer = await this.userModel.findById(contract.freelancerId);
+
+      if (client) {
+        await this.emailService.sendContractPDF(
+          client.email,
+          (contract as any)._id.toString(),
+          pdfBuffer,
+          projectTitle
+        );
+      }
+
+      if (freelancer) {
+        await this.emailService.sendContractPDF(
+          freelancer.email,
+          (contract as any)._id.toString(),
+          pdfBuffer,
+          projectTitle
+        );
+      }
+    } catch (error) {
+      console.error('Error generating/sending contract PDF:', error);
+      // Don't throw error to avoid breaking the approval flow
+    }
+  }
+
+  async downloadContractPDF(contractId: string, userId: string): Promise<string> {
+    const contract = await this.contractModel.findById(contractId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    // Check if user has permission
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+      throw new ForbiddenException('You do not have permission to download this contract');
+    }
+
+    // Check if contract is fully approved
+    if (!contract.approvalWorkflow.clientApproved || !contract.approvalWorkflow.freelancerApproved) {
+      throw new BadRequestException('Contract must be approved by both parties before downloading PDF');
+    }
+
+    if (!contract.pdfUrl) {
+      throw new BadRequestException('PDF not available for this contract');
+    }
+
+    return contract.pdfUrl;
   }
 }
