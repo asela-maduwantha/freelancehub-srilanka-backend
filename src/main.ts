@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -23,6 +24,7 @@ async function bootstrap() {
     .addTag('payments', 'Payment processing endpoints')
     .addTag('reviews', 'Review and rating endpoints')
     .addTag('admin', 'Administrative endpoints')
+    .addTag('storage', 'File storage and upload endpoints')
     .addBearerAuth(
       {
         type: 'http',

@@ -76,7 +76,7 @@ export class User {
   @Prop({
     type: {
       title: String,
-      bio: String,
+      bio: { type: String, maxlength: 1000 },
       skills: [String],
       experience: {
         type: String,
@@ -109,7 +109,7 @@ export class User {
       hourlyRate: Number,
       availability: {
         type: String,
-        enum: ['full-time', 'part-time', 'not-available'],
+        enum: ['full-time', 'part-time', 'not-available', 'available'],
       },
       workingHours: {
         timezone: String,

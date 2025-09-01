@@ -69,7 +69,8 @@ export class AuthController {
             email: { type: 'string' },
             firstName: { type: 'string' },
             lastName: { type: 'string' },
-            role: { type: 'string' },
+            role: { type: 'array', items: { type: 'string' } },
+            activeRole: { type: 'string' },
           },
         },
       },
@@ -126,6 +127,22 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refreshToken(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshToken(refreshToken);
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged out successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Logged out successfully' },
+      },
+    },
+  })
+  async logout() {
+    return this.authService.logout();
   }
 
   @UseGuards(JwtAuthGuard)

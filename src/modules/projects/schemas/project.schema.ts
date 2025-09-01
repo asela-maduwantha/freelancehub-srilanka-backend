@@ -11,6 +11,12 @@ export class Project {
   @Prop({ required: true })
   description: string;
 
+  @Prop()
+  category?: string;
+
+  @Prop()
+  subcategory?: string;
+
   @Prop({ type: String, ref: 'User', required: true })
   clientId: string;
 
@@ -214,6 +220,13 @@ export class Project {
 
   @Prop({ type: [String], default: [] })
   attachments: string[];
+
+  @Prop({
+    type: String,
+    enum: ['public', 'private'],
+    default: 'public'
+  })
+  visibility: string;
 
   @Prop({
     type: {

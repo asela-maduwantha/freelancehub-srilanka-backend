@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { Project, ProjectDocument } from '../schemas/project.schema';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
-import { SubmitProposalDto } from '../dto/submit-proposal.dto';
+import { SubmitProposalDto } from '../../proposals/dto/submit-proposal.dto';
 import { UsersService } from '../../users/services/users.service';
 import { EmailService } from '../../../common/services/email.service';
 
@@ -22,10 +22,47 @@ export class ProjectsService {
       throw new ForbiddenException('Only clients can create projects');
     }
 
+    // Map duration number to string
+    let duration: string;
+    if (createProjectDto.timeline.duration <= 30) {
+      duration = 'short-term';
+    } else if (createProjectDto.timeline.duration <= 180) {
+      duration = 'long-term';
+    } else {
+      duration = 'ongoing';
+    }
+
+    // Map experience level
+    let experienceLevel: string;
+    switch (createProjectDto.requirements.experienceLevel) {
+      case 'beginner':
+        experienceLevel = 'basic';
+        break;
+      case 'intermediate':
+        experienceLevel = 'standard';
+        break;
+      case 'expert':
+        experienceLevel = 'premium';
+        break;
+      default:
+        experienceLevel = 'standard';
+    }
+
     const project = new this.projectModel({
-      ...createProjectDto,
+      title: createProjectDto.title,
+      description: createProjectDto.description,
+      category: createProjectDto.category,
+      subcategory: createProjectDto.subcategory,
       clientId,
       requiredSkills: createProjectDto.requiredSkills.map(skill => ({ skill, level: 'intermediate' })),
+      budgetType: createProjectDto.type,
+      budget: createProjectDto.budget.amount,
+      duration,
+      deadline: createProjectDto.timeline.deadline || undefined,
+      workType: ['remote'],
+      experienceLevel,
+      tags: createProjectDto.tags,
+      visibility: createProjectDto.visibility,
       analytics: { views: 0, applications: 0, saves: 0 },
     });
 
@@ -182,7 +219,11 @@ export class ProjectsService {
 
     const proposal = {
       freelancerId,
-      ...submitProposalDto,
+      bidAmount: submitProposalDto.proposedBudget,
+      proposal: submitProposalDto.coverLetter,
+      duration: submitProposalDto.proposedDuration.value * (submitProposalDto.proposedDuration.unit === 'weeks' ? 7 : submitProposalDto.proposedDuration.unit === 'months' ? 30 : 1),
+      attachments: submitProposalDto.attachments?.map(att => att.url) || [],
+      milestones: submitProposalDto.milestones,
       status: 'pending',
       submittedAt: new Date(),
     };

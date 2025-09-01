@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class StorageService {
@@ -19,19 +21,75 @@ export class StorageService {
     );
 
     this.containerClient = this.blobServiceClient.getContainerClient(containerName);
+    this.ensureContainerExists();
+
+    // Ensure uploads directory exists
+    if (!fs.existsSync('./uploads')) {
+      fs.mkdirSync('./uploads', { recursive: true });
+    }
+  }
+
+  private async ensureContainerExists(): Promise<void> {
+    try {
+      const exists = await this.containerClient.exists();
+      if (!exists) {
+        await this.containerClient.create({ access: 'blob' });
+      }
+    } catch (error) {
+      console.error('Error ensuring container exists:', error);
+    }
+  }
+
+  private validateFileType(mimeType: string): boolean {
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'application/zip',
+      'application/x-zip-compressed',
+    ];
+    return allowedTypes.includes(mimeType);
   }
 
   async uploadFile(file: Express.Multer.File, folder: string = 'general'): Promise<string> {
+    if (!file || !file.path) {
+      throw new Error('Invalid file provided');
+    }
+
+    if (!this.validateFileType(file.mimetype)) {
+      throw new Error(`File type ${file.mimetype} is not allowed`);
+    }
+
     const fileName = `${folder}/${uuidv4()}-${file.originalname}`;
     const blockBlobClient = this.containerClient.getBlockBlobClient(fileName);
 
-    await blockBlobClient.uploadData(file.buffer, {
-      blobHTTPHeaders: {
-        blobContentType: file.mimetype,
-      },
-    });
+    try {
+      // Read file from disk since we're using dest storage
+      const filePath = path.resolve(file.path);
+      const fileBuffer = fs.readFileSync(filePath);
 
-    return blockBlobClient.url;
+      await blockBlobClient.uploadData(fileBuffer, {
+        blobHTTPHeaders: {
+          blobContentType: file.mimetype,
+        },
+      });
+
+      // Clean up the temporary file
+      fs.unlinkSync(filePath);
+
+      return blockBlobClient.url;
+    } catch (error) {
+      // Clean up the temporary file in case of error
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+      throw error;
+    }
   }
 
   async uploadMultipleFiles(files: Express.Multer.File[], folder: string = 'general'): Promise<string[]> {

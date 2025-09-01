@@ -10,6 +10,8 @@ import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel('Project') private projectModel: Model<any>,
+    @InjectModel('Contract') private contractModel: Model<any>,
   ) {}
 
   async getProfile(userId: string) {
@@ -212,5 +214,67 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return user.following;
+  }
+
+  async getClientDashboard(clientId: string) {
+    // Get total projects
+    const totalProjects = await this.projectModel.countDocuments({ clientId });
+
+    // Get active projects (open or in-progress)
+    const activeProjects = await this.projectModel.countDocuments({
+      clientId,
+      status: { $in: ['open', 'in-progress'] }
+    });
+
+    // Get completed projects
+    const completedProjects = await this.projectModel.countDocuments({
+      clientId,
+      status: 'completed'
+    });
+
+    // Get active contracts
+    const activeContracts = await this.contractModel.countDocuments({
+      clientId,
+      status: { $in: ['active', 'in-progress'] }
+    });
+
+    // Get recent projects
+    const recentProjectsRaw = await this.projectModel
+      .find({ clientId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title status createdAt budget');
+
+    // Transform recent projects to include budget as object
+    const recentProjects = recentProjectsRaw.map(project => ({
+      _id: project._id,
+      title: project.title,
+      status: project.status,
+      createdAt: project.createdAt,
+      budget: { amount: project.budget }
+    }));
+
+    // Calculate total spent (this would need payment data)
+    const totalSpent = 0; // Placeholder - would need to aggregate payments
+
+    // Get pending proposals count
+    const pendingProposals = await this.projectModel.aggregate([
+      { $match: { clientId } },
+      { $unwind: '$proposals' },
+      { $match: { 'proposals.status': 'pending' } },
+      { $count: 'pendingProposals' }
+    ]);
+
+    const pendingProposalsCount = pendingProposals.length > 0 ? pendingProposals[0].pendingProposals : 0;
+
+    return {
+      totalProjects,
+      activeProjects,
+      completedProjects,
+      totalSpent,
+      activeContracts,
+      pendingProposals: pendingProposalsCount,
+      recentProjects,
+    };
   }
 }

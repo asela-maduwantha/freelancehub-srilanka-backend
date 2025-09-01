@@ -15,13 +15,13 @@ import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
 
 @ApiTags('users')
-@ApiBearerAuth('JWT-auth')
 @Controller('users')
-@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({
     status: 200,
@@ -61,6 +61,8 @@ export class UsersController {
   }
 
   @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update user profile' })
   @ApiResponse({
     status: 200,
@@ -88,6 +90,8 @@ export class UsersController {
   }
 
   @Put('freelancer-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update freelancer profile' })
   @ApiResponse({
     status: 200,
@@ -107,6 +111,8 @@ export class UsersController {
   }
 
   @Put('client-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update client profile' })
   @ApiResponse({
     status: 200,
@@ -203,6 +209,8 @@ export class UsersController {
   }
 
   @Post(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Follow a user' })
   @ApiParam({ name: 'id', description: 'User ID to follow' })
   @ApiResponse({
@@ -222,6 +230,8 @@ export class UsersController {
   }
 
   @Delete(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Unfollow a user' })
   @ApiParam({ name: 'id', description: 'User ID to unfollow' })
   @ApiResponse({

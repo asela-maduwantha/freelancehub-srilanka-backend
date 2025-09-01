@@ -10,17 +10,53 @@ import {
 import { ProjectsService } from '../services/projects.service';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
-import { SubmitProposalDto } from '../dto/submit-proposal.dto';
+import { SubmitProposalDto } from '../../proposals/dto/submit-proposal.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('projects')
-@ApiBearerAuth('JWT-auth')
-@Controller('projects')
-@UseGuards(JwtAuthGuard)
+@Controller('clients/projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
+  @Get('public')
+  @ApiOperation({ summary: 'Get public projects (no authentication required)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of projects to return', example: 5 })
+  @ApiQuery({ name: 'sortBy', required: false, description: 'Sort field', example: 'createdAt' })
+  @ApiQuery({ name: 'sortOrder', required: false, description: 'Sort order', example: 'desc' })
+  @ApiResponse({
+    status: 200,
+    description: 'Public projects retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        projects: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              description: { type: 'string' },
+              budget: { type: 'number' },
+              status: { type: 'string' },
+              category: { type: 'string' },
+              createdAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
+  async getPublicProjects(@Query() query: any) {
+    return this.projectsService.getProjects({ ...query, status: 'open' });
+  }
+
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({
     status: 201,
@@ -43,6 +79,8 @@ export class ProjectsController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get all projects with optional filters' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by project status' })
   @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
@@ -78,6 +116,8 @@ export class ProjectsController {
   }
 
   @Get('my-projects')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user\'s projects (client view)' })
   @ApiResponse({
     status: 200,
@@ -88,6 +128,8 @@ export class ProjectsController {
   }
 
   @Get('my-proposals')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user\'s proposals (freelancer view)' })
   @ApiResponse({
     status: 200,
@@ -98,6 +140,8 @@ export class ProjectsController {
   }
 
   @Get('assigned')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get projects assigned to current freelancer' })
   @ApiResponse({
     status: 200,
@@ -108,6 +152,8 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get project by ID' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({
@@ -120,6 +166,8 @@ export class ProjectsController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({
@@ -133,6 +181,8 @@ export class ProjectsController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Delete project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({
@@ -153,6 +203,8 @@ export class ProjectsController {
   }
 
   @Post(':id/proposals')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Submit proposal for a project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({
@@ -171,6 +223,8 @@ export class ProjectsController {
   }
 
   @Get(':id/proposals')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get proposals for a project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({
@@ -182,6 +236,8 @@ export class ProjectsController {
   }
 
   @Post(':id/proposals/:proposalId/accept')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Accept a proposal' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiParam({ name: 'proposalId', description: 'Proposal ID' })

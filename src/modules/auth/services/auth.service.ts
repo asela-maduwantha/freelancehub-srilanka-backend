@@ -60,7 +60,7 @@ export class AuthService {
 
   async login(
     loginDto: LoginDto,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ access_token: string; refresh_token: string; user: any }> {
     const { email, password } = loginDto;
 
     const user = await this.userModel.findOne({ email });
@@ -86,7 +86,18 @@ export class AuthService {
     user.lastLogin = new Date();
     await user.save();
 
-    return { accessToken, refreshToken };
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        activeRole: user.activeRole,
+      },
+    };
   }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
@@ -156,6 +167,13 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async logout(): Promise<{ message: string }> {
+    // For JWT, logout is typically handled on the client side
+    // by removing the token from storage. Server-side logout
+    // would require token blacklisting which is not implemented here.
+    return { message: 'Logged out successfully' };
   }
 
   private generateOtp(): string {
