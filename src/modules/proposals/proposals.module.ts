@@ -6,7 +6,6 @@ import { Proposal, ProposalSchema } from './schemas/proposal.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { UsersModule } from '../users/users.module';
-import { ProjectsModule } from '../projects/projects.module';
 import { CommonModule } from '../../common/common.module';
 
 @Module({
@@ -17,7 +16,6 @@ import { CommonModule } from '../../common/common.module';
       { name: Project.name, schema: ProjectSchema }
     ]),
     UsersModule,
-    ProjectsModule,
     CommonModule,
   ],
   controllers: [ProposalsController],

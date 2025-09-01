@@ -33,22 +33,22 @@ export class Proposal {
   };
 
   @Prop([{
-    title: String,
-    description: String,
-    amount: Number,
-    duration: Number
+    title: { type: String },
+    description: { type: String },
+    amount: { type: Number },
+    deliveryDate: { type: Date }
   }])
   milestones: Array<{
     title: string;
     description: string;
     amount: number;
-    duration: number;
+    deliveryDate: Date;
   }>;
 
   @Prop([{
-    name: String,
-    url: String,
-    type: String
+    name: { type: String },
+    url: { type: String },
+    type: { type: String }
   }])
   attachments: Array<{
     name: string;

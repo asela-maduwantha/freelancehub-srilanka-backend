@@ -11,12 +11,17 @@ import { ProjectsService } from '../services/projects.service';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { SubmitProposalDto } from '../../proposals/dto/submit-proposal.dto';
+import { AcceptProposalDto } from '../../proposals/dto/accept-proposal.dto';
+import { ProposalsService } from '../../proposals/services/proposals.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('projects')
-@Controller('clients/projects')
+@Controller(['projects', 'freelancers/projects'])
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly proposalsService: ProposalsService,
+  ) {}
 
   @Get('public')
   @ApiOperation({ summary: 'Get public projects (no authentication required)' })
@@ -79,9 +84,10 @@ export class ProjectsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get all projects with optional filters' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of projects per page', example: 12 })
+  @ApiQuery({ name: 'sort', required: false, description: 'Sort order', example: 'newest' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by project status' })
   @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
   @ApiQuery({ name: 'minBudget', required: false, description: 'Minimum budget filter' })
@@ -136,7 +142,7 @@ export class ProjectsController {
     description: 'Freelancer proposals retrieved successfully',
   })
   async getFreelancerProposals(@Request() req, @Query() query: any) {
-    return this.projectsService.getFreelancerProposals(req.user.userId, query);
+    return this.proposalsService.getUserProposals(req.user.userId);
   }
 
   @Get('assigned')
@@ -218,8 +224,7 @@ export class ProjectsController {
     },
   })
   async submitProposal(@Request() req, @Param('id') projectId: string, @Body() submitProposalDto: SubmitProposalDto) {
-    await this.projectsService.submitProposal(projectId, req.user.userId, submitProposalDto);
-    return { message: 'Proposal submitted successfully' };
+    return this.proposalsService.submitProposal(req.user.userId, projectId, submitProposalDto);
   }
 
   @Get(':id/proposals')
@@ -232,7 +237,7 @@ export class ProjectsController {
     description: 'Proposals retrieved successfully',
   })
   async getProposals(@Request() req, @Param('id') projectId: string) {
-    return this.projectsService.getProposals(projectId, req.user.userId);
+    return this.proposalsService.getProposalsForProject(projectId, req.user.userId);
   }
 
   @Post(':id/proposals/:proposalId/accept')
@@ -252,7 +257,7 @@ export class ProjectsController {
     },
   })
   async acceptProposal(@Request() req, @Param('id') projectId: string, @Param('proposalId') proposalId: string) {
-    await this.projectsService.acceptProposal(projectId, proposalId, req.user.userId);
-    return { message: 'Proposal accepted successfully' };
+    const acceptProposalDto = new AcceptProposalDto(); // Empty DTO since no body is expected
+    return this.proposalsService.acceptProposal(proposalId, req.user.userId, acceptProposalDto);
   }
 }

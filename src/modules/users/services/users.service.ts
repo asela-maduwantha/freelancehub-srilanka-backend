@@ -5,6 +5,7 @@ import { User, UserDocument } from '../schemas/user.schema';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
+import { Proposal, ProposalDocument } from '../../proposals/schemas/proposal.schema';
 
 @Injectable()
 export class UsersService {
@@ -12,6 +13,7 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel('Project') private projectModel: Model<any>,
     @InjectModel('Contract') private contractModel: Model<any>,
+    @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
   ) {}
 
   async getProfile(userId: string) {
@@ -257,15 +259,15 @@ export class UsersService {
     // Calculate total spent (this would need payment data)
     const totalSpent = 0; // Placeholder - would need to aggregate payments
 
-    // Get pending proposals count
-    const pendingProposals = await this.projectModel.aggregate([
-      { $match: { clientId } },
-      { $unwind: '$proposals' },
-      { $match: { 'proposals.status': 'pending' } },
-      { $count: 'pendingProposals' }
-    ]);
+    // Get project IDs for proposals query
+    const clientProjects = await this.projectModel.find({ clientId }).select('_id');
+    const projectIds = clientProjects.map(project => project._id);
 
-    const pendingProposalsCount = pendingProposals.length > 0 ? pendingProposals[0].pendingProposals : 0;
+    // Get pending proposals count from separate proposals collection
+    const pendingProposalsCount = await this.proposalModel.countDocuments({
+      projectId: { $in: projectIds },
+      status: 'pending'
+    });
 
     return {
       totalProjects,

@@ -24,7 +24,7 @@ export class ProposalsController {
 
   @Post()
   async submitProposal(@Request() req, @Body() submitProposalDto: SubmitProposalDto) {
-    return this.proposalsService.submitProposal(req.user.userId, submitProposalDto);
+    return this.proposalsService.submitProposal(req.user.userId, undefined, submitProposalDto);
   }
 
   @Get()

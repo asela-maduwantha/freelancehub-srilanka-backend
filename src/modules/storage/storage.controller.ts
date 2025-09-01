@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @ApiTags('storage')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
-@Controller('storage')
+@Controller('files')
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}
 

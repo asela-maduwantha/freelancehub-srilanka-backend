@@ -6,6 +6,7 @@ import { UsersService } from './services/users.service';
 import { User, UserSchema } from './schemas/user.schema';
 import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { Contract, ContractSchema } from '../contracts/schemas/contract.schema';
+import { Proposal, ProposalSchema } from '../proposals/schemas/proposal.schema';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { Contract, ContractSchema } from '../contracts/schemas/contract.schema';
       { name: User.name, schema: UserSchema },
       { name: Project.name, schema: ProjectSchema },
       { name: Contract.name, schema: ContractSchema },
+      { name: Proposal.name, schema: ProposalSchema },
     ]),
   ],
   controllers: [UsersController, ClientsController],

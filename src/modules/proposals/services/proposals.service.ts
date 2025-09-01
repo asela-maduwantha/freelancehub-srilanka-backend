@@ -19,11 +19,19 @@ export class ProposalsService {
     private emailService: EmailService,
   ) {}
 
-  async submitProposal(userId: string, submitProposalDto: SubmitProposalDto): Promise<Proposal> {
-    const { projectId, ...proposalData } = submitProposalDto;
+  async submitProposal(userId: string, projectId?: string, submitProposalDto?: SubmitProposalDto): Promise<Proposal> {
+    // If projectId is not passed as parameter, get it from DTO
+    const finalProjectId = projectId || submitProposalDto?.projectId;
+    if (!finalProjectId) {
+      throw new BadRequestException('Project ID is required');
+    }
+
+    if (!submitProposalDto) {
+      throw new BadRequestException('Proposal data is required');
+    }
 
     // Validate project exists and is open
-    const project = await this.projectModel.findById(projectId);
+    const project = await this.projectModel.findById(finalProjectId);
     if (!project) {
       throw new NotFoundException('Project not found');
     }
@@ -40,7 +48,7 @@ export class ProposalsService {
 
     // Check if freelancer already submitted a proposal for this project
     const existingProposal = await this.proposalModel.findOne({
-      projectId,
+      projectId: finalProjectId,
       freelancerId: userId,
       status: { $in: ['pending', 'accepted'] }
     });
@@ -50,15 +58,31 @@ export class ProposalsService {
     }
 
     const proposal = new this.proposalModel({
-      ...proposalData,
-      projectId,
+      projectId: finalProjectId,
       freelancerId: userId,
+      coverLetter: submitProposalDto.coverLetter,
+      proposedBudget: submitProposalDto.proposedBudget || submitProposalDto.pricing.amount,
+      proposedDuration: (submitProposalDto.proposedDuration && submitProposalDto.proposedDuration > 0) ? 
+        (typeof submitProposalDto.proposedDuration === 'number' ? 
+          { value: submitProposalDto.proposedDuration, unit: 'days' } : 
+          submitProposalDto.proposedDuration) : 
+        { value: submitProposalDto.timeline.deliveryTime, unit: 'days' },
+      milestones: submitProposalDto.timeline.milestones,
+      attachments: submitProposalDto.attachments?.map(att => ({
+        name: att.description || 'Attachment',
+        url: att.url,
+        type: att.fileType
+      })) || [],
+      portfolioLinks: submitProposalDto.portfolioLinks || [],
+      additionalInfo: submitProposalDto.additionalInfo,
+      status: 'pending',
+      submittedAt: new Date(),
     });
 
     const savedProposal = await proposal.save();
 
     // Update project proposal count
-    await this.projectModel.findByIdAndUpdate(projectId, {
+    await this.projectModel.findByIdAndUpdate(finalProjectId, {
       $inc: { proposalCount: 1 }
     });
 

@@ -198,99 +198,6 @@ export class ProjectsService {
     await this.projectModel.findByIdAndDelete(projectId);
   }
 
-  async submitProposal(projectId: string, freelancerId: string, submitProposalDto: SubmitProposalDto): Promise<void> {
-    const project = await this.projectModel.findById(projectId);
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    if (project.status !== 'open') {
-      throw new BadRequestException('Project is not accepting proposals');
-    }
-
-    // Check if freelancer already submitted a proposal
-    const existingProposal = project.proposals.find(
-      p => p.freelancerId.toString() === freelancerId
-    );
-
-    if (existingProposal) {
-      throw new BadRequestException('You have already submitted a proposal for this project');
-    }
-
-    const proposal = {
-      freelancerId,
-      bidAmount: submitProposalDto.proposedBudget,
-      proposal: submitProposalDto.coverLetter,
-      duration: submitProposalDto.proposedDuration.value * (submitProposalDto.proposedDuration.unit === 'weeks' ? 7 : submitProposalDto.proposedDuration.unit === 'months' ? 30 : 1),
-      attachments: submitProposalDto.attachments?.map(att => att.url) || [],
-      milestones: submitProposalDto.milestones,
-      status: 'pending',
-      submittedAt: new Date(),
-    };
-
-    await this.projectModel.findByIdAndUpdate(projectId, {
-      $push: { proposals: proposal },
-      $inc: { 'analytics.applications': 1 }
-    });
-
-    // Send email notification to client
-    const client = await this.usersService.getUserById(project.clientId.toString());
-    await this.emailService.sendProjectInvitation(client.email, project.title, `${client.firstName} ${client.lastName}`);
-  }
-
-  async getProposals(projectId: string, userId: string): Promise<any[]> {
-    const project = await this.projectModel.findById(projectId);
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    // Only client or freelancers who submitted proposals can view proposals
-    if (project.clientId.toString() !== userId) {
-      const userProposal = project.proposals.find(p => p.freelancerId.toString() === userId);
-      if (!userProposal) {
-        throw new ForbiddenException('Access denied');
-      }
-    }
-
-    return project.proposals;
-  }
-
-  async acceptProposal(projectId: string, proposalId: string, clientId: string): Promise<void> {
-    const project = await this.projectModel.findById(projectId);
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    if (project.clientId.toString() !== clientId) {
-      throw new ForbiddenException('Only project owner can accept proposals');
-    }
-
-    if (project.status !== 'open') {
-      throw new BadRequestException('Project is not accepting proposals');
-    }
-
-    const proposal = project.proposals.find(p => p._id.toString() === proposalId);
-    if (!proposal) {
-      throw new NotFoundException('Proposal not found');
-    }
-
-    // Update proposal status
-    await this.projectModel.findOneAndUpdate(
-      { _id: projectId, 'proposals._id': proposalId },
-      {
-        $set: {
-          'proposals.$.status': 'accepted',
-          freelancerId: proposal.freelancerId,
-          status: 'in-progress'
-        }
-      }
-    );
-
-    // Send email notification to freelancer
-    const freelancer = await this.usersService.getUserById(proposal.freelancerId.toString());
-    await this.emailService.sendProposalAccepted(freelancer.email, project.title);
-  }
-
   async getClientProjects(clientId: string, query: any) {
     const { page = 1, limit = 10, status } = query;
 
@@ -337,35 +244,6 @@ export class ProjectsService {
       .limit(limit);
 
     const total = await this.projectModel.countDocuments(filter);
-
-    return {
-      projects,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    };
-  }
-
-  async getFreelancerProposals(freelancerId: string, query: any) {
-    const { page = 1, limit = 10, status = 'pending' } = query;
-
-    const projects = await this.projectModel
-      .find({
-        'proposals.freelancerId': freelancerId,
-        'proposals.status': status
-      })
-      .populate('clientId', 'firstName lastName profilePicture clientProfile')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
-
-    const total = await this.projectModel.countDocuments({
-      'proposals.freelancerId': freelancerId,
-      'proposals.status': status
-    });
 
     return {
       projects,

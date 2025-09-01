@@ -98,33 +98,6 @@ export class Project {
   }[];
 
   @Prop({
-    type: [{
-      _id: { type: String, default: () => new Types.ObjectId().toString() },
-      freelancerId: { type: String, ref: 'User' },
-      bidAmount: Number,
-      proposal: String,
-      duration: Number,
-      attachments: [String],
-      status: {
-        type: String,
-        enum: ['pending', 'accepted', 'rejected', 'withdrawn'],
-        default: 'pending'
-      },
-      submittedAt: { type: Date, default: Date.now }
-    }]
-  })
-  proposals: {
-    _id: string;
-    freelancerId: string;
-    bidAmount: number;
-    proposal: string;
-    duration: number;
-    attachments: string[];
-    status: string;
-    submittedAt: Date;
-  }[];
-
-  @Prop({
     type: {
       contractId: String,
       startDate: Date,
