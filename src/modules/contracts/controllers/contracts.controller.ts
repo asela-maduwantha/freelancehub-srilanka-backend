@@ -122,12 +122,117 @@ export class ContractsController {
               lastName: { type: 'string' },
             },
           },
+          milestones: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                amount: { type: 'number' },
+                dueDate: { type: 'string', format: 'date-time' },
+                status: { type: 'string', enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'] },
+                submissions: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      files: { type: 'array', items: { type: 'string' } },
+                      description: { type: 'string' },
+                      submittedAt: { type: 'string', format: 'date-time' },
+                      feedback: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
   })
   async getUserContracts(@Request() req) {
     return this.contractsService.getUserContracts(req.user.userId);
+  }
+
+  @Get('project/:projectId')
+  @ApiOperation({ summary: 'Get contracts by project ID' })
+  @ApiParam({ name: 'projectId', description: 'Project ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contracts retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          status: { type: 'string' },
+          budget: { type: 'number' },
+          projectId: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              status: { type: 'string' },
+              budget: { type: 'number' },
+              deadline: { type: 'string', format: 'date-time' },
+            },
+          },
+          client: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              firstName: { type: 'string' },
+              lastName: { type: 'string' },
+              email: { type: 'string' },
+            },
+          },
+          freelancer: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              firstName: { type: 'string' },
+              lastName: { type: 'string' },
+              email: { type: 'string' },
+            },
+          },
+          milestones: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                amount: { type: 'number' },
+                dueDate: { type: 'string', format: 'date-time' },
+                status: { type: 'string', enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'] },
+                submissions: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      files: { type: 'array', items: { type: 'string' } },
+                      description: { type: 'string' },
+                      submittedAt: { type: 'string', format: 'date-time' },
+                      feedback: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - no access to project' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async getContractsByProjectId(@Param('projectId') projectId: string, @Request() req) {
+    return this.contractsService.getContractsByProjectId(projectId, req.user.userId);
   }
 
   @Get(':id')

@@ -143,6 +143,28 @@ export class ContractsService {
       .sort({ createdAt: -1 });
   }
 
+  async getContractsByProjectId(projectId: string, userId: string): Promise<Contract[]> {
+    // First verify the user has access to this project
+    const project = await this.projectModel.findById(projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // Check if user is the client or freelancer of the project
+    if (project.clientId.toString() !== userId && project.freelancerId?.toString() !== userId) {
+      throw new ForbiddenException('You do not have permission to view contracts for this project');
+    }
+
+    // Get all contracts for this project
+    return this.contractModel
+      .find({ projectId })
+      .populate('projectId', 'title status budget deadline')
+      .populate('clientId', 'firstName lastName email')
+      .populate('freelancerId', 'firstName lastName email')
+      .populate('proposalId', 'proposedBudget milestones')
+      .sort({ createdAt: -1 });
+  }
+
   async getContractById(contractId: string, userId: string): Promise<Contract> {
     const contract = await this.contractModel
       .findById(contractId)
