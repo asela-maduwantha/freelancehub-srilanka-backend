@@ -218,6 +218,9 @@ export class Project {
   postedAt: Date;
 
   @Prop()
+  createdAt: Date;
+
+  @Prop()
   updatedAt: Date;
 }
 

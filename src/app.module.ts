@@ -22,6 +22,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CommonModule } from './common/common.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { FreelancersModule } from './modules/freelancers/freelancers.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
@@ -63,6 +64,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
     AdminModule,
     CommonModule,
     ClientsModule,
+    FreelancersModule,
   ],
   controllers: [AppController],
   providers: [
