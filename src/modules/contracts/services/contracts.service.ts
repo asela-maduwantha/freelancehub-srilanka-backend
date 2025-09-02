@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Contract, ContractDocument } from '../schemas/contract.schema';
@@ -16,6 +16,8 @@ import { EmailService } from '../../../common/services/email.service';
 
 @Injectable()
 export class ContractsService {
+  private readonly logger = new Logger(ContractsService.name);
+
   constructor(
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
@@ -46,10 +48,10 @@ export class ContractsService {
 
     // Create contract
     const contract = new this.contractModel({
-      projectId,
-      clientId: project.clientId,
-      freelancerId: proposal.freelancerId,
-      proposalId,
+      project: projectId,
+      client: project.clientId,
+      freelancer: proposal.freelancerId,
+      proposal: proposalId,
       terms,
       milestones: milestones.map(milestone => ({
         ...milestone,
@@ -67,15 +69,15 @@ export class ContractsService {
 
     const populatedContract = await this.contractModel
       .findById(savedContract._id)
-      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
-      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
-      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
-      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt');
+      .populate('project', 'title description status budget deadline category skills client freelancer createdAt')
+      .populate('client', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancer', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposal', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt');
 
     return populatedContract!;
   }
 
-  async createContractFromProposal(proposalId: string, clientId: string): Promise<{ message: string, contract: Contract }> {
+  async createContractFromProposal(proposalId: string, client: string): Promise<{ message: string, contract: Contract }> {
     // Validate proposal exists and is accepted
     const proposal = await this.proposalModel.findById(proposalId);
     if (!proposal) {
@@ -93,12 +95,12 @@ export class ContractsService {
     }
 
     // Validate client has access to this proposal/project
-    if (project.clientId.toString() !== clientId) {
+    if (project.clientId.toString() !== client) {
       throw new ForbiddenException('You do not have permission to create contract for this proposal');
     }
 
     // Check if contract already exists for this proposal
-    const existingContract = await this.contractModel.findOne({ proposalId });
+    const existingContract = await this.contractModel.findOne({ proposal: proposalId });
     if (existingContract) {
       throw new ConflictException('Contract already exists for this proposal');
     }
@@ -131,27 +133,27 @@ export class ContractsService {
   }
 
   async checkContractExistsForProposal(proposalId: string): Promise<boolean> {
-    const existingContract = await this.contractModel.findOne({ proposalId });
+    const existingContract = await this.contractModel.findOne({ proposal: proposalId });
     return !!existingContract;
   }
 
   async getContractByProposalId(proposalId: string): Promise<Contract | null> {
-    return this.contractModel.findOne({ proposalId })
-      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
-      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
-      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
-      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt');
+    return this.contractModel.findOne({ proposal: proposalId })
+      .populate('project', 'title description status budget deadline category skills client freelancer createdAt')
+      .populate('client', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancer', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposal', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt');
   }
 
   async getUserContracts(userId: string): Promise<Contract[]> {
     return this.contractModel
       .find({
-        $or: [{ clientId: userId }, { freelancerId: userId }]
+        $or: [{ client: userId }, { freelancer: userId }]
       })
-      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
-      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
-      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
-      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt')
+      .populate('project', 'title description status budget deadline category skills client freelancer createdAt')
+      .populate('client', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancer', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposal', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt')
       .sort({ createdAt: -1 });
   }
 
@@ -169,28 +171,28 @@ export class ContractsService {
 
     // Get all contracts for this project
     return this.contractModel
-      .find({ projectId })
-      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt')
-      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
-      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
-      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt')
+      .find({ project: projectId })
+      .populate('project', 'title description status budget deadline category skills client freelancer createdAt')
+      .populate('client', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount')
+      .populate('freelancer', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills')
+      .populate('proposal', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt')
       .sort({ createdAt: -1 });
   }
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
     const contract = await this.contractModel
       .findById(contractId)
-      .populate('projectId', 'title description status budget deadline category skills clientId freelancerId createdAt updatedAt')
-      .populate('clientId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount location bio')
-      .populate('freelancerId', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills location bio')
-      .populate('proposalId', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt updatedAt');
+      .populate('project', 'title description status budget deadline category skills client freelancer createdAt updatedAt')
+      .populate('client', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount location bio')
+      .populate('freelancer', 'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills location bio')
+      .populate('proposal', 'proposedBudget proposedDuration coverLetter milestones attachments status createdAt updatedAt');
 
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
 
     // Check if user has permission to view this contract
-    if (contract.clientId._id.toString() !== userId && contract.freelancerId._id.toString() !== userId) {
+    if (contract.client._id.toString() !== userId && contract.freelancer._id.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to view this contract');
     }
 
@@ -210,7 +212,7 @@ export class ContractsService {
     }
 
     // Only client can update milestones
-    if (contract.clientId.toString() !== userId) {
+    if (contract.client._id.toString() !== userId) {
       throw new ForbiddenException('Only the client can update milestones');
     }
 
@@ -245,7 +247,7 @@ export class ContractsService {
     }
 
     // Only freelancer can submit work
-    if (contract.freelancerId.toString() !== userId) {
+    if (contract.freelancer._id.toString() !== userId) {
       throw new ForbiddenException('Only the freelancer can submit milestone work');
     }
 
@@ -288,7 +290,7 @@ export class ContractsService {
     }
 
     // Only client can approve milestones
-    if (contract.clientId.toString() !== userId) {
+    if (contract.client.toString() !== userId) {
       throw new ForbiddenException('Only the client can approve milestones');
     }
 
@@ -336,7 +338,7 @@ export class ContractsService {
     }
 
     // Only client can reject milestones
-    if (contract.clientId.toString() !== userId) {
+    if (contract.client.toString() !== userId) {
       throw new ForbiddenException('Only the client can reject milestones');
     }
 
@@ -371,7 +373,7 @@ export class ContractsService {
     }
 
     // Only client can mark contract as complete
-    if (contract.clientId.toString() !== userId) {
+    if (contract.client.toString() !== userId) {
       throw new ForbiddenException('Only the client can complete the contract');
     }
 
@@ -404,7 +406,7 @@ export class ContractsService {
     }
 
     // Only client or freelancer can cancel
-    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+    if (contract.client.toString() !== userId && contract.freelancer._id.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to cancel this contract');
     }
 
@@ -419,14 +421,14 @@ export class ContractsService {
     return { message: 'Contract cancelled successfully' };
   }
 
-  async approveContractByClient(contractId: string, clientId: string): Promise<{ message: string, contract: Contract }> {
+  async approveContractByClient(contractId: string, client: string): Promise<{ message: string, contract: Contract }> {
     const contract = await this.contractModel.findById(contractId);
 
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.clientId.toString() !== clientId) {
+    if (contract.client.toString() !== client) {
       throw new ForbiddenException('Only the client can approve this contract');
     }
 
@@ -444,8 +446,8 @@ export class ContractsService {
       await this.generateAndSendContractPDF(updatedContract);
     } else {
       // Send notification to freelancer that contract is ready for approval
-      const freelancer = await this.userModel.findById(updatedContract.freelancerId);
-      const project = await this.projectModel.findById(updatedContract.projectId);
+      const freelancer = await this.userModel.findById(updatedContract.freelancer._id);
+      const project = await this.projectModel.findById(updatedContract.project._id);
       if (freelancer && project) {
         await this.emailService.sendContractReadyForApproval(
           freelancer.email,
@@ -469,7 +471,7 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.freelancerId.toString() !== freelancerId) {
+    if (contract.freelancer._id.toString() !== freelancerId) {
       throw new ForbiddenException('Only the freelancer can approve this contract');
     }
 
@@ -505,7 +507,7 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.freelancerId.toString() !== freelancerId) {
+    if (contract.freelancer._id.toString() !== freelancerId) {
       throw new ForbiddenException('You do not have permission to view this contract');
     }
 
@@ -514,7 +516,7 @@ export class ContractsService {
       return null; // Contract not yet visible to freelancer
     }
 
-    return contract.populate(['projectId', 'clientId', 'freelancerId', 'proposalId']);
+    return contract.populate(['project', 'client', 'freelancer', 'proposal']);
   }
 
   private async generateAndSendContractPDF(contract: ContractDocument): Promise<void> {
@@ -531,12 +533,12 @@ export class ContractsService {
       await contract.save();
 
       // Get project details for email
-      const project = await this.projectModel.findById(contract.projectId);
+      const project = await this.projectModel.findById(contract.project._id);
       const projectTitle = project?.title || 'Project';
 
       // Send emails to both parties
-      const client = await this.userModel.findById(contract.clientId);
-      const freelancer = await this.userModel.findById(contract.freelancerId);
+      const client = await this.userModel.findById(contract.client);
+      const freelancer = await this.userModel.findById(contract.freelancer._id);
 
       if (client) {
         await this.emailService.sendContractPDF(
@@ -569,7 +571,7 @@ export class ContractsService {
     }
 
     // Check if user has permission
-    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+    if (contract.client.toString() !== userId && contract.freelancer._id.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to download this contract');
     }
 

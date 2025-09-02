@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards, Request, Query, Param, Post, Body } from '@nestjs/common';
 import { ProposalsService } from '../../proposals/services/proposals.service';
 import { ProjectsService } from '../../projects/services/projects.service';
+import { ClientsService } from '../services/clients.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -12,6 +13,7 @@ export class ClientsController {
   constructor(
     private readonly proposalsService: ProposalsService,
     private readonly projectsService: ProjectsService,
+    private readonly clientsService: ClientsService,
   ) {}
 
   @Get('projects')
@@ -70,6 +72,16 @@ export class ClientsController {
     return this.proposalsService.getClientProposals(clientId, pageNum, limitNum);
   }
 
+  @Get('projects/:projectId/proposals')
+  @Roles('client')
+  async getProposalsForProject(
+    @Request() req: any,
+    @Param('projectId') projectId: string,
+  ) {
+    const clientId = req.user.userId;
+    return this.proposalsService.getProposalsForProject(projectId, clientId);
+  }
+
   @Post('projects/:projectId/proposals/:proposalId/accept')
   @Roles('client')
   async acceptProposal(
@@ -86,7 +98,6 @@ export class ClientsController {
   @Roles('client')
   async getClientDashboard(@Request() req: any) {
     const clientId = req.user.userId;
-    // Implement dashboard logic here, perhaps call a service
-    return {}; // Placeholder
+    return this.clientsService.getClientDashboard(clientId);
   }
 }

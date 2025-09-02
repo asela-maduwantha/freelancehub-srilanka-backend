@@ -302,7 +302,7 @@ export class ContractsController {
     return this.contractsService.getUserContracts(req.user.userId);
   }
 
-  @Get('project/:projectId')
+  @Get('projects/:projectId')
   @ApiOperation({ summary: 'Get contracts by project ID' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiResponse({

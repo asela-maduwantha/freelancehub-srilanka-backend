@@ -27,7 +27,7 @@ export class DisputesService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+    if (contract.client._id.toString() !== userId && contract.freelancer._id.toString() !== userId) {
       throw new ForbiddenException('You can only create disputes for contracts you are involved in');
     }
 
@@ -47,9 +47,9 @@ export class DisputesService {
     }
 
     // Determine respondent (the other party)
-    const respondentId = contract.clientId.toString() === userId
-      ? contract.freelancerId
-      : contract.clientId;
+    const respondentId = contract.client._id.toString() === userId
+      ? contract.freelancer._id
+      : contract.client._id;
 
     const dispute = new this.disputeModel({
       ...disputeData,

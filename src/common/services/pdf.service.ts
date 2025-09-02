@@ -32,7 +32,7 @@ export class PdfService {
         doc.moveDown(0.5);
         doc.fontSize(12).font('Helvetica');
         doc.text(`Contract ID: ${(contract as any)._id?.toString()}`);
-        doc.text(`Project: ${(contract.projectId as any)?.title || 'N/A'}`);
+        doc.text(`Project: ${(contract.project._id as any)?.title || 'N/A'}`);
         doc.text(`Start Date: ${contract.terms.startDate}`);
         doc.text(`End Date: ${contract.terms.endDate}`);
         doc.text(`Payment Type: ${contract.terms.paymentType}`);
@@ -44,11 +44,11 @@ export class PdfService {
         doc.fontSize(14).font('Helvetica-Bold').text('Parties Involved', { underline: true });
         doc.moveDown(0.5);
         doc.fontSize(12).font('Helvetica');
-        doc.text(`Client: ${(contract.clientId as any)?.firstName} ${(contract.clientId as any)?.lastName}`);
-        doc.text(`Email: ${(contract.clientId as any)?.email}`);
+        doc.text(`Client: ${(contract.client._id as any)?.firstName} ${(contract.client._id as any)?.lastName}`);
+        doc.text(`Email: ${(contract.client._id as any)?.email}`);
         doc.moveDown(0.5);
-        doc.text(`Freelancer: ${(contract.freelancerId as any)?.firstName} ${(contract.freelancerId as any)?.lastName}`);
-        doc.text(`Email: ${(contract.freelancerId as any)?.email}`);
+        doc.text(`Freelancer: ${(contract.freelancer._id as any)?.firstName} ${(contract.freelancer._id as any)?.lastName}`);
+        doc.text(`Email: ${(contract.freelancer._id as any)?.email}`);
         doc.moveDown(2);
 
         // Milestones

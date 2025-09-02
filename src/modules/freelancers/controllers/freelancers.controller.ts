@@ -1,9 +1,10 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, UseGuards, Request, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
 import { FreelancersService } from '../services/freelancers.service';
+import { EditFreelancerProfileType, FreelancerProfileResponse } from '../types/freelancer-profile.types';
 
 @ApiTags('freelancers')
 @Controller('freelancers')
@@ -53,5 +54,41 @@ export class FreelancersController {
   async getFreelancerDashboard(@Request() req: any) {
     const freelancerId = req.user.userId;
     return this.freelancersService.getFreelancerDashboard(freelancerId);
+  }
+
+  @Put('profile')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Update freelancer profile',
+    description: 'Update the authenticated freelancer\'s profile information. All fields are optional for partial updates.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { type: 'object' },
+        message: { type: 'string', example: 'Profile updated successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - not a freelancer' })
+  @ApiResponse({ status: 404, description: 'Freelancer not found' })
+  async updateProfile(
+    @Request() req: any,
+    @Body() updateData: EditFreelancerProfileType,
+  ): Promise<FreelancerProfileResponse> {
+    const freelancerId = req.user.userId;
+    const updatedProfile = await this.freelancersService.updateProfile(freelancerId, updateData);
+
+    return {
+      success: true,
+      data: updatedProfile,
+      message: 'Profile updated successfully'
+    };
   }
 }

@@ -6,16 +6,16 @@ export type ContractDocument = Contract & Document;
 @Schema({ timestamps: true })
 export class Contract {
   @Prop({ type: Types.ObjectId, ref: 'Project', required: true })
-  projectId: Types.ObjectId;
+  project: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  clientId: Types.ObjectId;
+  client: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  freelancerId: Types.ObjectId;
+  freelancer: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Proposal', required: true })
-  proposalId: Types.ObjectId;
+  proposal: Types.ObjectId;
 
   @Prop({
     type: {
