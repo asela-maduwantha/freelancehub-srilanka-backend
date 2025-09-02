@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
+import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import databaseConfig from './config/database.config';
@@ -20,6 +22,8 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CommonModule } from './common/common.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
 @Module({
   imports: [
@@ -32,12 +36,20 @@ import { ClientsModule } from './modules/clients/clients.module';
         emailConfig,
         appConfig,
       ],
+      envFilePath: ['.env.local', '.env'],
     }),
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         uri: configService.get('database.uri'),
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
       }),
       inject: [ConfigService],
+    }),
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 300, // 5 minutes default
+      max: 1000, // maximum number of items in cache (increased for better performance)
     }),
     AuthModule,
     UsersModule,
@@ -53,6 +65,16 @@ import { ClientsModule } from './modules/clients/clients.module';
     ClientsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors, ForbiddenException } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
   ApiOperation,
@@ -10,6 +11,9 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/guards/roles.guard';
+import { RateLimit } from '../../../common/guards/rate-limit.guard';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
@@ -19,50 +23,10 @@ import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({
-    status: 200,
-    description: 'User profile retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        email: { type: 'string' },
-        firstName: { type: 'string' },
-        lastName: { type: 'string' },
-        role: { type: 'array', items: { type: 'string' } },
-        activeRole: { type: 'string' },
-        profilePicture: { type: 'string' },
-        freelancerProfile: {
-          type: 'object',
-          properties: {
-            title: { type: 'string' },
-            bio: { type: 'string' },
-            skills: { type: 'array', items: { type: 'string' } },
-            hourlyRate: { type: 'number' },
-          },
-        },
-        clientProfile: {
-          type: 'object',
-          properties: {
-            companyName: { type: 'string' },
-            industry: { type: 'string' },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getProfile(@Request() req) {
-    return this.usersService.getProfile(req.user.userId);
-  }
-
   @Put('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
+  @RateLimit({ requests: 10, windowMs: 60000 }) // 10 updates per minute
   @ApiOperation({ summary: 'Update user profile' })
   @ApiResponse({
     status: 200,
@@ -132,6 +96,8 @@ export class UsersController {
   }
 
   @Get('freelancers')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300)
   @ApiOperation({ summary: 'Get freelancers with filtering' })
   @ApiQuery({ name: 'skills', required: false, description: 'Filter by skills (comma-separated)' })
   @ApiQuery({ name: 'experience', required: false, description: 'Filter by experience level' })
@@ -146,7 +112,7 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        freelancers: {
+        data: {
           type: 'array',
           items: {
             type: 'object',
@@ -174,9 +140,15 @@ export class UsersController {
             },
           },
         },
-        total: { type: 'number' },
-        page: { type: 'number' },
-        limit: { type: 'number' },
+        pagination: {
+          type: 'object',
+          properties: {
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total: { type: 'number' },
+            pages: { type: 'number' },
+          },
+        },
       },
     },
   })
@@ -185,6 +157,8 @@ export class UsersController {
   }
 
   @Get('clients')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300)
   @ApiOperation({ summary: 'Get clients' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number', type: Number })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page', type: Number })
@@ -197,6 +171,9 @@ export class UsersController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('self', 'admin')
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
@@ -204,7 +181,7 @@ export class UsersController {
     description: 'User retrieved successfully',
   })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserById(@Param('id') id: string) {
+  async getUserById(@Param('id') id: string, @Request() req) {
     return this.usersService.getUserById(id);
   }
 

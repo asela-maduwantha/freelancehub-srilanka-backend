@@ -6,6 +6,7 @@ import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
 import { Proposal, ProposalDocument } from '../../proposals/schemas/proposal.schema';
+import { PaginatedResponse } from '../../../common/interfaces/pagination.interface';
 
 @Injectable()
 export class UsersService {
@@ -75,7 +76,7 @@ export class UsersService {
     return updatedUser;
   }
 
-  async getFreelancers(query: any) {
+  async getFreelancers(query: any): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, skills, experience, minRate, maxRate, availability } = query;
 
     const filter: any = {
@@ -111,7 +112,7 @@ export class UsersService {
     const total = await this.userModel.countDocuments(filter);
 
     return {
-      freelancers,
+      data: freelancers,
       pagination: {
         page,
         limit,
@@ -121,7 +122,7 @@ export class UsersService {
     };
   }
 
-  async getClients(query: any) {
+  async getClients(query: any): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, industry, companySize } = query;
 
     const filter: any = {
@@ -147,7 +148,7 @@ export class UsersService {
     const total = await this.userModel.countDocuments(filter);
 
     return {
-      clients,
+      data: clients,
       pagination: {
         page,
         limit,

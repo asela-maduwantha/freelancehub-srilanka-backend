@@ -14,17 +14,23 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
+import { UsersService } from '../../users/services/users.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RateLimit } from '../../../common/guards/rate-limit.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Post('register')
+  @RateLimit({ requests: 3, windowMs: 3600000 }) // 3 attempts per hour
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({
     status: 201,
@@ -53,6 +59,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @RateLimit({ requests: 5, windowMs: 900000 }) // 5 attempts per 15 min
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({
     status: 200,
@@ -146,9 +153,9 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('me')
+  @Get('profile')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiOperation({ summary: 'Get current user profile (merged from /users/profile)' })
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved successfully',
@@ -159,12 +166,30 @@ export class AuthController {
         email: { type: 'string' },
         firstName: { type: 'string' },
         lastName: { type: 'string' },
-        role: { type: 'string' },
+        role: { type: 'array', items: { type: 'string' } },
+        activeRole: { type: 'string' },
+        profilePicture: { type: 'string' },
+        freelancerProfile: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            bio: { type: 'string' },
+            skills: { type: 'array', items: { type: 'string' } },
+            hourlyRate: { type: 'number' },
+          },
+        },
+        clientProfile: {
+          type: 'object',
+          properties: {
+            companyName: { type: 'string' },
+            industry: { type: 'string' },
+          },
+        },
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getProfile(@Request() req) {
-    return req.user;
+    return this.usersService.getProfile(req.user.userId);
   }
 }

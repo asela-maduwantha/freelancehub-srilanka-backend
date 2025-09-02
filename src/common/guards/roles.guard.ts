@@ -1,13 +1,23 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { SetMetadata } from '@nestjs/common';
 import { UserRole } from '../../types';
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: (UserRole | 'self')[]) => SetMetadata(ROLES_KEY, roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.get<UserRole[]>('roles', context.getHandler());
+    const requiredRoles = this.reflector.get<(UserRole | 'self')[]>(
+      ROLES_KEY,
+      context.getHandler(),
+    ) || this.reflector.get<(UserRole | 'self')[]>(
+      ROLES_KEY,
+      context.getClass(),
+    );
 
     if (!requiredRoles) {
       return true; // No roles required, allow access
@@ -20,7 +30,24 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    const hasRole = requiredRoles.some(role => user.role?.includes(role));
+    // Check for 'self' access (user accessing their own resources)
+    if (requiredRoles.includes('self')) {
+      const resourceUserId = request.params.id || request.params.userId;
+      if (resourceUserId && user.userId === resourceUserId) {
+        return true;
+      }
+    }
+
+    // Check for admin access
+    if (user.role?.includes('admin')) {
+      return true;
+    }
+
+    // Check for specific role access
+    const userRoles = Array.isArray(user.role) ? user.role : [user.role];
+    const hasRole = requiredRoles.some(role => 
+      role !== 'self' && userRoles.includes(role)
+    );
 
     if (!hasRole) {
       throw new ForbiddenException('Insufficient permissions');
@@ -29,8 +56,3 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 }
-
-// Decorator for role-based access control
-export const Roles = (...roles: UserRole[]) => SetMetadata('roles', roles);
-
-import { SetMetadata } from '@nestjs/common';

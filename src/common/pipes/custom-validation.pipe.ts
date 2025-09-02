@@ -13,12 +13,16 @@ export class CustomValidationPipe extends ValidationPipe {
       forbidNonWhitelisted: true,
       transform: true,
       disableErrorMessages: false,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
       exceptionFactory: (errors: ValidationError[]) => {
         const formattedErrors = this.formatValidationErrors(errors);
         return new BadRequestException({
           statusCode: 400,
           message: 'Validation failed',
           errors: formattedErrors,
+          timestamp: new Date().toISOString(),
         });
       },
     });
@@ -37,7 +41,10 @@ export class CustomValidationPipe extends ValidationPipe {
 
       // Handle nested validation errors
       if (error.children && error.children.length > 0) {
-        formattedErrors[field] = this.formatValidationErrors(error.children);
+        formattedErrors[field] = {
+          ...formattedErrors[field],
+          nested: this.formatValidationErrors(error.children),
+        };
       }
     });
 

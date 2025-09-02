@@ -81,4 +81,12 @@ export class ClientsController {
     const clientId = req.user.userId;
     return this.proposalsService.acceptProposal(proposalId, clientId, acceptProposalDto);
   }
+
+  @Get('dashboard')
+  @Roles('client')
+  async getClientDashboard(@Request() req: any) {
+    const clientId = req.user.userId;
+    // Implement dashboard logic here, perhaps call a service
+    return {}; // Placeholder
+  }
 }

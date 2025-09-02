@@ -7,6 +7,7 @@ import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { UsersModule } from '../users/users.module';
 import { CommonModule } from '../../common/common.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { CommonModule } from '../../common/common.module';
       inject: [ConfigService],
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    UsersModule, // Import UsersModule instead of providing UsersService directly
     CommonModule,
   ],
   controllers: [AuthController],

@@ -9,7 +9,9 @@ import {
   Query,
   UseGuards,
   Request,
+  UseInterceptors,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
   ApiOperation,
@@ -27,18 +29,23 @@ import {
   GetUsersQueryDto,
 } from '../dto';
 import { RolesGuard, Roles } from '../../../common/guards/roles.guard';
+import { RateLimit } from '../../../common/guards/rate-limit.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserRole } from '../../../types';
 
 @ApiTags('admin')
 @ApiBearerAuth('JWT-auth')
 @Controller('admin')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   // Dashboard Statistics
   @Get('dashboard/stats')
+  @RateLimit({ requests: 30, windowMs: 60000 }) // 30 requests per minute for stats
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // 5 minutes cache for admin stats
   @ApiOperation({ summary: 'Get dashboard statistics' })
   @ApiResponse({
     status: 200,
@@ -62,6 +69,7 @@ export class AdminController {
   }
 
   @Get('stats/revenue')
+  @RateLimit({ requests: 20, windowMs: 60000 }) // 20 requests per minute for revenue stats
   @ApiOperation({ summary: 'Get revenue statistics' })
   @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Time period for statistics' })
   @ApiResponse({
@@ -84,6 +92,7 @@ export class AdminController {
   }
 
   @Get('stats/users')
+  @RateLimit({ requests: 20, windowMs: 60000 }) // 20 requests per minute for user stats
   @ApiOperation({ summary: 'Get user statistics' })
   @ApiResponse({
     status: 200,
@@ -182,7 +191,8 @@ export class AdminController {
   }
 
   @Put('users/:id/status')
-  @ApiOperation({ summary: 'Update user status' })
+  @RateLimit({ requests: 10, windowMs: 300000 }) // 10 status changes per 5 minutes
+  @ApiOperation({ summary: 'Update user status (critical admin action)' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
     status: 200,
@@ -198,7 +208,10 @@ export class AdminController {
   async updateUserStatus(
     @Param('id') userId: string,
     @Body() updateUserStatusDto: UpdateUserStatusDto,
+    @Request() req,
   ) {
+    // Enhanced audit logging for critical admin action
+    console.log(`[ADMIN_AUDIT] Admin ${req.user.userId} (${req.user.email}) updating user ${userId} status to ${updateUserStatusDto.status} at ${new Date().toISOString()}`);
     return this.adminService.updateUserStatus(userId, updateUserStatusDto);
   }
 
@@ -236,7 +249,8 @@ export class AdminController {
   }
 
   @Post('projects/:id/approve')
-  @ApiOperation({ summary: 'Approve pending project' })
+  @RateLimit({ requests: 20, windowMs: 300000 }) // 20 approvals per 5 minutes
+  @ApiOperation({ summary: 'Approve pending project (admin action)' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({
     status: 200,
@@ -252,12 +266,15 @@ export class AdminController {
   async approveProject(
     @Param('id') projectId: string,
     @Body() approveProjectDto: ApproveProjectDto,
+    @Request() req,
   ) {
+    console.log(`[ADMIN_AUDIT] Admin ${req.user.userId} approved project ${projectId} at ${new Date().toISOString()}`);
     return this.adminService.approveProject(projectId, approveProjectDto);
   }
 
   @Post('projects/:id/reject')
-  @ApiOperation({ summary: 'Reject pending project' })
+  @RateLimit({ requests: 20, windowMs: 300000 }) // 20 rejections per 5 minutes
+  @ApiOperation({ summary: 'Reject pending project (admin action)' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiBody({
     schema: {
@@ -282,7 +299,9 @@ export class AdminController {
   async rejectProject(
     @Param('id') projectId: string,
     @Body('reason') reason: string,
+    @Request() req,
   ) {
+    console.log(`[ADMIN_AUDIT] Admin ${req.user.userId} rejected project ${projectId} with reason: ${reason} at ${new Date().toISOString()}`);
     return this.adminService.rejectProject(projectId, reason);
   }
 

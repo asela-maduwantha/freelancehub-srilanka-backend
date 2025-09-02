@@ -2,19 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { RequestMethod } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { CustomValidationPipe } from './common/pipes/custom-validation.pipe';
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+
+  app.setGlobalPrefix('api/v1');
+
+  // Security headers
+  app.use((req: any, res: any, next: any) => {
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'DENY');
+    res.header('X-XSS-Protection', '1; mode=block');
+    res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
 
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('FreelanceHub API')
-    .setDescription('Comprehensive API documentation for FreelanceHub platform')
-    .setVersion('1.0')
+    .setDescription('Comprehensive API documentation for FreelanceHub platform - Enhanced with security and performance improvements')
+    .setVersion('2.0')
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management endpoints')
     .addTag('projects', 'Project management endpoints')
@@ -39,7 +54,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('api/v1/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
       tagsSorter: 'alpha',
@@ -50,23 +65,31 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Global logging interceptor
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  // Global interceptors
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new ResponseInterceptor(), // Standardize API responses
+  );
 
-  // Enable CORS
+  // Enable CORS with enhanced security
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: configService.get('app.corsOrigin') || process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
-  // Global validation pipe
+  // Global validation pipe with enhanced settings
   app.useGlobalPipes(new CustomValidationPipe());
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Body size limit
+  app.use(require('express').json({ limit: configService.get('app.maxRequestSize') || '10mb' }));
+  app.use(require('express').urlencoded({ limit: configService.get('app.maxRequestSize') || '10mb', extended: true }));
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`🚀 Application is running on: http://localhost:${process.env.PORT ?? 3000}/api`);
-  console.log(`📚 Swagger documentation available at: http://localhost:${process.env.PORT ?? 3000}/api/docs`);
+  const port = configService.get('app.port') || process.env.PORT || 8000;
+  await app.listen(port);
+  console.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
+  console.log(`📚 Swagger documentation available at: http://localhost:${port}/api/v1/docs`);
+  console.log(`🔒 Security headers enabled, rate limiting active`);
 }
 bootstrap();

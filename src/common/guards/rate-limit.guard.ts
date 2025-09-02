@@ -4,7 +4,9 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  SetMetadata,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 
 interface RateLimitEntry {
@@ -12,16 +14,42 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
+interface RateLimitOptions {
+  requests: number;
+  windowMs: number;
+  skipSuccessfulRequests?: boolean;
+}
+
+export const RATE_LIMIT_KEY = 'rateLimit';
+export const RateLimit = (options: RateLimitOptions) => SetMetadata(RATE_LIMIT_KEY, options);
+
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   private readonly requests = new Map<string, RateLimitEntry>();
-  private readonly windowMs = 15 * 60 * 1000; // 15 minutes
-  private readonly maxRequests = 100; // requests per window
+  private readonly defaultWindowMs = 15 * 60 * 1000; // 15 minutes
+  private readonly defaultMaxRequests = 100; // requests per window
+
+  constructor(private reflector: Reflector) {
+    // Clean up expired entries every 5 minutes
+    setInterval(() => this.cleanup(), 5 * 60 * 1000);
+  }
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
+    const rateLimitOptions = this.reflector.get<RateLimitOptions>(
+      RATE_LIMIT_KEY,
+      context.getHandler(),
+    ) || this.reflector.get<RateLimitOptions>(
+      RATE_LIMIT_KEY,
+      context.getClass(),
+    );
+
+    const windowMs = rateLimitOptions?.windowMs || this.defaultWindowMs;
+    const maxRequests = rateLimitOptions?.requests || this.defaultMaxRequests;
+
     const ip = request.ip || request.connection.remoteAddress || 'unknown';
-    const key = `${ip}:${request.path}`;
+    const userId = (request as any).user?.userId || 'anonymous';
+    const key = `${ip}:${userId}:${request.path}`;
 
     const now = Date.now();
     const entry = this.requests.get(key);
@@ -30,12 +58,12 @@ export class RateLimitGuard implements CanActivate {
       // First request or window expired
       this.requests.set(key, {
         count: 1,
-        resetTime: now + this.windowMs,
+        resetTime: now + windowMs,
       });
       return true;
     }
 
-    if (entry.count >= this.maxRequests) {
+    if (entry.count >= maxRequests) {
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
@@ -52,7 +80,7 @@ export class RateLimitGuard implements CanActivate {
   }
 
   // Clean up expired entries periodically
-  cleanup(): void {
+  private cleanup(): void {
     const now = Date.now();
     for (const [key, entry] of this.requests.entries()) {
       if (now > entry.resetTime) {
@@ -61,8 +89,3 @@ export class RateLimitGuard implements CanActivate {
     }
   }
 }
-
-// Decorator for applying rate limiting to specific routes
-export const RateLimit = () => UseGuards(RateLimitGuard);
-
-import { UseGuards } from '@nestjs/common';

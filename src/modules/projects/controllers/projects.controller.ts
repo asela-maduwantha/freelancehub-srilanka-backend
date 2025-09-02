@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
   ApiOperation,
@@ -11,9 +12,11 @@ import { ProjectsService } from '../services/projects.service';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { SubmitProposalDto } from '../../proposals/dto/submit-proposal.dto';
-import { AcceptProposalDto } from '../../proposals/dto/accept-proposal.dto';
 import { ProposalsService } from '../../proposals/services/proposals.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/guards/roles.guard';
+import { RateLimit } from '../../../common/guards/rate-limit.guard';
 
 @ApiTags('projects')
 @Controller(['projects', 'freelancers/projects'])
@@ -23,18 +26,28 @@ export class ProjectsController {
     private readonly proposalsService: ProposalsService,
   ) {}
 
-  @Get('public')
-  @ApiOperation({ summary: 'Get public projects (no authentication required)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of projects to return', example: 5 })
-  @ApiQuery({ name: 'sortBy', required: false, description: 'Sort field', example: 'createdAt' })
-  @ApiQuery({ name: 'sortOrder', required: false, description: 'Sort order', example: 'desc' })
+  @Get()
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // 5 minutes cache
+  @ApiOperation({ 
+    summary: 'Get projects with filters (public access for open projects, auth required for all)', 
+    description: 'Consolidated endpoint that replaces /projects/public. Use status=open for public projects.' 
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of projects per page (max 50)', example: 12 })
+  @ApiQuery({ name: 'sort', required: false, description: 'Sort order', example: 'newest' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by project status (open, in-progress, completed)', example: 'open' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
+  @ApiQuery({ name: 'minBudget', required: false, description: 'Minimum budget filter' })
+  @ApiQuery({ name: 'maxBudget', required: false, description: 'Maximum budget filter' })
+  @ApiQuery({ name: 'skills', required: false, description: 'Filter by skills (comma-separated)' })
   @ApiResponse({
     status: 200,
-    description: 'Public projects retrieved successfully',
+    description: 'Projects retrieved successfully',
     schema: {
       type: 'object',
       properties: {
-        projects: {
+        data: {
           type: 'array',
           items: {
             type: 'object',
@@ -44,23 +57,41 @@ export class ProjectsController {
               description: { type: 'string' },
               budget: { type: 'number' },
               status: { type: 'string' },
-              category: { type: 'string' },
-              createdAt: { type: 'string', format: 'date-time' },
             },
           },
         },
-        total: { type: 'number' },
-        page: { type: 'number' },
-        limit: { type: 'number' },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            hasNext: { type: 'boolean' },
+          },
+        },
       },
     },
   })
-  async getPublicProjects(@Query() query: any) {
-    return this.projectsService.getProjects({ ...query, status: 'open' });
+  async getProjects(@Query() query: any, @Request() req?) {
+    // Enforce max limit for performance
+    const limit = Math.min(parseInt(query.limit) || 20, 50);
+    const page = Math.max(parseInt(query.page) || 1, 1);
+    
+    const sanitizedQuery = {
+      ...query,
+      page,
+      limit,
+      // If no auth, force status to open for public access
+      ...((!req?.user && !query.status) && { status: 'open' }),
+    };
+
+    return this.projectsService.getProjects(sanitizedQuery);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('client')
+  @RateLimit({ requests: 5, windowMs: 300000 }) // 5 projects per 5 minutes
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({
@@ -83,58 +114,9 @@ export class ProjectsController {
     return this.projectsService.createProject(req.user.userId, createProjectDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all projects with optional filters' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of projects per page', example: 12 })
-  @ApiQuery({ name: 'sort', required: false, description: 'Sort order', example: 'newest' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by project status' })
-  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
-  @ApiQuery({ name: 'minBudget', required: false, description: 'Minimum budget filter' })
-  @ApiQuery({ name: 'maxBudget', required: false, description: 'Maximum budget filter' })
-  @ApiResponse({
-    status: 200,
-    description: 'Projects retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        projects: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              title: { type: 'string' },
-              description: { type: 'string' },
-              budget: { type: 'number' },
-              status: { type: 'string' },
-            },
-          },
-        },
-        total: { type: 'number' },
-        page: { type: 'number' },
-        limit: { type: 'number' },
-      },
-    },
-  })
-  async getProjects(@Query() query: any) {
-    return this.projectsService.getProjects(query);
-  }
-
-  @Get('my-projects')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user\'s projects (client view)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Client projects retrieved successfully',
-  })
-  async getClientProjects(@Request() req, @Query() query: any) {
-    return this.projectsService.getClientProjects(req.user.userId, query);
-  }
-
   @Get('my-proposals')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('freelancer')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user\'s proposals (freelancer view)' })
   @ApiResponse({
@@ -146,7 +128,8 @@ export class ProjectsController {
   }
 
   @Get('assigned')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('freelancer')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get projects assigned to current freelancer' })
   @ApiResponse({
@@ -238,26 +221,5 @@ export class ProjectsController {
   })
   async getProposals(@Request() req, @Param('id') projectId: string) {
     return this.proposalsService.getProposalsForProject(projectId, req.user.userId);
-  }
-
-  @Post(':id/proposals/:proposalId/accept')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Accept a proposal' })
-  @ApiParam({ name: 'id', description: 'Project ID' })
-  @ApiParam({ name: 'proposalId', description: 'Proposal ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Proposal accepted successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Proposal accepted successfully' },
-      },
-    },
-  })
-  async acceptProposal(@Request() req, @Param('id') projectId: string, @Param('proposalId') proposalId: string) {
-    const acceptProposalDto = new AcceptProposalDto(); // Empty DTO since no body is expected
-    return this.proposalsService.acceptProposal(proposalId, req.user.userId, acceptProposalDto);
   }
 }
