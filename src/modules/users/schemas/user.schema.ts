@@ -204,7 +204,17 @@ export class User {
   @Prop()
   stripeCustomerId: string;
 
-    @Prop({
+  @Prop()
+  stripeAccountId: string;
+
+  @Prop({
+    type: String,
+    enum: ['pending', 'incomplete', 'complete', 'rejected'],
+    default: null,
+  })
+  stripeAccountStatus: string;
+
+  @Prop({
     type: [{
       id: String,
       type: String,

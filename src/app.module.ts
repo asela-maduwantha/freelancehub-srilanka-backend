@@ -23,6 +23,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { CommonModule } from './common/common.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { FreelancersModule } from './modules/freelancers/freelancers.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
@@ -65,6 +66,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
     CommonModule,
     ClientsModule,
     FreelancersModule,
+    MessagingModule,
   ],
   controllers: [AppController],
   providers: [

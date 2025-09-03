@@ -10,6 +10,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { UsersService } from '../services/users.service';
+import { UserAnalyticsService } from '../services/user-analytics.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
@@ -21,7 +22,10 @@ import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly userAnalyticsService: UserAnalyticsService,
+  ) {}
 
   @Put('profile')
   @UseGuards(JwtAuthGuard)
@@ -258,5 +262,178 @@ export class UsersController {
   })
   async getFollowing(@Param('id') userId: string) {
     return this.usersService.getFollowing(userId);
+  }
+
+  @Get(':id/analytics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Get user analytics' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User analytics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        overview: {
+          type: 'object',
+          properties: {
+            totalProjects: { type: 'number' },
+            activeProjects: { type: 'number' },
+            completedProjects: { type: 'number' },
+            completionRate: { type: 'number' },
+            avgRating: { type: 'number' },
+          },
+        },
+        financial: {
+          type: 'object',
+          properties: {
+            totalEarnings: { type: 'number' },
+            totalSpent: { type: 'number' },
+            monthlyEarnings: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  month: { type: 'string' },
+                  amount: { type: 'number' },
+                },
+              },
+            },
+          },
+        },
+        engagement: {
+          type: 'object',
+          properties: {
+            profileViews: { type: 'number' },
+            profileCompletion: { type: 'number' },
+            responseRate: { type: 'number' },
+            responseTime: { type: 'number' },
+          },
+        },
+        performance: {
+          type: 'object',
+          properties: {
+            onTimeDelivery: { type: 'number' },
+            clientSatisfaction: { type: 'number' },
+            repeatClients: { type: 'number' },
+          },
+        },
+        trends: {
+          type: 'object',
+          properties: {
+            ratingTrend: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  date: { type: 'string' },
+                  rating: { type: 'number' },
+                },
+              },
+            },
+            activityTrend: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  date: { type: 'string' },
+                  count: { type: 'number' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserAnalytics(@Request() req, @Param('id') userId: string) {
+    // Users can only view their own analytics
+    if (req.user.userId !== userId) {
+      throw new ForbiddenException('You can only view your own analytics');
+    }
+
+    const analytics = await this.userAnalyticsService.calculateUserAnalytics(userId);
+    return {
+      overview: {
+        totalProjects: analytics.totalProjects,
+        activeProjects: analytics.activeProjects,
+        completedProjects: analytics.completedProjects,
+        completionRate: analytics.completionRate,
+        avgRating: analytics.avgRating,
+      },
+      financial: {
+        totalEarnings: analytics.totalEarnings,
+        totalSpent: analytics.totalSpent,
+        monthlyEarnings: analytics.monthlyEarnings,
+      },
+      engagement: {
+        profileViews: analytics.profileViews,
+        profileCompletion: analytics.profileCompletion,
+        responseRate: analytics.responseRate,
+        responseTime: analytics.responseTime,
+      },
+      performance: {
+        onTimeDelivery: analytics.onTimeDelivery,
+        clientSatisfaction: analytics.clientSatisfaction,
+        repeatClients: analytics.repeatClients,
+      },
+      trends: {
+        ratingTrend: analytics.ratingTrend,
+        activityTrend: analytics.activityTrend,
+      },
+    };
+  }
+
+  @Get(':id/analytics/freelancer')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Get freelancer-specific analytics' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Freelancer analytics retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'User is not a freelancer' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getFreelancerAnalytics(@Request() req, @Param('id') userId: string) {
+    // Users can only view their own analytics
+    if (req.user.userId !== userId) {
+      throw new ForbiddenException('You can only view your own analytics');
+    }
+
+    const analytics = await this.userAnalyticsService.calculateFreelancerAnalytics(userId);
+    return analytics;
+  }
+
+  @Get(':id/analytics/client')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Get client-specific analytics' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Client analytics retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'User is not a client' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getClientAnalytics(@Request() req, @Param('id') userId: string) {
+    // Users can only view their own analytics
+    if (req.user.userId !== userId) {
+      throw new ForbiddenException('You can only view your own analytics');
+    }
+
+    const analytics = await this.userAnalyticsService.calculateClientAnalytics(userId);
+    return analytics;
   }
 }

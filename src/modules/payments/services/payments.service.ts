@@ -5,6 +5,7 @@ import { Payment, PaymentDocument } from '../schemas/payment.schema';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import Stripe from 'stripe';
 import { ConfigService } from '@nestjs/config';
+import { StripeConnectService } from './stripe-connect.service';
 
 @Injectable()
 export class PaymentsService {
@@ -13,6 +14,7 @@ export class PaymentsService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     private configService: ConfigService,
+    private stripeConnectService: StripeConnectService,
   ) {
     this.stripe = new Stripe(this.configService.get<string>('stripe.secretKey') || '', {
       apiVersion: '2025-08-27.basil' as any,
@@ -224,9 +226,15 @@ export class PaymentsService {
   }
 
   private async getStripeAccountId(userId: string): Promise<string> {
-    // This should retrieve the connected Stripe account ID for the freelancer
-    // For now, return a placeholder - in production, you'd store this in the user profile
-    return 'acct_placeholder_' + userId;
+    try {
+      const account = await this.stripeConnectService.getStripeAccountStatus(userId);
+      if (!account.accountId) {
+        throw new BadRequestException('Freelancer has not set up Stripe Connect account');
+      }
+      return account.accountId;
+    } catch (error) {
+      throw new BadRequestException('Failed to retrieve Stripe account ID');
+    }
   }
 
   private async updateProjectPaymentStatus(projectId: string, paymentId: string) {

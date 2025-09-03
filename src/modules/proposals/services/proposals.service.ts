@@ -93,12 +93,12 @@ export class ProposalsService {
     // Send notification email to client
     const client = await this.userModel.findById(project.clientId);
     if (client) {
-      // TODO: Implement email notification for new proposal
-      // await this.emailService.sendProposalNotification(
-      //   client.email,
-      //   project.title,
-      //   user.firstName + ' ' + user.lastName
-      // );
+      await this.emailService.sendNewProposalNotification(
+        client.email,
+        project.title,
+        `${user.firstName} ${user.lastName}`,
+        user.email
+      );
     }
 
     return savedProposal.populate(['freelancerId', 'projectId']);
@@ -295,12 +295,12 @@ export class ProposalsService {
     // Send notification to freelancer
     const freelancer = await this.userModel.findById(proposal.freelancerId);
     if (freelancer) {
-      // TODO: Implement email notification for accepted proposal
-      // await this.emailService.sendProposalAcceptedNotification(
-      //   freelancer.email,
-      //   project.title,
-      //   acceptProposalDto.message
-      // );
+      await this.emailService.sendProposalAcceptedNotification(
+        freelancer.email,
+        `${freelancer.firstName} ${freelancer.lastName}`,
+        project.title,
+        acceptProposalDto.message || 'Congratulations! Your proposal has been accepted.'
+      );
     }
 
     return { 
@@ -336,13 +336,13 @@ export class ProposalsService {
     // Send notification to freelancer
     const freelancer = await this.userModel.findById(proposal.freelancerId);
     if (freelancer) {
-      // TODO: Implement email notification for rejected proposal
-      // await this.emailService.sendProposalRejectedNotification(
-      //   freelancer.email,
-      //   project.title,
-      //   rejectProposalDto.reason,
-      //   rejectProposalDto.message
-      // );
+      await this.emailService.sendProposalRejectedNotification(
+        freelancer.email,
+        `${freelancer.firstName} ${freelancer.lastName}`,
+        project.title,
+        rejectProposalDto.reason || 'Your proposal was not selected for this project.',
+        rejectProposalDto.message || ''
+      );
     }
 
     return { message: 'Proposal rejected successfully' };

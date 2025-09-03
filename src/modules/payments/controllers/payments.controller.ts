@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Request, Headers, RawBodyRequest } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -9,6 +9,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { PaymentsService } from '../services/payments.service';
+import { StripeConnectService } from '../services/stripe-connect.service';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
@@ -17,7 +18,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly stripeConnectService: StripeConnectService,
+  ) {}
 
   @Post('create-intent')
   @ApiOperation({ summary: 'Create Stripe payment intent' })
@@ -217,5 +221,85 @@ export class PaymentsController {
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async processRefund(@Request() req, @Param('id') paymentId: string, @Body('reason') reason: string) {
     return this.paymentsService.processRefund(paymentId, req.user.userId, reason);
+  }
+
+  // Stripe Connect endpoints
+  @Post('stripe-connect/create')
+  @ApiOperation({ summary: 'Create Stripe Connect account for freelancer' })
+  @ApiResponse({
+    status: 201,
+    description: 'Stripe account created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        accountId: { type: 'string', description: 'Stripe account ID' },
+        onboardingUrl: { type: 'string', description: 'URL for Stripe onboarding' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - user not eligible or already has account' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async createStripeAccount(@Request() req) {
+    return this.stripeConnectService.createStripeAccount(req.user.userId);
+  }
+
+  @Get('stripe-connect/status')
+  @ApiOperation({ summary: 'Get Stripe Connect account status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account status retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        accountId: { type: 'string', description: 'Stripe account ID' },
+        status: { type: 'string', description: 'Account status (pending, complete, incomplete, rejected)' },
+        details: {
+          type: 'object',
+          properties: {
+            charges_enabled: { type: 'boolean' },
+            details_submitted: { type: 'boolean' },
+            requirements: { type: 'object' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'User does not have a Stripe account' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getStripeAccountStatus(@Request() req) {
+    return this.stripeConnectService.getStripeAccountStatus(req.user.userId);
+  }
+
+  @Get('stripe-connect/onboarding-link')
+  @ApiOperation({ summary: 'Get Stripe Connect onboarding link' })
+  @ApiResponse({
+    status: 200,
+    description: 'Onboarding link generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Stripe onboarding URL' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'User does not have a Stripe account' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getAccountOnboardingLink(@Request() req) {
+    return this.stripeConnectService.getAccountOnboardingLink(req.user.userId);
+  }
+
+  // Stripe webhook endpoint (no auth required)
+  @Post('stripe/webhook')
+  @ApiOperation({ summary: 'Handle Stripe webhook events' })
+  @ApiResponse({
+    status: 200,
+    description: 'Webhook processed successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid webhook signature' })
+  async handleStripeWebhook(
+    @Headers('stripe-signature') signature: string,
+    @Body() rawBody: Buffer,
+  ) {
+    return this.stripeConnectService.handleStripeWebhook(signature, rawBody);
   }
 }
