@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Proposal, ProposalDocument } from '../schemas/proposal.schema';
+import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
 import { SubmitProposalDto } from '../dto/submit-proposal.dto';
 import { UpdateProposalDto } from '../dto/update-proposal.dto';
 import { AcceptProposalDto } from '../dto/accept-proposal.dto';
 import { RejectProposalDto } from '../dto/reject-proposal.dto';
-import { User, UserDocument } from '../../users/schemas/user.schema';
-import { Project, ProjectDocument } from '../../projects/schemas/project.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { EmailService } from '../../../common/services/email.service';
 import { ContractsService } from '../../contracts/services/contracts.service';
 import { CreateContractDto } from '../../contracts/dto/create-contract.dto';

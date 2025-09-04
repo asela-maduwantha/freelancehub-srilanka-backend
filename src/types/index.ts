@@ -1,56 +1,186 @@
-export type UserRole = 'freelancer' | 'client' | 'both' | 'admin';
+// User Types
+export type UserRole = 'freelancer' | 'client' | 'admin';
+export type UserStatus = 'active' | 'inactive';
 
-export type UserStatus = 'active' | 'suspended' | 'banned' | 'pending' | 'inactive';
+// OTP Types
+export type OtpType = 'email_verification' | 'password_reset';
 
-export type ProjectStatus = 'draft' | 'open' | 'in-progress' | 'completed' | 'cancelled';
+// Freelancer Types
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'expert';
+export type AvailabilityStatus = 'available' | 'busy' | 'unavailable';
+export type ProficiencyLevel = 'basic' | 'intermediate' | 'fluent' | 'native';
 
+// Project Types
+export type ProjectType = 'fixed_price' | 'hourly';
+export type BudgetType = 'fixed' | 'range';
+export type ProjectVisibility = 'public' | 'invite_only';
+export type ProjectStatus = 'draft' | 'active' | 'closed' | 'completed' | 'cancelled';
+
+// Proposal Types
+export type ProposalStatus = 'submitted' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn';
+
+// Contract Types
+export type ContractType = 'fixed_price' | 'hourly';
 export type ContractStatus = 'active' | 'completed' | 'cancelled' | 'disputed';
 
-export type MilestoneStatus = 'pending' | 'in-progress' | 'submitted' | 'approved' | 'rejected';
+// Milestone Types
+export type MilestoneStatus = 'pending' | 'in_progress' | 'submitted' | 'approved' | 'rejected';
 
-export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed';
+// Payment Types
+export type EscrowStatus = 'held' | 'released' | 'refunded';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 
-export type PaymentType = 'milestone' | 'bonus' | 'refund';
+// Message Types
+export type MessageType = 'text' | 'file' | 'system';
 
-export type ProposalStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+// Review Types
+export type ReviewerType = 'client' | 'freelancer';
 
-export type DisputeStatus = 'open' | 'under-review' | 'resolved' | 'closed';
+// Notification Types
+export type NotificationType = 'message' | 'proposal' | 'payment' | 'milestone' | 'review';
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export type ReviewType = 'client-to-freelancer' | 'freelancer-to-client';
+// Dispute Types
+export type DisputeType = 'payment' | 'quality' | 'communication' | 'other';
+export type DisputeStatus = 'open' | 'in_review' | 'resolved' | 'escalated';
 
-export type Currency = 'USD' | 'EUR' | 'GBP' | 'LKR' | 'INR';
-
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'expert';
-
-export type AvailabilityStatus = 'full-time' | 'part-time' | 'not-available';
-
-export type ProficiencyLevel = 'basic' | 'conversational' | 'fluent' | 'native';
-
-export type CompanySize = '1-10' | '11-50' | '51-200' | '200+';
-
+// General Types
+export type Currency = 'USD' | 'EUR' | 'LKR';
+export type CompanySize = '1-10' | '11-50' | '51-200' | '201-500' | '500+';
 export type SortOrder = 'asc' | 'desc';
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+// Base Interfaces
+export interface BaseEntity {
+  _id?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-export type Environment = 'development' | 'staging' | 'production' | 'test';
+export interface Location {
+  country: string;
+  city: string;
+  province: string;
+}
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+export interface WorkingHours {
+  timezone: string;
+  schedule: Record<string, any>;
+}
 
-export type FileType = 'image' | 'document' | 'video' | 'audio' | 'other';
+export interface Availability {
+  status: AvailabilityStatus;
+  hoursPerWeek: number;
+  workingHours: WorkingHours;
+}
 
-export type NotificationType =
-  | 'project_created'
-  | 'proposal_received'
-  | 'proposal_accepted'
-  | 'proposal_rejected'
-  | 'milestone_submitted'
-  | 'milestone_approved'
-  | 'milestone_rejected'
-  | 'payment_received'
-  | 'contract_completed'
-  | 'review_received'
-  | 'dispute_created'
-  | 'system_notification';
+export interface PortfolioItem {
+  title: string;
+  description: string;
+  imageUrl: string;
+  projectUrl?: string;
+  tags: string[];
+}
+
+export interface Education {
+  institution: string;
+  degree: string;
+  field: string;
+  year: number;
+}
+
+export interface Certification {
+  name: string;
+  issuer: string;
+  year: number;
+  url?: string;
+}
+
+export interface Language {
+  language: string;
+  proficiency: ProficiencyLevel;
+}
+
+export interface Budget {
+  type: BudgetType;
+  amount?: number;
+  minAmount?: number;
+  maxAmount?: number;
+  currency: Currency;
+}
+
+export interface Duration {
+  estimated: number; // in days
+  deadline?: Date;
+}
+
+export interface Attachment {
+  filename: string;
+  url: string;
+  size?: number;
+  uploadedAt?: Date;
+  description?: string;
+  mimeType?: string;
+}
+
+export interface ProposedBudget {
+  amount: number;
+  currency: Currency;
+  type: ProjectType;
+}
+
+export interface Timeline {
+  estimatedDuration: number;
+  proposedDeadline: Date;
+}
+
+export interface Milestone {
+  _id?: string;
+  title: string;
+  description: string;
+  amount: number;
+  deadline?: Date;
+  durationDays?: number;
+  status?: MilestoneStatus;
+  deliverables?: Attachment[];
+  feedback?: string;
+  completedAt?: Date;
+}
+
+export interface Ratings {
+  overall: number; // 1-5
+  quality: number;
+  communication: number;
+  timeliness: number;
+  professionalism: number;
+}
+
+export interface ReviewResponse {
+  content: string;
+  respondedAt: Date;
+}
+
+export interface RelatedEntity {
+  entityType: string;
+  entityId: string;
+}
+
+export interface UnreadCount {
+  userId: string;
+  count: number;
+}
+
+export interface LastMessage {
+  content: string;
+  senderId: string;
+  timestamp: Date;
+}
+
+export interface DisputeResolution {
+  decision: string;
+  explanation: string;
+  resolvedBy: string;
+  resolvedAt: Date;
+}
 
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 

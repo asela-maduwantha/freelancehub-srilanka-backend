@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from '../schemas/user.schema';
-import { Project } from '../../projects/schemas/project.schema';
-import { Contract } from '../../contracts/schemas/contract.schema';
-import { Proposal } from '../../proposals/schemas/proposal.schema';
-import { Payment } from '../../payments/schemas/payment.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Project, ProjectDocument } from '../../../schemas/project.schema';
+import { Contract, ContractDocument } from '../../../schemas/contract.schema';
+import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
+import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
 
 export interface UserAnalytics {
   // Basic metrics
@@ -528,9 +528,9 @@ export class UserAnalyticsService {
     if (user?.freelancerProfile?.skills?.length) {
       score += Math.min(user.freelancerProfile.skills.length * 5, 50);
     }
-    if (user?.freelancerProfile?.experience === 'expert') score += 30;
-    else if (user?.freelancerProfile?.experience === 'intermediate') score += 20;
-    else if (user?.freelancerProfile?.experience === 'beginner') score += 10;
+    if (user?.freelancerProfile?.experienceLevel === 'expert') score += 30;
+    else if (user?.freelancerProfile?.experienceLevel === 'intermediate') score += 20;
+    else if (user?.freelancerProfile?.experienceLevel === 'beginner') score += 10;
 
     score += Math.min(completedProjects * 2, 20);
     return Math.min(score, 100);

@@ -1,14 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Dispute, DisputeDocument } from '../schemas/dispute.schema';
+import { Dispute, DisputeDocument } from '../../../schemas/dispute.schema';
 import { CreateDisputeDto } from '../dto/create-dispute.dto';
 import { SubmitEvidenceDto } from '../dto/submit-evidence.dto';
 import { AddMessageDto } from '../dto/add-message.dto';
 import { UpdateDisputeStatusDto } from '../dto/update-dispute-status.dto';
 import { ResolveDisputeDto } from '../dto/resolve-dispute.dto';
-import { User, UserDocument } from '../../users/schemas/user.schema';
-import { Contract, ContractDocument } from '../../contracts/schemas/contract.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 
 @Injectable()
 export class DisputesService {

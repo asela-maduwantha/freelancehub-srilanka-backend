@@ -1,19 +1,21 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from '../schemas/user.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Project, ProjectDocument } from '../../../schemas/project.schema';
+import { Contract, ContractDocument } from '../../../schemas/contract.schema';
+import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
-import { Proposal, ProposalDocument } from '../../proposals/schemas/proposal.schema';
 import { PaginatedResponse } from '../../../common/interfaces/pagination.interface';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel('Project') private projectModel: Model<any>,
-    @InjectModel('Contract') private contractModel: Model<any>,
+    @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
+    @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
   ) {}
 

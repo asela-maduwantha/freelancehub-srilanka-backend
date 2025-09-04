@@ -24,6 +24,9 @@ import { CommonModule } from './common/common.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { FreelancersModule } from './modules/freelancers/freelancers.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SavedProjectsModule } from './modules/saved-projects/saved-projects.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
@@ -67,6 +70,9 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
     ClientsModule,
     FreelancersModule,
     MessagingModule,
+    CategoriesModule,
+    NotificationsModule,
+    SavedProjectsModule,
   ],
   controllers: [AppController],
   providers: [

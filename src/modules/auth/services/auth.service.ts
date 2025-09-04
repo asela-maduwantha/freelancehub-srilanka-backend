@@ -7,7 +7,8 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { User, UserDocument } from '../../users/schemas/user.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Otp, OtpDocument } from '../../../schemas/otp.schema';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../../../common/services/email.service';
 import { RegisterDto } from '../dto/register.dto';
@@ -18,6 +19,7 @@ import { VerifyOtpDto } from '../dto/verify-otp.dto';
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Otp.name) private otpModel: Model<OtpDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
@@ -38,18 +40,26 @@ export class AuthService {
         (this.configService.get<number>('app.otpExpiry') || 600) * 1000,
     );
 
+    // Create user with combined name
+    const fullName = `${firstName} ${lastName}`;
     const user = new this.userModel({
-      firstName,
-      lastName,
+      name: fullName,
       email,
       password: hashedPassword,
-      role: [role],
-      activeRole: role,
-      otpCode,
-      otpExpiry,
+      role,
     });
 
     await user.save();
+
+    // Create OTP record
+    const otp = new this.otpModel({
+      email,
+      otp: otpCode,
+      otpType: 'email_verification',
+      expiresAt: otpExpiry,
+    });
+
+    await otp.save();
 
     // Send OTP email
     await this.emailService.sendOtpEmail(email, otpCode);
@@ -79,13 +89,13 @@ export class AuthService {
       throw new UnauthorizedException('Please verify your email first');
     }
 
-    const payload = { email: user.email, sub: user._id, role: user.activeRole };
+    const payload = { email: user.email, sub: user._id, role: user.role };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get<string>('app.refreshTokenExpiresIn'),
     });
 
-    user.lastLogin = new Date();
+    user.lastLoginAt = new Date();
     await user.save();
 
     return {
@@ -94,10 +104,8 @@ export class AuthService {
       user: {
         id: user._id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        name: user.name,
         role: user.role,
-        activeRole: user.activeRole,
       },
     };
   }
@@ -115,21 +123,29 @@ export class AuthService {
       throw new BadRequestException('User not found');
     }
 
-    if (
-      user.otpCode !== otp ||
-      !user.otpExpiry ||
-      user.otpExpiry < new Date()
-    ) {
+    // Find the OTP record
+    const otpRecord = await this.otpModel.findOne({
+      email,
+      otp,
+      otpType: 'email_verification',
+      isUsed: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!otpRecord) {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
+    // Mark user as verified and update login time
     user.emailVerified = true;
-    user.otpCode = undefined;
-    user.otpExpiry = undefined;
-    user.lastLogin = new Date();
+    user.lastLoginAt = new Date();
     await user.save();
 
-    const payload = { email: user.email, sub: user._id, role: user.activeRole };
+    // Mark OTP as used
+    otpRecord.isUsed = true;
+    await otpRecord.save();
+
+    const payload = { email: user.email, sub: user._id, role: user.role };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get<string>('app.refreshTokenExpiresIn'),
@@ -142,10 +158,8 @@ export class AuthService {
       user: {
         id: user._id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        name: user.name,
         role: user.role,
-        activeRole: user.activeRole,
       },
     };
   }
@@ -161,7 +175,7 @@ export class AuthService {
       const newPayload = {
         email: user.email,
         sub: user._id,
-        role: user.activeRole,
+        role: user.role,
       };
       const accessToken = this.jwtService.sign(newPayload);
 

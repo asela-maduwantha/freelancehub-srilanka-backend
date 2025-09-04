@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DisputesController } from './controllers/disputes.controller';
 import { DisputesService } from './services/disputes.service';
-import { Dispute, DisputeSchema } from './schemas/dispute.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import { Contract, ContractSchema } from '../contracts/schemas/contract.schema';
+import { Dispute, DisputeSchema } from '../../schemas/dispute.schema';
+import { User, UserSchema } from '../../schemas/user.schema';
+import { Contract, ContractSchema } from '../../schemas/contract.schema';
 import { UsersModule } from '../users/users.module';
 import { ContractsModule } from '../contracts/contracts.module';
 

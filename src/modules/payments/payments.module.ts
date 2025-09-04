@@ -3,8 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PaymentsController } from './controllers/payments.controller';
 import { PaymentsService } from './services/payments.service';
 import { StripeConnectService } from './services/stripe-connect.service';
-import { Payment, PaymentSchema } from './schemas/payment.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { Payment, PaymentSchema } from '../../schemas/payment.schema';
+import { User, UserSchema } from '../../schemas/user.schema';
 import { ConfigModule } from '@nestjs/config';
 import { EmailService } from '../../common/services/email.service';
 

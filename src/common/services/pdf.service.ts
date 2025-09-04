@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Contract } from '../../modules/contracts/schemas/contract.schema';
+import { Contract } from '../../schemas/contract.schema';
 
 @Injectable()
 export class PdfService {

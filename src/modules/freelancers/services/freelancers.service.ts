@@ -1,10 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from '../../users/schemas/user.schema';
-import { Project, ProjectDocument } from '../../projects/schemas/project.schema';
-import { Contract, ContractDocument } from '../../contracts/schemas/contract.schema';
-import { Proposal, ProposalDocument } from '../../proposals/schemas/proposal.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Project, ProjectDocument } from '../../../schemas/project.schema';
+import { Contract, ContractDocument } from '../../../schemas/contract.schema';
+import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
 import { EditFreelancerProfileType, FreelancerProfile } from '../types/freelancer-profile.types';
 
 @Injectable()

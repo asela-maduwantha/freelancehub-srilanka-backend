@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Conversation, ConversationDocument } from '../schemas/conversation.schema';
-import { Message, MessageDocument } from '../schemas/message.schema';
-import { EncryptionKey, EncryptionKeyDocument } from '../schemas/encryption-key.schema';
+import { Conversation, ConversationDocument } from '../../../schemas/conversation.schema';
+import { Message, MessageDocument } from '../../../schemas/message.schema';
+import { EncryptionKey, EncryptionKeyDocument } from '../../../schemas/encryption-key.schema';
 import { EncryptionService, ConversationKey, KeyPair } from './encryption.service';
 
 export interface CreateConversationDto {

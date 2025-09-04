@@ -6,7 +6,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { User, UserSchema } from '../../schemas/user.schema';
+import { Otp, OtpSchema } from '../../schemas/otp.schema';
 import { UsersModule } from '../users/users.module';
 import { CommonModule } from '../../common/common.module';
 
@@ -23,7 +24,10 @@ import { CommonModule } from '../../common/common.module';
       },
       inject: [ConfigService],
     }),
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Otp.name, schema: OtpSchema }
+    ]),
     UsersModule, // Import UsersModule instead of providing UsersService directly
     CommonModule,
   ],

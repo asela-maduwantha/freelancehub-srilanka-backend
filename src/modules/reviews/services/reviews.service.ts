@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Review, ReviewDocument } from '../schemas/review.schema';
+import { Review, ReviewDocument } from '../../../schemas/review.schema';
 import { CreateReviewDto } from '../dto/create-review.dto';
 
 @Injectable()

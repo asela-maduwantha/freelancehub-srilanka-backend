@@ -3,9 +3,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MessagingController } from './controllers/messaging.controller';
 import { MessagingService } from './services/messaging.service';
 import { EncryptionService } from './services/encryption.service';
-import { Conversation, ConversationSchema } from './schemas/conversation.schema';
-import { Message, MessageSchema } from './schemas/message.schema';
-import { EncryptionKey, EncryptionKeySchema } from './schemas/encryption-key.schema';
+import { Conversation, ConversationSchema } from '../../schemas/conversation.schema';
+import { Message, MessageSchema } from '../../schemas/message.schema';
+import { EncryptionKey, EncryptionKeySchema } from '../../schemas/encryption-key.schema';
 
 @Module({
   imports: [

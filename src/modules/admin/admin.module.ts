@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdminController } from './controllers/admin.controller';
 import { AdminService } from './services/admin.service';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import { Project, ProjectSchema } from '../projects/schemas/project.schema';
-import { Contract, ContractSchema } from '../contracts/schemas/contract.schema';
-import { Payment, PaymentSchema } from '../payments/schemas/payment.schema';
-import { Dispute, DisputeSchema } from '../disputes/schemas/dispute.schema';
-import { Review, ReviewSchema } from '../reviews/schemas/review.schema';
+import { User, UserSchema } from '../../schemas/user.schema';
+import { Project, ProjectSchema } from '../../schemas/project.schema';
+import { Contract, ContractSchema } from '../../schemas/contract.schema';
+import { Payment, PaymentSchema } from '../../schemas/payment.schema';
+import { Dispute, DisputeSchema } from '../../schemas/dispute.schema';
+import { Review, ReviewSchema } from '../../schemas/review.schema';
 
 @Module({
   imports: [

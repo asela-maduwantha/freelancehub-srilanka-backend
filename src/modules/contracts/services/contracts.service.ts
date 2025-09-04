@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Contract, ContractDocument } from '../schemas/contract.schema';
+import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 import { CreateContractDto } from '../dto/create-contract.dto';
 import { UpdateMilestoneDto } from '../dto/update-milestone.dto';
 import { SubmitMilestoneDto } from '../dto/submit-milestone.dto';
 import { ApproveMilestoneDto } from '../dto/approve-milestone.dto';
 import { RejectMilestoneDto } from '../dto/reject-milestone.dto';
 import { CancelContractDto } from '../dto/cancel-contract.dto';
-import { User, UserDocument } from '../../users/schemas/user.schema';
-import { Project, ProjectDocument } from '../../projects/schemas/project.schema';
-import { Proposal, ProposalDocument } from '../../proposals/schemas/proposal.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { Project, ProjectDocument } from '../../../schemas/project.schema';
+import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
 import { PdfService } from '../../../common/services/pdf.service';
 import { EmailService } from '../../../common/services/email.service';
 
