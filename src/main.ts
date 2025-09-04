@@ -9,6 +9,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { CustomValidationPipe } from './common/pipes/custom-validation.pipe';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,7 +17,21 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
-  // Security headers
+  // Security middleware
+  app.use(helmet());
+
+  // HTTPS enforcement in production
+  if (configService.get('NODE_ENV') === 'production') {
+    app.use((req: any, res: any, next: any) => {
+      if (req.header('x-forwarded-proto') !== 'https') {
+        res.redirect(`https://${req.header('host')}${req.url}`);
+      } else {
+        next();
+      }
+    });
+  }
+
+  // Additional security headers
   app.use((req: any, res: any, next: any) => {
     res.header('X-Content-Type-Options', 'nosniff');
     res.header('X-Frame-Options', 'DENY');

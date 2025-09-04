@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors } from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
@@ -18,6 +18,7 @@ import { RateLimit } from '../../../common/guards/rate-limit.guard';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
+import { ForbiddenException } from '../../../common/exceptions';
 
 @ApiTags('users')
 @Controller('users')
@@ -187,6 +188,51 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserById(@Param('id') id: string, @Request() req) {
     return this.usersService.getUserById(id);
+  }
+
+  @Get(':id/profile')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('self', 'admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get user profile by ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserProfile(@Param('id') id: string, @Request() req) {
+    return this.usersService.getProfile(id);
+  }
+
+  @Get(':id/freelancer-profile')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('self', 'admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get freelancer profile by user ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Freelancer profile retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Freelancer profile not found' })
+  async getFreelancerProfileById(@Param('id') id: string, @Request() req) {
+    return this.usersService.getFreelancerProfile(id);
+  }
+
+  @Get(':id/client-profile')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('self', 'admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get client profile by user ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Client profile retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Client profile not found' })
+  async getClientProfileById(@Param('id') id: string, @Request() req) {
+    return this.usersService.getClientProfile(id);
   }
 
   // Note: Follow/unfollow functionality removed due to clean User schema

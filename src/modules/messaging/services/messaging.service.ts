@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Conversation, ConversationDocument } from '../../../schemas/conversation.schema';
 import { Message, MessageDocument } from '../../../schemas/message.schema';
 import { EncryptionKey, EncryptionKeyDocument } from '../../../schemas/encryption-key.schema';
 import { EncryptionService, ConversationKey, KeyPair } from './encryption.service';
+import { NotFoundException, ForbiddenException } from '../../../common/exceptions';
 
 export interface CreateConversationDto {
   participant1Id: string;

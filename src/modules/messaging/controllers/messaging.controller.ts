@@ -32,6 +32,7 @@ import {
   GetMessagesDto,
   MarkAsReadDto,
 } from '../dto/messaging.dto';
+import { ForbiddenException, BadRequestException } from '../../../common/exceptions';
 
 @ApiTags('messaging')
 @Controller('messaging')
@@ -67,7 +68,7 @@ export class MessagingController {
     const userId = req.user.userId;
 
     if (userId !== participant1Id && userId !== participant2Id) {
-      throw new Error('You can only create conversations for yourself');
+      throw new ForbiddenException('You can only create conversations for yourself');
     }
 
     const conversation = await this.messagingService.createConversation(createDto);
@@ -149,7 +150,7 @@ export class MessagingController {
     const conversationKey = req.headers['x-conversation-key'] as string;
 
     if (!conversationKey) {
-      throw new Error('Conversation key is required');
+      throw new BadRequestException('Conversation key is required');
     }
 
     const message = await this.messagingService.sendMessage(sendDto, req.user.userId, conversationKey);
@@ -228,7 +229,7 @@ export class MessagingController {
     const conversationKey = req.headers['x-conversation-key'] as string;
 
     if (!conversationKey) {
-      throw new Error('Conversation key is required');
+      throw new BadRequestException('Conversation key is required');
     }
 
     const messages = await this.messagingService.getConversationMessages(
@@ -280,7 +281,7 @@ export class MessagingController {
     const privateKey = req.headers['x-private-key'] as string;
 
     if (!privateKey) {
-      throw new Error('Private key is required');
+      throw new BadRequestException('Private key is required');
     }
 
     const key = await this.messagingService.getConversationKey(
