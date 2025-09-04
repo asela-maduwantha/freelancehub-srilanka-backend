@@ -33,6 +33,12 @@ import { RateLimit } from '../../../common/guards/rate-limit.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserRole } from '../../../types';
 
+interface PlatformFees {
+  platformFee: number;
+  paymentProcessingFee: number;
+  currency: string;
+}
+
 @ApiTags('admin')
 @ApiBearerAuth('JWT-auth')
 @Controller('admin')
@@ -393,18 +399,16 @@ export class AdminController {
   })
   async getCategories() {
     // Return available categories - in real app, this would be from database
-    return {
-      categories: [
-        'Web Development',
-        'Mobile Development',
-        'Design',
-        'Writing',
-        'Marketing',
-        'Data Science',
-        'DevOps',
-        'Consulting',
-      ],
-    };
+    return [
+      'Web Development',
+      'Mobile Development',
+      'Design',
+      'Writing',
+      'Marketing',
+      'Data Science',
+      'DevOps',
+      'Consulting',
+    ];
   }
 
   @Put('categories')
@@ -437,10 +441,7 @@ export class AdminController {
   })
   async updateCategories(@Body('categories') categories: string[]) {
     // In real app, save to database
-    return {
-      message: 'Categories updated successfully',
-      categories,
-    };
+    return categories;
   }
 
   @Get('skills')
@@ -460,24 +461,22 @@ export class AdminController {
   })
   async getSkills() {
     // Return available skills - in real app, this would be from database
-    return {
-      skills: [
-        'JavaScript',
-        'TypeScript',
-        'React',
-        'Node.js',
-        'Python',
-        'Java',
-        'C#',
-        'PHP',
-        'HTML/CSS',
-        'SQL',
-        'MongoDB',
-        'AWS',
-        'Docker',
-        'Kubernetes',
-      ],
-    };
+    return [
+      'JavaScript',
+      'TypeScript',
+      'React',
+      'Node.js',
+      'Python',
+      'Java',
+      'C#',
+      'PHP',
+      'HTML/CSS',
+      'SQL',
+      'MongoDB',
+      'AWS',
+      'Docker',
+      'Kubernetes',
+    ];
   }
 
   @Put('skills')
@@ -510,10 +509,7 @@ export class AdminController {
   })
   async updateSkills(@Body('skills') skills: string[]) {
     // In real app, save to database
-    return {
-      message: 'Skills updated successfully',
-      skills,
-    };
+    return skills;
   }
 
   @Get('fees')
@@ -551,12 +547,9 @@ export class AdminController {
       },
     },
   })
-  async updatePlatformFees(@Body() fees: any) {
+  async updatePlatformFees(@Body() fees: PlatformFees) {
     // In real app, save to database and update Stripe
-    return {
-      message: 'Platform fees updated successfully',
-      fees,
-    };
+    return fees;
   }
 
   // Analytics endpoints

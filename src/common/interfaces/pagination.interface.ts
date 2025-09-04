@@ -7,3 +7,13 @@ export interface PaginatedResponse<T> {
     pages: number;
   };
 }
+
+export interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthenticatedRequest {
+  user: AuthenticatedUser;
+}

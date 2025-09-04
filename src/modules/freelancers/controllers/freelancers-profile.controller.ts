@@ -6,6 +6,8 @@ import { Roles } from '../../../common/guards/roles.guard';
 import { EditFreelancerProfileType, FreelancerProfileResponse, UpdateFreelancerProfileRequest } from '../types/freelancer-profile.types';
 import { UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
 import { FreelancersService } from '../services/freelancers.service';
+import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
+import { FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
 
 @ApiTags('freelancers')
 @Controller('freelancers')
@@ -77,18 +79,14 @@ export class FreelancersController {
     description: 'Forbidden - user is not a freelancer'
   })
   async updateProfile(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() updateData: UpdateFreelancerProfileDto,
-  ): Promise<FreelancerProfileResponse> {
+  ): Promise<FreelancerProfileDocument> {
     try {
       const freelancerId = req.user.userId;
       const updatedProfile = await this.freelancersService.updateProfile(freelancerId, updateData);
 
-      return {
-        success: true,
-        data: updatedProfile as any, // Type casting to resolve schema vs types incompatibility
-        message: 'Profile updated successfully'
-      };
+      return updatedProfile;
     } catch (error) {
       throw error; // Let global exception filter handle it
     }

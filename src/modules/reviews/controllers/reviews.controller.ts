@@ -11,6 +11,16 @@ import {
 import { ReviewsService } from '../services/reviews.service';
 import { CreateReviewDto } from '../dto/create-review.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
+
+interface ReviewQuery {
+  page?: string;
+  limit?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  rating?: string;
+  type?: 'received' | 'given';
+}
 
 @ApiTags('reviews')
 @ApiBearerAuth('JWT-auth')
@@ -82,7 +92,7 @@ export class ReviewsController {
       },
     },
   })
-  async getReviewsForUser(@Param('userId') userId: string, @Query() query: any) {
+  async getReviewsForUser(@Param('userId') userId: string, @Query() query: ReviewQuery) {
     return this.reviewsService.getReviewsForUser(userId, query);
   }
 
@@ -209,7 +219,7 @@ export class ReviewsController {
   @ApiResponse({ status: 404, description: 'Review not found' })
   async deleteReview(@Request() req, @Param('id') reviewId: string) {
     await this.reviewsService.deleteReview(reviewId, req.user.userId);
-    return { message: 'Review deleted successfully' };
+    return 'Review deleted successfully';
   }
 
   @Post(':id/respond')
@@ -257,6 +267,6 @@ export class ReviewsController {
   @ApiResponse({ status: 409, description: 'Already marked as helpful' })
   async markReviewHelpful(@Request() req, @Param('id') reviewId: string) {
     await this.reviewsService.markReviewHelpful(reviewId, req.user.userId);
-    return { message: 'Review marked as helpful' };
+    return 'Review marked as helpful';
   }
 }

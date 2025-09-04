@@ -255,7 +255,7 @@ export class MessagingController {
   @ApiResponse({ status: 403, description: 'Forbidden - not a participant' })
   async markAsRead(@Param('conversationId') conversationId: string, @Request() req) {
     await this.messagingService.markMessagesAsRead(conversationId, req.user.userId);
-    return { message: 'Messages marked as read' };
+    return 'Messages marked as read';
   }
 
   @Get('encryption/key/:conversationId')
@@ -289,7 +289,7 @@ export class MessagingController {
       privateKey,
     );
 
-    return { key };
+    return key;
   }
 
   @Post('keys/generate')
@@ -327,6 +327,6 @@ export class MessagingController {
   @ApiResponse({ status: 404, description: 'Message not found' })
   async deleteMessage(@Param('messageId') messageId: string, @Request() req) {
     await this.messagingService.deleteMessage(messageId, req.user.userId);
-    return { message: 'Message deleted successfully' };
+    return 'Message deleted successfully';
   }
 }

@@ -105,7 +105,7 @@ export class FreelancersService {
   async getAllFreelancers(query: FreelancerSearchQuery = {}) {
     const { page = 1, limit = 10, skills, experienceLevel, minRate, maxRate, availability } = query;
 
-    const filter: any = {};
+    const filter: Record<string, any> = {};
 
     if (skills) {
       filter.skills = { $in: skills.split(',') };

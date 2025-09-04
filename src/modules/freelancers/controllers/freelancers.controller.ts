@@ -6,6 +6,8 @@ import { Roles } from '../../../common/guards/roles.guard';
 import { FreelancersService } from '../services/freelancers.service';
 import { EditFreelancerProfileType, FreelancerProfileResponse } from '../types/freelancer-profile.types';
 import { CreateFreelancerProfileDto, UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
+import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
+import { FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
 
 @ApiTags('freelancers')
 @Controller('freelancers')
@@ -52,7 +54,7 @@ export class FreelancersController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - not a freelancer' })
-  async getFreelancerDashboard(@Request() req: any) {
+  async getFreelancerDashboard(@Request() req: AuthenticatedRequest) {
     const freelancerId = req.user.userId;
     return this.freelancersService.getFreelancerDashboard(freelancerId);
   }
@@ -76,17 +78,13 @@ export class FreelancersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - not a freelancer' })
   async createProfile(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() createData: CreateFreelancerProfileDto,
-  ): Promise<FreelancerProfileResponse> {
+  ): Promise<FreelancerProfileDocument> {
     const freelancerId = req.user.userId;
     const profile = await this.freelancersService.createProfile(freelancerId, createData);
 
-    return {
-      success: true,
-      data: profile as any,
-      message: 'Profile created successfully'
-    };
+    return profile;
   }
 
   @Put('profile')
@@ -112,16 +110,12 @@ export class FreelancersController {
   @ApiResponse({ status: 403, description: 'Forbidden - not a freelancer' })
   @ApiResponse({ status: 404, description: 'Freelancer not found' })
   async updateProfile(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() updateData: UpdateFreelancerProfileDto,
-  ): Promise<FreelancerProfileResponse> {
+  ): Promise<FreelancerProfileDocument> {
     const freelancerId = req.user.userId;
     const updatedProfile = await this.freelancersService.updateProfile(freelancerId, updateData);
 
-    return {
-      success: true,
-      data: updatedProfile as any, // Type casting to resolve schema vs types incompatibility
-      message: 'Profile updated successfully'
-    };
+    return updatedProfile;
   }
 }

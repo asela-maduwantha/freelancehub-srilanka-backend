@@ -4,6 +4,7 @@ import { ProposalsService } from '../services/proposals.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
+import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
 
 @ApiTags('proposals')
 @Controller('proposals')
@@ -24,7 +25,7 @@ export class ProposalsController {
     description: 'User proposals retrieved successfully',
   })
   async getMyProposals(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('status') status?: string,

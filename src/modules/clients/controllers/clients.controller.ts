@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { AcceptProposalDto } from '../../proposals/dto/accept-proposal.dto';
+import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,7 +20,7 @@ export class ClientsController {
   @Get('projects')
   @Roles('client')
   async getClientProjects(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('status') status?: string,
@@ -37,7 +38,7 @@ export class ClientsController {
   @Get('projects/:id')
   @Roles('client')
   async getClientProjectById(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('id') projectId: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
@@ -62,7 +63,7 @@ export class ClientsController {
   @Get('proposals')
   @Roles('client')
   async getClientProposals(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ) {
@@ -75,7 +76,7 @@ export class ClientsController {
   @Get('projects/:projectId/proposals')
   @Roles('client')
   async getProposalsForProject(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('projectId') projectId: string,
   ) {
     const clientId = req.user.userId;
@@ -85,7 +86,7 @@ export class ClientsController {
   @Post('projects/:projectId/proposals/:proposalId/accept')
   @Roles('client')
   async acceptProposal(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('projectId') projectId: string,
     @Param('proposalId') proposalId: string,
     @Body() acceptProposalDto: AcceptProposalDto,
@@ -96,7 +97,7 @@ export class ClientsController {
 
   @Get('dashboard')
   @Roles('client')
-  async getClientDashboard(@Request() req: any) {
+  async getClientDashboard(@Request() req: AuthenticatedRequest) {
     const clientId = req.user.userId;
     return this.clientsService.getClientDashboard(clientId);
   }

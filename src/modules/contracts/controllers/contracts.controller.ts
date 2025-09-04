@@ -752,6 +752,6 @@ export class ContractsController {
   @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
   async downloadContractPDF(@Param('id') contractId: string, @Request() req) {
     const pdfUrl = await this.contractsService.downloadContractPDF(contractId, req.user.userId);
-    return { pdfUrl };
+    return pdfUrl;
   }
 }

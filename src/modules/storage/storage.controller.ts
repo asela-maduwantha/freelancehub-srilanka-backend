@@ -11,7 +11,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { StorageService } from './services/storage.service';
-import { UploadResponseDto, UploadMultipleResponseDto } from './dto';
+import { UploadResponseDto, UploadMultipleResponseDto, FileDataDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimit } from '../../common/guards/rate-limit.guard';
 
@@ -77,7 +77,7 @@ export class StorageController {
   async uploadSingleFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('folder') folder?: string,
-  ): Promise<UploadResponseDto> {
+  ): Promise<FileDataDto> {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -95,14 +95,10 @@ export class StorageController {
       const url = await this.storageService.uploadFile(file, folder || 'general');
 
       return {
-        success: true,
-        message: 'File uploaded successfully',
-        data: {
-          url,
-          fileName: file.originalname,
-          mimeType: file.mimetype,
-          size: file.size,
-        },
+        url,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
       };
     } catch (error) {
       throw new BadRequestException(error.message || 'File upload failed');
@@ -167,7 +163,7 @@ export class StorageController {
   async uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @Body('folder') folder?: string,
-  ): Promise<UploadMultipleResponseDto> {
+  ): Promise<Array<{ url: string; fileName: string; mimeType: string; size: number }>> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
@@ -202,11 +198,7 @@ export class StorageController {
         size: file.size,
       }));
 
-      return {
-        success: true,
-        message: `${files.length} files uploaded successfully`,
-        data: fileData,
-      };
+      return fileData;
     } catch (error) {
       throw new BadRequestException(error.message || 'File upload failed');
     }

@@ -13,10 +13,23 @@ import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { SubmitProposalDto } from '../../proposals/dto/submit-proposal.dto';
 import { ProposalsService } from '../../proposals/services/proposals.service';
+import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
 import { RateLimit } from '../../../common/guards/rate-limit.guard';
+
+interface ProjectQuery {
+  page?: string;
+  limit?: string;
+  status?: string;
+  category?: string;
+  skills?: string;
+  minBudget?: string;
+  maxBudget?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
 
 @ApiTags('projects')
 @Controller(['projects', 'freelancers/projects'])
@@ -72,10 +85,10 @@ export class ProjectsController {
       },
     },
   })
-  async getProjects(@Query() query: any, @Request() req?) {
+  async getProjects(@Query() query: ProjectQuery, @Request() req?: AuthenticatedRequest) {
     // Enforce max limit for performance
-    const limit = Math.min(parseInt(query.limit) || 20, 50);
-    const page = Math.max(parseInt(query.page) || 1, 1);
+    const limit = Math.min(parseInt(query.limit || '20'), 50);
+    const page = Math.max(parseInt(query.page || '1'), 1);
     
     const sanitizedQuery = {
       ...query,
@@ -110,7 +123,7 @@ export class ProjectsController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createProject(@Request() req, @Body() createProjectDto: CreateProjectDto) {
+  async createProject(@Request() req: AuthenticatedRequest, @Body() createProjectDto: CreateProjectDto) {
     return this.projectsService.createProject(req.user.userId, createProjectDto);
   }
 
@@ -123,7 +136,7 @@ export class ProjectsController {
     status: 200,
     description: 'Freelancer proposals retrieved successfully',
   })
-  async getFreelancerProposals(@Request() req, @Query() query: any) {
+  async getFreelancerProposals(@Request() req: AuthenticatedRequest, @Query() query: ProjectQuery) {
     return this.proposalsService.getUserProposals(req.user.userId);
   }
 
@@ -136,7 +149,7 @@ export class ProjectsController {
     status: 200,
     description: 'Assigned projects retrieved successfully',
   })
-  async getFreelancerProjects(@Request() req, @Query() query: any) {
+  async getFreelancerProjects(@Request() req: AuthenticatedRequest, @Query() query: ProjectQuery) {
     return this.projectsService.getFreelancerProjects(req.user.userId, query);
   }
 
@@ -188,7 +201,7 @@ export class ProjectsController {
   @ApiResponse({ status: 404, description: 'Project not found' })
   async deleteProject(@Request() req, @Param('id') projectId: string) {
     await this.projectsService.deleteProject(projectId, req.user.userId);
-    return { message: 'Project deleted successfully' };
+    return 'Project deleted successfully';
   }
 
   @Post(':id/proposals')
