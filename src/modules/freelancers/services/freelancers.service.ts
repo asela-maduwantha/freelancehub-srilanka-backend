@@ -1,19 +1,30 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../../schemas/user.schema';
-import { FreelancerProfile, FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
+import {
+  FreelancerProfile,
+  FreelancerProfileDocument,
+} from '../../../schemas/freelancer-profile.schema';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
-import { CreateFreelancerProfileDto, UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
+import {
+  CreateFreelancerProfileDto,
+  UpdateFreelancerProfileDto,
+} from '../../../dto/freelancer-profile.dto';
 import { FreelancerSearchQuery } from '../types/freelancer-profile.types';
 
 @Injectable()
 export class FreelancersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(FreelancerProfile.name) private freelancerProfileModel: Model<FreelancerProfileDocument>,
+    @InjectModel(FreelancerProfile.name)
+    private freelancerProfileModel: Model<FreelancerProfileDocument>,
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
@@ -73,11 +84,11 @@ export class FreelancersService {
     const profile = await this.freelancerProfileModel
       .findOne({ userId })
       .populate('userId', 'name email profilePicture isActive');
-    
+
     if (!profile) {
       throw new NotFoundException('Freelancer profile not found');
     }
-    
+
     return profile;
   }
 
@@ -93,17 +104,27 @@ export class FreelancersService {
     }
 
     // Update the freelancer profile
-    const profile = await this.freelancerProfileModel.findOneAndUpdate(
-      { userId },
-      { $set: updateData },
-      { new: true, runValidators: true, upsert: true }
-    ).populate('userId', 'name email profilePicture');
+    const profile = await this.freelancerProfileModel
+      .findOneAndUpdate(
+        { userId },
+        { $set: updateData },
+        { new: true, runValidators: true, upsert: true },
+      )
+      .populate('userId', 'name email profilePicture');
 
     return profile;
   }
 
   async getAllFreelancers(query: FreelancerSearchQuery = {}) {
-    const { page = 1, limit = 10, skills, experienceLevel, minRate, maxRate, availability } = query;
+    const {
+      page = 1,
+      limit = 10,
+      skills,
+      experienceLevel,
+      minRate,
+      maxRate,
+      availability,
+    } = query;
 
     const filter: Record<string, any> = {};
 
@@ -133,8 +154,8 @@ export class FreelancersService {
       .sort({ hourlyRate: -1, createdAt: -1 });
 
     // Filter out inactive users
-    const activeFreelancers = freelancers.filter(freelancer => 
-      freelancer.userId && (freelancer.userId as any).isActive
+    const activeFreelancers = freelancers.filter(
+      (freelancer) => freelancer.userId && (freelancer.userId as any).isActive,
     );
 
     const total = await this.freelancerProfileModel.countDocuments(filter);
@@ -145,14 +166,16 @@ export class FreelancersService {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
   async createProfile(userId: string, createData: CreateFreelancerProfileDto) {
     // Check if profile already exists
-    const existingProfile = await this.freelancerProfileModel.findOne({ userId });
+    const existingProfile = await this.freelancerProfileModel.findOne({
+      userId,
+    });
     if (existingProfile) {
       throw new BadRequestException('Freelancer profile already exists');
     }
@@ -168,7 +191,10 @@ export class FreelancersService {
     }
 
     // Create new profile
-    const newProfile = new this.freelancerProfileModel({ ...createData, userId });
+    const newProfile = new this.freelancerProfileModel({
+      ...createData,
+      userId,
+    });
     return await newProfile.save();
   }
 }

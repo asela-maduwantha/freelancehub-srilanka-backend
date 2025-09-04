@@ -125,7 +125,16 @@ export class ContractsController {
               description: { type: 'string' },
               amount: { type: 'number' },
               dueDate: { type: 'string', format: 'date-time' },
-              status: { type: 'string', enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'] },
+              status: {
+                type: 'string',
+                enum: [
+                  'pending',
+                  'in-progress',
+                  'submitted',
+                  'approved',
+                  'rejected',
+                ],
+              },
               submissions: {
                 type: 'array',
                 items: {
@@ -141,7 +150,11 @@ export class ContractsController {
             },
           },
         },
-        status: { type: 'string', enum: ['active', 'completed', 'cancelled', 'disputed'], default: 'active' },
+        status: {
+          type: 'string',
+          enum: ['active', 'completed', 'cancelled', 'disputed'],
+          default: 'active',
+        },
         approvalWorkflow: {
           type: 'object',
           properties: {
@@ -149,7 +162,11 @@ export class ContractsController {
             freelancerApproved: { type: 'boolean', default: false },
             clientApprovedAt: { type: 'string', format: 'date-time' },
             freelancerApprovedAt: { type: 'string', format: 'date-time' },
-            approvalOrder: { type: 'string', enum: ['client_first', 'freelancer_first'], default: 'client_first' },
+            approvalOrder: {
+              type: 'string',
+              enum: ['client_first', 'freelancer_first'],
+              default: 'client_first',
+            },
           },
         },
         pdfUrl: { type: 'string' },
@@ -177,17 +194,35 @@ export class ContractsController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Contract created successfully from proposal' },
+        message: {
+          type: 'string',
+          example: 'Contract created successfully from proposal',
+        },
         contract: { type: 'object' },
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Bad request - proposal not found or not accepted' })
-  @ApiResponse({ status: 403, description: 'Forbidden - no access to proposal' })
-  @ApiResponse({ status: 409, description: 'Conflict - contract already exists for this proposal' })
-  async createContractFromProposal(@Param('proposalId') proposalId: string, @Request() req) {
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - proposal not found or not accepted',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - no access to proposal',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - contract already exists for this proposal',
+  })
+  async createContractFromProposal(
+    @Param('proposalId') proposalId: string,
+    @Request() req,
+  ) {
     const clientId = req.user.userId;
-    return this.contractsService.createContractFromProposal(proposalId, clientId);
+    return this.contractsService.createContractFromProposal(
+      proposalId,
+      clientId,
+    );
   }
 
   @Get()
@@ -278,7 +313,16 @@ export class ContractsController {
                 description: { type: 'string' },
                 amount: { type: 'number' },
                 dueDate: { type: 'string', format: 'date-time' },
-                status: { type: 'string', enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'] },
+                status: {
+                  type: 'string',
+                  enum: [
+                    'pending',
+                    'in-progress',
+                    'submitted',
+                    'approved',
+                    'rejected',
+                  ],
+                },
                 submissions: {
                   type: 'array',
                   items: {
@@ -355,7 +399,16 @@ export class ContractsController {
                 description: { type: 'string' },
                 amount: { type: 'number' },
                 dueDate: { type: 'string', format: 'date-time' },
-                status: { type: 'string', enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'] },
+                status: {
+                  type: 'string',
+                  enum: [
+                    'pending',
+                    'in-progress',
+                    'submitted',
+                    'approved',
+                    'rejected',
+                  ],
+                },
                 submissions: {
                   type: 'array',
                   items: {
@@ -377,8 +430,14 @@ export class ContractsController {
   })
   @ApiResponse({ status: 403, description: 'Forbidden - no access to project' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async getContractsByProjectId(@Param('projectId') projectId: string, @Request() req) {
-    return this.contractsService.getContractsByProjectId(projectId, req.user.userId);
+  async getContractsByProjectId(
+    @Param('projectId') projectId: string,
+    @Request() req,
+  ) {
+    return this.contractsService.getContractsByProjectId(
+      projectId,
+      req.user.userId,
+    );
   }
 
   @Get(':id')
@@ -481,7 +540,16 @@ export class ContractsController {
               description: { type: 'string' },
               amount: { type: 'number' },
               dueDate: { type: 'string', format: 'date-time' },
-              status: { type: 'string', enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'] },
+              status: {
+                type: 'string',
+                enum: [
+                  'pending',
+                  'in-progress',
+                  'submitted',
+                  'approved',
+                  'rejected',
+                ],
+              },
               submissions: {
                 type: 'array',
                 items: {
@@ -497,7 +565,10 @@ export class ContractsController {
             },
           },
         },
-        status: { type: 'string', enum: ['active', 'completed', 'cancelled', 'disputed'] },
+        status: {
+          type: 'string',
+          enum: ['active', 'completed', 'cancelled', 'disputed'],
+        },
         approvalWorkflow: {
           type: 'object',
           properties: {
@@ -505,7 +576,10 @@ export class ContractsController {
             freelancerApproved: { type: 'boolean' },
             clientApprovedAt: { type: 'string', format: 'date-time' },
             freelancerApprovedAt: { type: 'string', format: 'date-time' },
-            approvalOrder: { type: 'string', enum: ['client_first', 'freelancer_first'] },
+            approvalOrder: {
+              type: 'string',
+              enum: ['client_first', 'freelancer_first'],
+            },
           },
         },
         pdfUrl: { type: 'string' },
@@ -518,7 +592,10 @@ export class ContractsController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - not contract participant' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not contract participant',
+  })
   @ApiResponse({ status: 404, description: 'Contract not found' })
   async getContractById(@Param('id') contractId: string, @Request() req) {
     return this.contractsService.getContractById(contractId, req.user.userId);
@@ -678,7 +755,11 @@ export class ContractsController {
     @Request() req,
     @Body() cancelContractDto: CancelContractDto,
   ) {
-    return this.contractsService.cancelContract(contractId, req.user.userId, cancelContractDto);
+    return this.contractsService.cancelContract(
+      contractId,
+      req.user.userId,
+      cancelContractDto,
+    );
   }
 
   // Note: Contract approval workflow endpoints removed due to clean Contract schema
@@ -745,13 +826,19 @@ export class ContractsController {
     schema: {
       type: 'object',
       properties: {
-        pdfUrl: { type: 'string', example: 'https://api.yourapp.com/contracts/123/pdf' },
+        pdfUrl: {
+          type: 'string',
+          example: 'https://api.yourapp.com/contracts/123/pdf',
+        },
       },
     },
   })
   @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
   async downloadContractPDF(@Param('id') contractId: string, @Request() req) {
-    const pdfUrl = await this.contractsService.downloadContractPDF(contractId, req.user.userId);
+    const pdfUrl = await this.contractsService.downloadContractPDF(
+      contractId,
+      req.user.userId,
+    );
     return pdfUrl;
   }
 }

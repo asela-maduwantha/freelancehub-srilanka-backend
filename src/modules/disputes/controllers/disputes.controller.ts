@@ -51,8 +51,14 @@ export class DisputesController {
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createDispute(@Request() req, @Body() createDisputeDto: CreateDisputeDto) {
-    return this.disputesService.createDispute(req.user.userId, createDisputeDto);
+  async createDispute(
+    @Request() req,
+    @Body() createDisputeDto: CreateDisputeDto,
+  ) {
+    return this.disputesService.createDispute(
+      req.user.userId,
+      createDisputeDto,
+    );
   }
 
   @Get()
@@ -149,7 +155,10 @@ export class DisputesController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - not dispute participant' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not dispute participant',
+  })
   @ApiResponse({ status: 404, description: 'Dispute not found' })
   async getDisputeById(@Param('id') disputeId: string, @Request() req) {
     return this.disputesService.getDisputeById(disputeId, req.user.userId);
@@ -168,14 +177,21 @@ export class DisputesController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - not dispute participant' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not dispute participant',
+  })
   @ApiResponse({ status: 404, description: 'Dispute not found' })
   async submitEvidence(
     @Param('id') disputeId: string,
     @Request() req,
     @Body() submitEvidenceDto: SubmitEvidenceDto,
   ) {
-    return this.disputesService.submitEvidence(disputeId, req.user.userId, submitEvidenceDto);
+    return this.disputesService.submitEvidence(
+      disputeId,
+      req.user.userId,
+      submitEvidenceDto,
+    );
   }
 
   @Post(':id/messages')
@@ -191,14 +207,21 @@ export class DisputesController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - not dispute participant' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not dispute participant',
+  })
   @ApiResponse({ status: 404, description: 'Dispute not found' })
   async addMessage(
     @Param('id') disputeId: string,
     @Request() req,
     @Body() addMessageDto: AddMessageDto,
   ) {
-    return this.disputesService.addMessage(disputeId, req.user.userId, addMessageDto);
+    return this.disputesService.addMessage(
+      disputeId,
+      req.user.userId,
+      addMessageDto,
+    );
   }
 
   @Put(':id/status')
@@ -210,7 +233,10 @@ export class DisputesController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Dispute status updated successfully' },
+        message: {
+          type: 'string',
+          example: 'Dispute status updated successfully',
+        },
       },
     },
   })
@@ -221,7 +247,11 @@ export class DisputesController {
     @Request() req,
     @Body() updateDisputeStatusDto: UpdateDisputeStatusDto,
   ) {
-    return this.disputesService.updateDisputeStatus(disputeId, req.user.userId, updateDisputeStatusDto);
+    return this.disputesService.updateDisputeStatus(
+      disputeId,
+      req.user.userId,
+      updateDisputeStatusDto,
+    );
   }
 
   @Post(':id/resolve')
@@ -244,7 +274,11 @@ export class DisputesController {
     @Request() req,
     @Body() resolveDisputeDto: ResolveDisputeDto,
   ) {
-    return this.disputesService.resolveDispute(disputeId, req.user.userId, resolveDisputeDto);
+    return this.disputesService.resolveDispute(
+      disputeId,
+      req.user.userId,
+      resolveDisputeDto,
+    );
   }
 
   @Get('admin/open')
@@ -268,7 +302,10 @@ export class DisputesController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
   async getOpenDisputes() {
     return this.disputesService.getOpenDisputes();
   }

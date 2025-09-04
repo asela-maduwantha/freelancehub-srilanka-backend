@@ -19,14 +19,16 @@ import { CommonModule } from '../../common/common.module';
       useFactory: async (configService: ConfigService) => {
         return {
           secret: configService.get<string>('app.jwtSecret'),
-          signOptions: { expiresIn: configService.get<string>('app.jwtExpiresIn') },
+          signOptions: {
+            expiresIn: configService.get<string>('app.jwtExpiresIn'),
+          },
         };
       },
       inject: [ConfigService],
     }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: Otp.name, schema: OtpSchema }
+      { name: Otp.name, schema: OtpSchema },
     ]),
     UsersModule, // Import UsersModule instead of providing UsersService directly
     CommonModule,

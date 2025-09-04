@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Conversation, ConversationDocument } from '../../../schemas/conversation.schema';
+import {
+  Conversation,
+  ConversationDocument,
+} from '../../../schemas/conversation.schema';
 import { Message, MessageDocument } from '../../../schemas/message.schema';
-import { EncryptionKey, EncryptionKeyDocument } from '../../../schemas/encryption-key.schema';
-import { EncryptionService, ConversationKey, KeyPair } from './encryption.service';
-import { NotFoundException, ForbiddenException } from '../../../common/exceptions';
+import {
+  EncryptionKey,
+  EncryptionKeyDocument,
+} from '../../../schemas/encryption-key.schema';
+import {
+  EncryptionService,
+  ConversationKey,
+  KeyPair,
+} from './encryption.service';
+import {
+  NotFoundException,
+  ForbiddenException,
+} from '../../../common/exceptions';
 
 export interface CreateConversationDto {
   participant1Id: string;
@@ -33,16 +46,20 @@ export interface MessageResponse {
 @Injectable()
 export class MessagingService {
   constructor(
-    @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
+    @InjectModel(Conversation.name)
+    private conversationModel: Model<ConversationDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
-    @InjectModel(EncryptionKey.name) private encryptionKeyModel: Model<EncryptionKeyDocument>,
+    @InjectModel(EncryptionKey.name)
+    private encryptionKeyModel: Model<EncryptionKeyDocument>,
     private encryptionService: EncryptionService,
   ) {}
 
   /**
    * Create a new conversation between two users
    */
-  async createConversation(createDto: CreateConversationDto): Promise<ConversationDocument> {
+  async createConversation(
+    createDto: CreateConversationDto,
+  ): Promise<ConversationDocument> {
     const { participant1Id, participant2Id } = createDto;
 
     // Check if conversation already exists
@@ -58,7 +75,10 @@ export class MessagingService {
     }
 
     // Generate unique conversation ID
-    const conversationId = this.generateConversationId(participant1Id, participant2Id);
+    const conversationId = this.generateConversationId(
+      participant1Id,
+      participant2Id,
+    );
 
     // Create new conversation
     const conversation = new this.conversationModel({
@@ -83,14 +103,18 @@ export class MessagingService {
     userId: string,
     userPublicKey: string,
   ): Promise<{ conversationKey: ConversationKey; encryptedKeyShare: string }> {
-    const conversation = await this.conversationModel.findOne({ conversationId });
+    const conversation = await this.conversationModel.findOne({
+      conversationId,
+    });
     if (!conversation) {
       throw new NotFoundException('Conversation not found');
     }
 
     // Verify user is participant
     if (!conversation.participants.includes(new Types.ObjectId(userId))) {
-      throw new ForbiddenException('User is not a participant in this conversation');
+      throw new ForbiddenException(
+        'User is not a participant in this conversation',
+      );
     }
 
     // Generate conversation key
@@ -103,14 +127,20 @@ export class MessagingService {
     );
 
     // Store the encrypted key share
-    await this.storeEncryptionKey(conversationId, userId, encryptedKeyShare, conversationKey.version);
+    await this.storeEncryptionKey(
+      conversationId,
+      userId,
+      encryptedKeyShare,
+      conversationKey.version,
+    );
 
     // Update conversation metadata
     await this.conversationModel.updateOne(
       { conversationId },
       {
         $set: {
-          [`metadata.participant${conversation.participant1.toString() === userId ? '1' : '2'}PublicKey`]: userPublicKey,
+          [`metadata.participant${conversation.participant1.toString() === userId ? '1' : '2'}PublicKey`]:
+            userPublicKey,
         },
       },
     );
@@ -129,17 +159,24 @@ export class MessagingService {
     const { conversationId, content, recipientId } = sendDto;
 
     // Verify conversation exists and user is participant
-    const conversation = await this.conversationModel.findOne({ conversationId });
+    const conversation = await this.conversationModel.findOne({
+      conversationId,
+    });
     if (!conversation) {
       throw new NotFoundException('Conversation not found');
     }
 
     if (!conversation.participants.includes(new Types.ObjectId(senderId))) {
-      throw new ForbiddenException('User is not a participant in this conversation');
+      throw new ForbiddenException(
+        'User is not a participant in this conversation',
+      );
     }
 
     // Encrypt the message
-    const encryptedMessage = this.encryptionService.encryptMessage(content, conversationKey);
+    const encryptedMessage = this.encryptionService.encryptMessage(
+      content,
+      conversationKey,
+    );
 
     // Create message document
     const message = new this.messageModel({
@@ -183,13 +220,17 @@ export class MessagingService {
     limit: number = 50,
   ): Promise<MessageResponse[]> {
     // Verify user is participant
-    const conversation = await this.conversationModel.findOne({ conversationId });
+    const conversation = await this.conversationModel.findOne({
+      conversationId,
+    });
     if (!conversation) {
       throw new NotFoundException('Conversation not found');
     }
 
     if (!conversation.participants.includes(new Types.ObjectId(userId))) {
-      throw new ForbiddenException('User is not a participant in this conversation');
+      throw new ForbiddenException(
+        'User is not a participant in this conversation',
+      );
     }
 
     // Get messages
@@ -251,7 +292,10 @@ export class MessagingService {
   /**
    * Mark messages as read
    */
-  async markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
+  async markMessagesAsRead(
+    conversationId: string,
+    userId: string,
+  ): Promise<void> {
     await this.messageModel.updateMany(
       {
         conversationId,
@@ -270,7 +314,11 @@ export class MessagingService {
   /**
    * Get conversation encryption key for a user
    */
-  async getConversationKey(conversationId: string, userId: string, privateKey: string): Promise<string> {
+  async getConversationKey(
+    conversationId: string,
+    userId: string,
+    privateKey: string,
+  ): Promise<string> {
     const encryptionKey = await this.encryptionKeyModel.findOne({
       conversationId,
       ownerId: userId,
@@ -299,7 +347,9 @@ export class MessagingService {
     encryptedKeyShare: string,
     keyVersion: string,
   ): Promise<void> {
-    const conversation = await this.conversationModel.findOne({ conversationId });
+    const conversation = await this.conversationModel.findOne({
+      conversationId,
+    });
     if (!conversation) {
       throw new NotFoundException('Conversation not found');
     }
@@ -321,7 +371,10 @@ export class MessagingService {
   /**
    * Generate unique conversation ID
    */
-  private generateConversationId(participant1Id: string, participant2Id: string): string {
+  private generateConversationId(
+    participant1Id: string,
+    participant2Id: string,
+  ): string {
     const [id1, id2] = [participant1Id, participant2Id].sort();
     return `conv_${id1}_${id2}`;
   }

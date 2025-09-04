@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  UseInterceptors,
+} from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
@@ -42,18 +54,56 @@ export class ProjectsController {
   @Get()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // 5 minutes cache
-  @ApiOperation({ 
-    summary: 'Get projects with filters (public access for open projects, auth required for all)', 
-    description: 'Consolidated endpoint that replaces /projects/public. Use status=open for public projects.' 
+  @ApiOperation({
+    summary:
+      'Get projects with filters (public access for open projects, auth required for all)',
+    description:
+      'Consolidated endpoint that replaces /projects/public. Use status=open for public projects.',
   })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of projects per page (max 50)', example: 12 })
-  @ApiQuery({ name: 'sort', required: false, description: 'Sort order', example: 'newest' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by project status (open, in-progress, completed)', example: 'open' })
-  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
-  @ApiQuery({ name: 'minBudget', required: false, description: 'Minimum budget filter' })
-  @ApiQuery({ name: 'maxBudget', required: false, description: 'Maximum budget filter' })
-  @ApiQuery({ name: 'skills', required: false, description: 'Filter by skills (comma-separated)' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of projects per page (max 50)',
+    example: 12,
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    description: 'Sort order',
+    example: 'newest',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by project status (open, in-progress, completed)',
+    example: 'open',
+  })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    description: 'Filter by category',
+  })
+  @ApiQuery({
+    name: 'minBudget',
+    required: false,
+    description: 'Minimum budget filter',
+  })
+  @ApiQuery({
+    name: 'maxBudget',
+    required: false,
+    description: 'Maximum budget filter',
+  })
+  @ApiQuery({
+    name: 'skills',
+    required: false,
+    description: 'Filter by skills (comma-separated)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Projects retrieved successfully',
@@ -85,17 +135,20 @@ export class ProjectsController {
       },
     },
   })
-  async getProjects(@Query() query: ProjectQuery, @Request() req?: AuthenticatedRequest) {
+  async getProjects(
+    @Query() query: ProjectQuery,
+    @Request() req?: AuthenticatedRequest,
+  ) {
     // Enforce max limit for performance
     const limit = Math.min(parseInt(query.limit || '20'), 50);
     const page = Math.max(parseInt(query.page || '1'), 1);
-    
+
     const sanitizedQuery = {
       ...query,
       page,
       limit,
       // If no auth, force status to open for public access
-      ...((!req?.user && !query.status) && { status: 'open' }),
+      ...(!req?.user && !query.status && { status: 'open' }),
     };
 
     return this.projectsService.getProjects(sanitizedQuery);
@@ -123,20 +176,29 @@ export class ProjectsController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createProject(@Request() req: AuthenticatedRequest, @Body() createProjectDto: CreateProjectDto) {
-    return this.projectsService.createProject(req.user.userId, createProjectDto);
+  async createProject(
+    @Request() req: AuthenticatedRequest,
+    @Body() createProjectDto: CreateProjectDto,
+  ) {
+    return this.projectsService.createProject(
+      req.user.userId,
+      createProjectDto,
+    );
   }
 
   @Get('my-proposals')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('freelancer')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user\'s proposals (freelancer view)' })
+  @ApiOperation({ summary: "Get current user's proposals (freelancer view)" })
   @ApiResponse({
     status: 200,
     description: 'Freelancer proposals retrieved successfully',
   })
-  async getFreelancerProposals(@Request() req: AuthenticatedRequest, @Query() query: ProjectQuery) {
+  async getFreelancerProposals(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: ProjectQuery,
+  ) {
     return this.proposalsService.getUserProposals(req.user.userId);
   }
 
@@ -149,7 +211,10 @@ export class ProjectsController {
     status: 200,
     description: 'Assigned projects retrieved successfully',
   })
-  async getFreelancerProjects(@Request() req: AuthenticatedRequest, @Query() query: ProjectQuery) {
+  async getFreelancerProjects(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: ProjectQuery,
+  ) {
     return this.projectsService.getFreelancerProjects(req.user.userId, query);
   }
 
@@ -178,8 +243,16 @@ export class ProjectsController {
   })
   @ApiResponse({ status: 403, description: 'Forbidden - not project owner' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async updateProject(@Request() req, @Param('id') projectId: string, @Body() updateProjectDto: UpdateProjectDto) {
-    return this.projectsService.updateProject(projectId, req.user.userId, updateProjectDto);
+  async updateProject(
+    @Request() req,
+    @Param('id') projectId: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    return this.projectsService.updateProject(
+      projectId,
+      req.user.userId,
+      updateProjectDto,
+    );
   }
 
   @Delete(':id')
@@ -219,8 +292,16 @@ export class ProjectsController {
       },
     },
   })
-  async submitProposal(@Request() req, @Param('id') projectId: string, @Body() submitProposalDto: SubmitProposalDto) {
-    return this.proposalsService.submitProposal(req.user.userId, projectId, submitProposalDto);
+  async submitProposal(
+    @Request() req,
+    @Param('id') projectId: string,
+    @Body() submitProposalDto: SubmitProposalDto,
+  ) {
+    return this.proposalsService.submitProposal(
+      req.user.userId,
+      projectId,
+      submitProposalDto,
+    );
   }
 
   @Get(':id/proposals')
@@ -233,6 +314,9 @@ export class ProjectsController {
     description: 'Proposals retrieved successfully',
   })
   async getProposals(@Request() req, @Param('id') projectId: string) {
-    return this.proposalsService.getProposalsForProject(projectId, req.user.userId);
+    return this.proposalsService.getProposalsForProject(
+      projectId,
+      req.user.userId,
+    );
   }
 }

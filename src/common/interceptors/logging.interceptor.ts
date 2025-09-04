@@ -20,32 +20,26 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const now = Date.now();
 
-    this.logger.log(
-      `Incoming Request: ${method} ${url}`,
-      {
-        method,
-        url,
-        userAgent,
-        ip,
-        userId: user?.userId || 'anonymous',
-        body: this.sanitizeBody(body),
-        query,
-        params,
-      },
-    );
+    this.logger.log(`Incoming Request: ${method} ${url}`, {
+      method,
+      url,
+      userAgent,
+      ip,
+      userId: user?.userId || 'anonymous',
+      body: this.sanitizeBody(body),
+      query,
+      params,
+    });
 
     return next.handle().pipe(
       tap((data) => {
         const responseTime = Date.now() - now;
-        this.logger.log(
-          `Response: ${method} ${url} - ${responseTime}ms`,
-          {
-            method,
-            url,
-            responseTime,
-            statusCode: context.switchToHttp().getResponse().statusCode,
-          },
-        );
+        this.logger.log(`Response: ${method} ${url} - ${responseTime}ms`, {
+          method,
+          url,
+          responseTime,
+          statusCode: context.switchToHttp().getResponse().statusCode,
+        });
       }),
     );
   }
@@ -58,8 +52,13 @@ export class LoggingInterceptor implements NestInterceptor {
     const sanitized = { ...body };
 
     // Remove sensitive fields
-    const sensitiveFields = ['password', 'otpCode', 'refreshToken', 'stripeSecretKey'];
-    sensitiveFields.forEach(field => {
+    const sensitiveFields = [
+      'password',
+      'otpCode',
+      'refreshToken',
+      'stripeSecretKey',
+    ];
+    sensitiveFields.forEach((field) => {
       if (sanitized[field]) {
         sanitized[field] = '[REDACTED]';
       }

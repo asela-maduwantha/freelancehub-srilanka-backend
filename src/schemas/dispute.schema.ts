@@ -69,7 +69,10 @@ export class Dispute {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   respondentId: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['payment', 'quality', 'communication', 'other'] })
+  @Prop({
+    required: true,
+    enum: ['payment', 'quality', 'communication', 'other'],
+  })
   type: string;
 
   @Prop({ required: true })
@@ -84,7 +87,10 @@ export class Dispute {
   @Prop({ type: [DisputeMessage], default: [] })
   messages: DisputeMessage[];
 
-  @Prop({ default: 'open', enum: ['open', 'in_review', 'resolved', 'escalated'] })
+  @Prop({
+    default: 'open',
+    enum: ['open', 'in_review', 'resolved', 'escalated'],
+  })
   status: string;
 
   @Prop({ type: Resolution })

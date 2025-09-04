@@ -11,16 +11,22 @@ export class StorageService {
   private containerClient: ContainerClient;
 
   constructor(private configService: ConfigService) {
-    const accountName = this.configService.get<string>('azure.storageAccountName');
-    const accountKey = this.configService.get<string>('azure.storageAccountKey');
-    const containerName = this.configService.get<string>('azure.containerName') || 'freelancehub';
+    const accountName = this.configService.get<string>(
+      'azure.storageAccountName',
+    );
+    const accountKey = this.configService.get<string>(
+      'azure.storageAccountKey',
+    );
+    const containerName =
+      this.configService.get<string>('azure.containerName') || 'freelancehub';
 
     const accountUrl = `https://${accountName}.blob.core.windows.net`;
     this.blobServiceClient = BlobServiceClient.fromConnectionString(
-      `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${accountKey};EndpointSuffix=core.windows.net`
+      `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${accountKey};EndpointSuffix=core.windows.net`,
     );
 
-    this.containerClient = this.blobServiceClient.getContainerClient(containerName);
+    this.containerClient =
+      this.blobServiceClient.getContainerClient(containerName);
     this.ensureContainerExists();
 
     // Ensure uploads directory exists
@@ -56,7 +62,10 @@ export class StorageService {
     return allowedTypes.includes(mimeType);
   }
 
-  async uploadFile(file: Express.Multer.File, folder: string = 'general'): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    folder: string = 'general',
+  ): Promise<string> {
     if (!file || !file.path) {
       throw new Error('Invalid file provided');
     }
@@ -92,8 +101,11 @@ export class StorageService {
     }
   }
 
-  async uploadMultipleFiles(files: Express.Multer.File[], folder: string = 'general'): Promise<string[]> {
-    const uploadPromises = files.map(file => this.uploadFile(file, folder));
+  async uploadMultipleFiles(
+    files: Express.Multer.File[],
+    folder: string = 'general',
+  ): Promise<string[]> {
+    const uploadPromises = files.map((file) => this.uploadFile(file, folder));
     return Promise.all(uploadPromises);
   }
 
@@ -110,7 +122,10 @@ export class StorageService {
     return blockBlobClient.url;
   }
 
-  async generateSasToken(fileName: string, expiresInMinutes: number = 60): Promise<string> {
+  async generateSasToken(
+    fileName: string,
+    expiresInMinutes: number = 60,
+  ): Promise<string> {
     const blockBlobClient = this.containerClient.getBlockBlobClient(fileName);
 
     const expiresOn = new Date();

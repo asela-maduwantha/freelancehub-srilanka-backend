@@ -43,7 +43,9 @@ async function bootstrap() {
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('FreelanceHub API')
-    .setDescription('Comprehensive API documentation for FreelanceHub platform - Enhanced with security and performance improvements')
+    .setDescription(
+      'Comprehensive API documentation for FreelanceHub platform - Enhanced with security and performance improvements',
+    )
     .setVersion('2.0')
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management endpoints')
@@ -88,7 +90,10 @@ async function bootstrap() {
 
   // Enable CORS with enhanced security
   app.enableCors({
-    origin: configService.get('app.corsOrigin') || process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin:
+      configService.get('app.corsOrigin') ||
+      process.env.CORS_ORIGIN ||
+      'http://localhost:3000',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -98,13 +103,24 @@ async function bootstrap() {
   app.useGlobalPipes(new CustomValidationPipe());
 
   // Body size limit
-  app.use(require('express').json({ limit: configService.get('app.maxRequestSize') || '10mb' }));
-  app.use(require('express').urlencoded({ limit: configService.get('app.maxRequestSize') || '10mb', extended: true }));
+  app.use(
+    require('express').json({
+      limit: configService.get('app.maxRequestSize') || '10mb',
+    }),
+  );
+  app.use(
+    require('express').urlencoded({
+      limit: configService.get('app.maxRequestSize') || '10mb',
+      extended: true,
+    }),
+  );
 
   const port = configService.get('app.port') || process.env.PORT || 8000;
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
-  console.log(`📚 Swagger documentation available at: http://localhost:${port}/api/v1/docs`);
+  console.log(
+    `📚 Swagger documentation available at: http://localhost:${port}/api/v1/docs`,
+  );
   console.log(`🔒 Security headers enabled, rate limiting active`);
 }
 bootstrap();

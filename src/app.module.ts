@@ -34,13 +34,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [
-        databaseConfig,
-        stripeConfig,
-        azureConfig,
-        emailConfig,
-        appConfig,
-      ],
+      load: [databaseConfig, stripeConfig, azureConfig, emailConfig, appConfig],
       envFilePath: ['.env.local', '.env'],
     }),
     MongooseModule.forRootAsync({

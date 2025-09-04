@@ -11,10 +11,17 @@ export class ClientsService {
 
   async getClientDashboard(clientId: string) {
     // Get all projects for the client
-    const allProjects = await this.projectsService.getClientProjects(clientId, { page: 1, limit: 1000 });
-    
+    const allProjects = await this.projectsService.getClientProjects(clientId, {
+      page: 1,
+      limit: 1000,
+    });
+
     // Get all proposals for the client
-    const allProposals = await this.proposalsService.getClientProposals(clientId, 1, 1000);
+    const allProposals = await this.proposalsService.getClientProposals(
+      clientId,
+      1,
+      1000,
+    );
 
     // Calculate dashboard stats
     const totalProjects = allProjects.pagination.total;

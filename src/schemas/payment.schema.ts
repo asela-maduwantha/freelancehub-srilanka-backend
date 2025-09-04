@@ -36,7 +36,10 @@ export class Payment {
   @Prop({ default: 'held', enum: ['held', 'released', 'refunded'] })
   escrowStatus: string;
 
-  @Prop({ default: 'pending', enum: ['pending', 'completed', 'failed', 'refunded'] })
+  @Prop({
+    default: 'pending',
+    enum: ['pending', 'completed', 'failed', 'refunded'],
+  })
   status: string;
 
   @Prop()

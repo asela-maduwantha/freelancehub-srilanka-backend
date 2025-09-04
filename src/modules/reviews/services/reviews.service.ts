@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Review, ReviewDocument } from '../../../schemas/review.schema';
@@ -10,8 +15,12 @@ export class ReviewsService {
     @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
   ) {}
 
-  async createReview(reviewerId: string, createReviewDto: CreateReviewDto): Promise<Review> {
-    const { revieweeId, projectId, rating, review, reviewType } = createReviewDto;
+  async createReview(
+    reviewerId: string,
+    createReviewDto: CreateReviewDto,
+  ): Promise<Review> {
+    const { revieweeId, projectId, rating, review, reviewType } =
+      createReviewDto;
 
     // Check if reviewer has already reviewed this project
     const existingReview = await this.reviewModel.findOne({
@@ -55,7 +64,7 @@ export class ReviewsService {
     // Calculate average rating
     const avgRating = await this.reviewModel.aggregate([
       { $match: filter },
-      { $group: { _id: null, average: { $avg: '$rating' } } }
+      { $group: { _id: null, average: { $avg: '$rating' } } },
     ]);
 
     return {
@@ -84,14 +93,25 @@ export class ReviewsService {
     return review;
   }
 
-  async updateReview(reviewId: string, reviewerId: string, updateData: Partial<CreateReviewDto>): Promise<Review> {
-    const review = await this.reviewModel.findOne({ _id: reviewId, reviewerId });
+  async updateReview(
+    reviewId: string,
+    reviewerId: string,
+    updateData: Partial<CreateReviewDto>,
+  ): Promise<Review> {
+    const review = await this.reviewModel.findOne({
+      _id: reviewId,
+      reviewerId,
+    });
 
     if (!review) {
       throw new NotFoundException('Review not found');
     }
 
-    const updatedReview = await this.reviewModel.findByIdAndUpdate(reviewId, updateData, { new: true });
+    const updatedReview = await this.reviewModel.findByIdAndUpdate(
+      reviewId,
+      updateData,
+      { new: true },
+    );
 
     if (!updatedReview) {
       throw new NotFoundException('Review not found');
@@ -101,7 +121,10 @@ export class ReviewsService {
   }
 
   async deleteReview(reviewId: string, reviewerId: string): Promise<void> {
-    const review = await this.reviewModel.findOne({ _id: reviewId, reviewerId });
+    const review = await this.reviewModel.findOne({
+      _id: reviewId,
+      reviewerId,
+    });
 
     if (!review) {
       throw new NotFoundException('Review not found');
@@ -110,17 +133,28 @@ export class ReviewsService {
     await this.reviewModel.findByIdAndDelete(reviewId);
   }
 
-  async respondToReview(reviewId: string, revieweeId: string, response: string): Promise<Review> {
-    const review = await this.reviewModel.findOne({ _id: reviewId, revieweeId });
+  async respondToReview(
+    reviewId: string,
+    revieweeId: string,
+    response: string,
+  ): Promise<Review> {
+    const review = await this.reviewModel.findOne({
+      _id: reviewId,
+      revieweeId,
+    });
 
     if (!review) {
       throw new NotFoundException('Review not found');
     }
 
-    const updatedReview = await this.reviewModel.findByIdAndUpdate(reviewId, {
-      response,
-      responseDate: new Date(),
-    }, { new: true });
+    const updatedReview = await this.reviewModel.findByIdAndUpdate(
+      reviewId,
+      {
+        response,
+        responseDate: new Date(),
+      },
+      { new: true },
+    );
 
     if (!updatedReview) {
       throw new NotFoundException('Review not found');
@@ -139,8 +173,10 @@ export class ReviewsService {
     // Note: helpful property was removed from clean Review schema
     // This functionality would need to be reimplemented differently
     // or removed entirely in the clean architecture
-    
-    throw new BadRequestException('Review helpful functionality not available in clean schema');
+
+    throw new BadRequestException(
+      'Review helpful functionality not available in clean schema',
+    );
   }
 
   async getUserReviewStats(userId: string) {
@@ -152,17 +188,17 @@ export class ReviewsService {
           totalReviews: { $sum: 1 },
           averageRating: { $avg: '$rating' },
           ratingDistribution: {
-            $push: '$rating'
-          }
-        }
-      }
+            $push: '$rating',
+          },
+        },
+      },
     ]);
 
     if (stats.length === 0) {
       return {
         totalReviews: 0,
         averageRating: 0,
-        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       };
     }
 

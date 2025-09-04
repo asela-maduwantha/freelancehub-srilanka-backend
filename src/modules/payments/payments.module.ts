@@ -14,7 +14,7 @@ import { EmailService } from '../../common/services/email.service';
     MongooseModule.forFeature([
       { name: Payment.name, schema: PaymentSchema },
       { name: Contract.name, schema: ContractSchema },
-      { name: User.name, schema: UserSchema }
+      { name: User.name, schema: UserSchema },
     ]),
     ConfigModule,
   ],

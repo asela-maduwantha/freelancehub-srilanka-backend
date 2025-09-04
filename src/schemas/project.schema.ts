@@ -75,7 +75,10 @@ export class Project {
   @Prop({ default: 'public', enum: ['public', 'invite_only'] })
   visibility: string;
 
-  @Prop({ default: 'draft', enum: ['draft', 'active', 'closed', 'completed', 'cancelled'] })
+  @Prop({
+    default: 'draft',
+    enum: ['draft', 'active', 'closed', 'completed', 'cancelled'],
+  })
   status: string;
 
   @Prop({ default: 0 })

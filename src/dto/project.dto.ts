@@ -1,12 +1,12 @@
-import { 
-  IsString, 
-  IsArray, 
-  IsNumber, 
-  IsOptional, 
-  IsIn, 
-  ValidateNested, 
+import {
+  IsString,
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsIn,
+  ValidateNested,
   IsDate,
-  Min
+  Min,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -172,7 +172,9 @@ export class UpdateProjectDto {
   @IsIn(['public', 'invite_only'])
   visibility?: string;
 
-  @ApiPropertyOptional({ enum: ['draft', 'active', 'closed', 'completed', 'cancelled'] })
+  @ApiPropertyOptional({
+    enum: ['draft', 'active', 'closed', 'completed', 'cancelled'],
+  })
   @IsOptional()
   @IsIn(['draft', 'active', 'closed', 'completed', 'cancelled'])
   status?: string;
@@ -245,7 +247,9 @@ export class ProjectSearchDto {
   @Type(() => Number)
   limit?: number = 10;
 
-  @ApiPropertyOptional({ enum: ['newest', 'oldest', 'budget_low', 'budget_high'] })
+  @ApiPropertyOptional({
+    enum: ['newest', 'oldest', 'budget_low', 'budget_high'],
+  })
   @IsOptional()
   @IsIn(['newest', 'oldest', 'budget_low', 'budget_high'])
   sortBy?: string = 'newest';

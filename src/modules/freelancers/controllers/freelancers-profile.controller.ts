@@ -1,9 +1,25 @@
-import { Body, Controller, Put, UseGuards, Request, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Put,
+  UseGuards,
+  Request,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
-import { EditFreelancerProfileType, FreelancerProfileResponse, UpdateFreelancerProfileRequest } from '../types/freelancer-profile.types';
+import {
+  EditFreelancerProfileType,
+  FreelancerProfileResponse,
+  UpdateFreelancerProfileRequest,
+} from '../types/freelancer-profile.types';
 import { UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
 import { FreelancersService } from '../services/freelancers.service';
 import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
@@ -20,7 +36,7 @@ export class FreelancersController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'Update freelancer profile',
-    description: 'Update the authenticated freelancer\'s profile information'
+    description: "Update the authenticated freelancer's profile information",
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -39,15 +55,15 @@ export class FreelancersController {
             skills: {
               type: 'array',
               items: { type: 'string' },
-              example: ['React', 'Node.js', 'TypeScript']
+              example: ['React', 'Node.js', 'TypeScript'],
             },
             hourlyRate: { type: 'number', example: 75 },
-            availability: { type: 'string', example: 'available' }
-          }
+            availability: { type: 'string', example: 'available' },
+          },
         },
-        message: { type: 'string', example: 'Profile updated successfully' }
-      }
-    }
+        message: { type: 'string', example: 'Profile updated successfully' },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -63,20 +79,23 @@ export class FreelancersController {
             type: 'object',
             properties: {
               field: { type: 'string', example: 'hourlyRate' },
-              message: { type: 'string', example: 'Hourly rate must be a positive number' }
-            }
-          }
-        }
-      }
-    }
+              message: {
+                type: 'string',
+                example: 'Hourly rate must be a positive number',
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Unauthorized - invalid or missing token'
+    description: 'Unauthorized - invalid or missing token',
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Forbidden - user is not a freelancer'
+    description: 'Forbidden - user is not a freelancer',
   })
   async updateProfile(
     @Request() req: AuthenticatedRequest,
@@ -84,7 +103,10 @@ export class FreelancersController {
   ): Promise<FreelancerProfileDocument> {
     try {
       const freelancerId = req.user.userId;
-      const updatedProfile = await this.freelancersService.updateProfile(freelancerId, updateData);
+      const updatedProfile = await this.freelancersService.updateProfile(
+        freelancerId,
+        updateData,
+      );
 
       return updatedProfile;
     } catch (error) {

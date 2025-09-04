@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards, Request, Headers, RawBodyRequest } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  Headers,
+  RawBodyRequest,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -24,7 +35,9 @@ export class PaymentsController {
   ) {}
 
   @Post('create')
-  @ApiOperation({ summary: 'Create payment for milestone release (PayHere escrow model)' })
+  @ApiOperation({
+    summary: 'Create payment for milestone release (PayHere escrow model)',
+  })
   @ApiBody({ type: CreatePaymentDto })
   @ApiResponse({
     status: 201,
@@ -37,9 +50,15 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Bad request - invalid payment data' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid payment data',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createPayment(@Request() req, @Body() createPaymentDto: CreatePaymentDto) {
+  async createPayment(
+    @Request() req,
+    @Body() createPaymentDto: CreatePaymentDto,
+  ) {
     return this.paymentsService.createPayment(req.user.id, createPaymentDto);
   }
 
@@ -50,7 +69,10 @@ export class PaymentsController {
     schema: {
       type: 'object',
       properties: {
-        paymentIntentId: { type: 'string', description: 'Stripe payment intent ID' },
+        paymentIntentId: {
+          type: 'string',
+          description: 'Stripe payment intent ID',
+        },
       },
       required: ['paymentIntentId'],
     },
@@ -82,9 +104,23 @@ export class PaymentsController {
 
   @Get()
   @ApiOperation({ summary: 'Get user payments with optional filtering' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by payment status' })
-  @ApiQuery({ name: 'limit', required: false, type: 'number', description: 'Limit number of results' })
-  @ApiQuery({ name: 'offset', required: false, type: 'number', description: 'Offset for pagination' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by payment status',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: 'number',
+    description: 'Limit number of results',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: 'number',
+    description: 'Offset for pagination',
+  })
   @ApiResponse({
     status: 200,
     description: 'Payments retrieved successfully',
@@ -124,8 +160,14 @@ export class PaymentsController {
       properties: {
         totalPaid: { type: 'number', description: 'Total amount paid' },
         totalReceived: { type: 'number', description: 'Total amount received' },
-        pendingPayments: { type: 'number', description: 'Number of pending payments' },
-        completedPayments: { type: 'number', description: 'Number of completed payments' },
+        pendingPayments: {
+          type: 'number',
+          description: 'Number of pending payments',
+        },
+        completedPayments: {
+          type: 'number',
+          description: 'Number of completed payments',
+        },
         currency: { type: 'string', example: 'usd' },
       },
     },
@@ -178,7 +220,10 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - not payment participant' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not payment participant',
+  })
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async getPaymentById(@Request() req, @Param('id') paymentId: string) {
     return this.paymentsService.getPaymentById(paymentId, req.user.userId);
@@ -216,10 +261,21 @@ export class PaymentsController {
     },
   })
   @ApiResponse({ status: 400, description: 'Refund processing failed' })
-  @ApiResponse({ status: 403, description: 'Forbidden - not authorized to refund' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not authorized to refund',
+  })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  async processRefund(@Request() req, @Param('id') paymentId: string, @Body('reason') reason: string) {
-    return this.paymentsService.processRefund(paymentId, req.user.userId, reason);
+  async processRefund(
+    @Request() req,
+    @Param('id') paymentId: string,
+    @Body('reason') reason: string,
+  ) {
+    return this.paymentsService.processRefund(
+      paymentId,
+      req.user.userId,
+      reason,
+    );
   }
 
   // Stripe Connect endpoints
@@ -232,11 +288,17 @@ export class PaymentsController {
       type: 'object',
       properties: {
         accountId: { type: 'string', description: 'Stripe account ID' },
-        onboardingUrl: { type: 'string', description: 'URL for Stripe onboarding' },
+        onboardingUrl: {
+          type: 'string',
+          description: 'URL for Stripe onboarding',
+        },
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Bad request - user not eligible or already has account' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - user not eligible or already has account',
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   async createStripeAccount(@Request() req) {
     return this.stripeConnectService.createStripeAccount(req.user.userId);
@@ -252,7 +314,11 @@ export class PaymentsController {
       type: 'object',
       properties: {
         accountId: { type: 'string', description: 'Stripe account ID' },
-        status: { type: 'string', description: 'Account status (pending, complete, incomplete, rejected)' },
+        status: {
+          type: 'string',
+          description:
+            'Account status (pending, complete, incomplete, rejected)',
+        },
         details: {
           type: 'object',
           properties: {

@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsEnum, IsOptional, IsString, IsNumber, IsArray, Min, Max } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsArray,
+  Min,
+  Max,
+} from 'class-validator';
 import { UserStatus } from '../../../types';
 
 export class UpdateUserStatusDto {

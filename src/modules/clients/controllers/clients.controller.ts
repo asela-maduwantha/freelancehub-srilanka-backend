@@ -1,4 +1,13 @@
-import { Controller, Get, UseGuards, Request, Query, Param, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Request,
+  Query,
+  Param,
+  Post,
+  Body,
+} from '@nestjs/common';
 import { ProposalsService } from '../../proposals/services/proposals.service';
 import { ProjectsService } from '../../projects/services/projects.service';
 import { ClientsService } from '../services/clients.service';
@@ -28,7 +37,10 @@ export class ClientsController {
     const clientId = req.user.userId;
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
-    const query: { page: number; limit: number; status?: string } = { page: pageNum, limit: limitNum };
+    const query: { page: number; limit: number; status?: string } = {
+      page: pageNum,
+      limit: limitNum,
+    };
     if (status) {
       query.status = status;
     }
@@ -50,7 +62,10 @@ export class ClientsController {
     if (projectId === 'my-projects') {
       const pageNum = parseInt(page, 10) || 1;
       const limitNum = parseInt(limit, 10) || 10;
-      const query: { page: number; limit: number; status?: string } = { page: pageNum, limit: limitNum };
+      const query: { page: number; limit: number; status?: string } = {
+        page: pageNum,
+        limit: limitNum,
+      };
       if (status) {
         query.status = status;
       }
@@ -70,7 +85,11 @@ export class ClientsController {
     const clientId = req.user.userId;
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
-    return this.proposalsService.getClientProposals(clientId, pageNum, limitNum);
+    return this.proposalsService.getClientProposals(
+      clientId,
+      pageNum,
+      limitNum,
+    );
   }
 
   @Get('projects/:projectId/proposals')
@@ -92,7 +111,11 @@ export class ClientsController {
     @Body() acceptProposalDto: AcceptProposalDto,
   ) {
     const clientId = req.user.userId;
-    return this.proposalsService.acceptProposal(proposalId, clientId, acceptProposalDto);
+    return this.proposalsService.acceptProposal(
+      proposalId,
+      clientId,
+      acceptProposalDto,
+    );
   }
 
   @Get('dashboard')

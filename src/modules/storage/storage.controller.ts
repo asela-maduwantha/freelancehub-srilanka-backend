@@ -9,9 +9,20 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { StorageService } from './services/storage.service';
-import { UploadResponseDto, UploadMultipleResponseDto, FileDataDto } from './dto';
+import {
+  UploadResponseDto,
+  UploadMultipleResponseDto,
+  FileDataDto,
+} from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimit } from '../../common/guards/rate-limit.guard';
 
@@ -24,7 +35,10 @@ export class StorageController {
 
   @Post('upload/single')
   @RateLimit({ requests: 20, windowMs: 300000 }) // 20 uploads per 5 minutes
-  @ApiOperation({ summary: 'Upload a single file to Azure Blob Storage with enhanced security' })
+  @ApiOperation({
+    summary:
+      'Upload a single file to Azure Blob Storage with enhanced security',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'File to upload',
@@ -49,31 +63,44 @@ export class StorageController {
     description: 'File uploaded successfully',
     type: UploadResponseDto,
   })
-  @UseInterceptors(FileInterceptor('file', {
-    limits: { 
-      fileSize: 10 * 1024 * 1024, // 10MB limit
-      files: 1,
-    },
-    fileFilter: (req, file, cb) => {
-      // Enhanced file type validation
-      const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip|rar/;
-      const allowedMimeTypes = [
-        'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
-        'application/pdf', 'application/msword', 
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain', 'application/zip', 'application/x-rar-compressed'
-      ];
-      
-      const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedMimeTypes.includes(file.mimetype);
-      
-      if (mimetype && extname) {
-        return cb(null, true);
-      } else {
-        return cb(new Error('Invalid file type. Allowed: jpeg, jpg, png, gif, pdf, doc, docx, txt, zip, rar'), false);
-      }
-    }
-  }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+        files: 1,
+      },
+      fileFilter: (req, file, cb) => {
+        // Enhanced file type validation
+        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip|rar/;
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          'application/zip',
+          'application/x-rar-compressed',
+        ];
+
+        const extname = allowedTypes.test(file.originalname.toLowerCase());
+        const mimetype = allowedMimeTypes.includes(file.mimetype);
+
+        if (mimetype && extname) {
+          return cb(null, true);
+        } else {
+          return cb(
+            new Error(
+              'Invalid file type. Allowed: jpeg, jpg, png, gif, pdf, doc, docx, txt, zip, rar',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
   async uploadSingleFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('folder') folder?: string,
@@ -92,7 +119,10 @@ export class StorageController {
     }
 
     try {
-      const url = await this.storageService.uploadFile(file, folder || 'general');
+      const url = await this.storageService.uploadFile(
+        file,
+        folder || 'general',
+      );
 
       return {
         url,
@@ -107,7 +137,10 @@ export class StorageController {
 
   @Post('upload/multiple')
   @RateLimit({ requests: 10, windowMs: 300000 }) // 10 multi-uploads per 5 minutes
-  @ApiOperation({ summary: 'Upload multiple files to Azure Blob Storage with enhanced security' })
+  @ApiOperation({
+    summary:
+      'Upload multiple files to Azure Blob Storage with enhanced security',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Files to upload (max 5 files)',
@@ -135,35 +168,50 @@ export class StorageController {
     description: 'Files uploaded successfully',
     type: UploadMultipleResponseDto,
   })
-  @UseInterceptors(FilesInterceptor('files', 5, {
-    limits: { 
-      fileSize: 10 * 1024 * 1024, // 10MB per file
-      files: 5,
-    },
-    fileFilter: (req, file, cb) => {
-      // Enhanced file type validation
-      const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip|rar/;
-      const allowedMimeTypes = [
-        'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
-        'application/pdf', 'application/msword', 
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain', 'application/zip', 'application/x-rar-compressed'
-      ];
-      
-      const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedMimeTypes.includes(file.mimetype);
-      
-      if (mimetype && extname) {
-        return cb(null, true);
-      } else {
-        return cb(new Error('Invalid file type. Allowed: jpeg, jpg, png, gif, pdf, doc, docx, txt, zip, rar'), false);
-      }
-    }
-  }))
+  @UseInterceptors(
+    FilesInterceptor('files', 5, {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB per file
+        files: 5,
+      },
+      fileFilter: (req, file, cb) => {
+        // Enhanced file type validation
+        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip|rar/;
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          'application/zip',
+          'application/x-rar-compressed',
+        ];
+
+        const extname = allowedTypes.test(file.originalname.toLowerCase());
+        const mimetype = allowedMimeTypes.includes(file.mimetype);
+
+        if (mimetype && extname) {
+          return cb(null, true);
+        } else {
+          return cb(
+            new Error(
+              'Invalid file type. Allowed: jpeg, jpg, png, gif, pdf, doc, docx, txt, zip, rar',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
   async uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @Body('folder') folder?: string,
-  ): Promise<Array<{ url: string; fileName: string; mimeType: string; size: number }>> {
+  ): Promise<
+    Array<{ url: string; fileName: string; mimeType: string; size: number }>
+  > {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
@@ -178,18 +226,25 @@ export class StorageController {
       if (!file || !file.path) {
         throw new BadRequestException('Invalid file in upload');
       }
-      
+
       if (file.size === 0) {
-        throw new BadRequestException(`Empty file not allowed: ${file.originalname}`);
+        throw new BadRequestException(
+          `Empty file not allowed: ${file.originalname}`,
+        );
       }
-      
+
       if (file.size > 10 * 1024 * 1024) {
-        throw new BadRequestException(`File too large: ${file.originalname} (max 10MB)`);
+        throw new BadRequestException(
+          `File too large: ${file.originalname} (max 10MB)`,
+        );
       }
     }
 
     try {
-      const urls = await this.storageService.uploadMultipleFiles(files, folder || 'general');
+      const urls = await this.storageService.uploadMultipleFiles(
+        files,
+        folder || 'general',
+      );
 
       const fileData = files.map((file, index) => ({
         url: urls[index],

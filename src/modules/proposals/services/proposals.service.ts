@@ -1,4 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
@@ -23,7 +31,11 @@ export class ProposalsService {
     private contractsService: ContractsService,
   ) {}
 
-  async submitProposal(userId: string, projectId?: string, submitProposalDto?: SubmitProposalDto): Promise<Proposal> {
+  async submitProposal(
+    userId: string,
+    projectId?: string,
+    submitProposalDto?: SubmitProposalDto,
+  ): Promise<Proposal> {
     // If projectId is not passed as parameter, get it from DTO
     const finalProjectId = projectId || submitProposalDto?.projectId;
     if (!finalProjectId) {
@@ -54,29 +66,35 @@ export class ProposalsService {
     const existingProposal = await this.proposalModel.findOne({
       projectId: finalProjectId,
       freelancerId: userId,
-      status: { $in: ['pending', 'accepted'] }
+      status: { $in: ['pending', 'accepted'] },
     });
 
     if (existingProposal) {
-      throw new BadRequestException('You have already submitted a proposal for this project');
+      throw new BadRequestException(
+        'You have already submitted a proposal for this project',
+      );
     }
 
     const proposal = new this.proposalModel({
       projectId: finalProjectId,
       freelancerId: userId,
       coverLetter: submitProposalDto.coverLetter,
-      proposedBudget: submitProposalDto.proposedBudget || submitProposalDto.pricing.amount,
-      proposedDuration: (submitProposalDto.proposedDuration && submitProposalDto.proposedDuration > 0) ? 
-        (typeof submitProposalDto.proposedDuration === 'number' ? 
-          { value: submitProposalDto.proposedDuration, unit: 'days' } : 
-          submitProposalDto.proposedDuration) : 
-        { value: submitProposalDto.timeline.deliveryTime, unit: 'days' },
+      proposedBudget:
+        submitProposalDto.proposedBudget || submitProposalDto.pricing.amount,
+      proposedDuration:
+        submitProposalDto.proposedDuration &&
+        submitProposalDto.proposedDuration > 0
+          ? typeof submitProposalDto.proposedDuration === 'number'
+            ? { value: submitProposalDto.proposedDuration, unit: 'days' }
+            : submitProposalDto.proposedDuration
+          : { value: submitProposalDto.timeline.deliveryTime, unit: 'days' },
       milestones: submitProposalDto.timeline.milestones,
-      attachments: submitProposalDto.attachments?.map(att => ({
-        name: att.description || 'Attachment',
-        url: att.url,
-        type: att.fileType
-      })) || [],
+      attachments:
+        submitProposalDto.attachments?.map((att) => ({
+          name: att.description || 'Attachment',
+          url: att.url,
+          type: att.fileType,
+        })) || [],
       portfolioLinks: submitProposalDto.portfolioLinks || [],
       additionalInfo: submitProposalDto.additionalInfo,
       status: 'pending',
@@ -87,7 +105,7 @@ export class ProposalsService {
 
     // Update project proposal count
     await this.projectModel.findByIdAndUpdate(finalProjectId, {
-      $inc: { proposalCount: 1 }
+      $inc: { proposalCount: 1 },
     });
 
     // Send notification email to client
@@ -97,50 +115,60 @@ export class ProposalsService {
         client.email,
         project.title,
         user.name, // Using name instead of firstName/lastName
-        user.email
+        user.email,
       );
     }
 
     return savedProposal.populate(['freelancerId', 'projectId']);
   }
 
-  async getUserProposals(userId: string, page: number = 1, limit: number = 10): Promise<{ proposals: Proposal[], total: number, page: number, limit: number }> {
+  async getUserProposals(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    proposals: Proposal[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const skip = (page - 1) * limit;
-    
+
     const [proposals, total] = await Promise.all([
       this.proposalModel
         .find({ freelancerId: userId })
         .populate({
           path: 'projectId',
-          select: 'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
+          select:
+            'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
           populate: {
             path: 'clientId',
-            select: 'firstName lastName email profilePicture phone location'
-          }
+            select: 'firstName lastName email profilePicture phone location',
+          },
         })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      this.proposalModel.countDocuments({ freelancerId: userId })
+      this.proposalModel.countDocuments({ freelancerId: userId }),
     ]);
 
     return {
       proposals,
       total,
       page,
-      limit
+      limit,
     };
-  }  async getProposalById(proposalId: string, userId: string): Promise<Proposal> {
-    const proposal = await this.proposalModel
-      .findById(proposalId)
-      .populate({
-        path: 'projectId',
-        select: 'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
-        populate: {
-          path: 'clientId',
-          select: 'firstName lastName email profilePicture phone location'
-        }
-      });
+  }
+  async getProposalById(proposalId: string, userId: string): Promise<Proposal> {
+    const proposal = await this.proposalModel.findById(proposalId).populate({
+      path: 'projectId',
+      select:
+        'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
+      populate: {
+        path: 'clientId',
+        select: 'firstName lastName email profilePicture phone location',
+      },
+    });
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -148,8 +176,13 @@ export class ProposalsService {
 
     // Check if user has permission to view this proposal
     const project = proposal.projectId as any;
-    if (proposal.freelancerId.toString() !== userId && project.clientId.toString() !== userId) {
-      throw new ForbiddenException('You do not have permission to view this proposal');
+    if (
+      proposal.freelancerId.toString() !== userId &&
+      project.clientId.toString() !== userId
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to view this proposal',
+      );
     }
 
     // Mark as viewed by client
@@ -162,7 +195,11 @@ export class ProposalsService {
     return proposal;
   }
 
-  async updateProposal(proposalId: string, userId: string, updateProposalDto: UpdateProposalDto): Promise<Proposal> {
+  async updateProposal(
+    proposalId: string,
+    userId: string,
+    updateProposalDto: UpdateProposalDto,
+  ): Promise<Proposal> {
     const proposal = await this.proposalModel.findById(proposalId);
 
     if (!proposal) {
@@ -174,14 +211,19 @@ export class ProposalsService {
     }
 
     if (proposal.status !== 'pending') {
-      throw new BadRequestException('Cannot update a proposal that has been accepted or rejected');
+      throw new BadRequestException(
+        'Cannot update a proposal that has been accepted or rejected',
+      );
     }
 
     Object.assign(proposal, updateProposalDto);
     return proposal.save();
   }
 
-  async withdrawProposal(proposalId: string, userId: string): Promise<{ message: string }> {
+  async withdrawProposal(
+    proposalId: string,
+    userId: string,
+  ): Promise<{ message: string }> {
     const proposal = await this.proposalModel.findById(proposalId);
 
     if (!proposal) {
@@ -193,7 +235,9 @@ export class ProposalsService {
     }
 
     if (proposal.status !== 'pending') {
-      throw new BadRequestException('Cannot withdraw a proposal that has been accepted or rejected');
+      throw new BadRequestException(
+        'Cannot withdraw a proposal that has been accepted or rejected',
+      );
     }
 
     proposal.status = 'withdrawn';
@@ -201,13 +245,16 @@ export class ProposalsService {
 
     // Update project proposal count
     await this.projectModel.findByIdAndUpdate(proposal.projectId, {
-      $inc: { proposalCount: -1 }
+      $inc: { proposalCount: -1 },
     });
 
     return { message: 'Proposal withdrawn successfully' };
   }
 
-  async getProposalsForProject(projectId: string, clientId: string): Promise<Proposal[]> {
+  async getProposalsForProject(
+    projectId: string,
+    clientId: string,
+  ): Promise<Proposal[]> {
     const project = await this.projectModel.findById(projectId);
 
     if (!project) {
@@ -215,17 +262,28 @@ export class ProposalsService {
     }
 
     if (project.clientId.toString() !== clientId) {
-      throw new ForbiddenException('You can only view proposals for your own projects');
+      throw new ForbiddenException(
+        'You can only view proposals for your own projects',
+      );
     }
 
     return this.proposalModel
       .find({ projectId })
-      .populate('freelancerId', 'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating')
+      .populate(
+        'freelancerId',
+        'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating',
+      )
       .sort({ createdAt: -1 });
   }
 
-  async acceptProposal(proposalId: string, clientId: string, acceptProposalDto: AcceptProposalDto): Promise<{ message: string, contract: any }> {
-    const proposal = await this.proposalModel.findById(proposalId).populate('projectId');
+  async acceptProposal(
+    proposalId: string,
+    clientId: string,
+    acceptProposalDto: AcceptProposalDto,
+  ): Promise<{ message: string; contract: any }> {
+    const proposal = await this.proposalModel
+      .findById(proposalId)
+      .populate('projectId');
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -233,7 +291,9 @@ export class ProposalsService {
 
     const project = proposal.projectId as any;
     if (project.clientId.toString() !== clientId) {
-      throw new ForbiddenException('You can only accept proposals for your own projects');
+      throw new ForbiddenException(
+        'You can only accept proposals for your own projects',
+      );
     }
 
     if (proposal.status !== 'pending') {
@@ -251,23 +311,26 @@ export class ProposalsService {
     // Update project status and selected proposal
     await this.projectModel.findByIdAndUpdate(project._id, {
       status: 'in-progress',
-      selectedProposal: proposalId
+      selectedProposal: proposalId,
     });
 
     // Reject all other proposals for this project
     await this.proposalModel.updateMany(
       { projectId: project._id, _id: { $ne: proposalId }, status: 'pending' },
-      { status: 'rejected' }
+      { status: 'rejected' },
     );
 
     // Check if contract already exists for this proposal
-    const contractExists = await this.contractsService.checkContractExistsForProposal(proposalId);
+    const contractExists =
+      await this.contractsService.checkContractExistsForProposal(proposalId);
     if (contractExists) {
       // Get the existing contract
-      const existingContract = await this.contractsService.getContractByProposalId(proposalId);
-      return { 
-        message: 'Proposal accepted successfully. Contract already exists for this proposal.', 
-        contract: existingContract 
+      const existingContract =
+        await this.contractsService.getContractByProposalId(proposalId);
+      return {
+        message:
+          'Proposal accepted successfully. Contract already exists for this proposal.',
+        contract: existingContract,
       };
     }
 
@@ -277,17 +340,27 @@ export class ProposalsService {
       proposalId: proposalId,
       terms: {
         budget: proposal.proposedBudget.amount,
-        type: (project.budgetType === 'hourly' ? 'hourly' : 'fixed') as 'fixed' | 'hourly',
+        type: project.budgetType === 'hourly' ? 'hourly' : 'fixed',
         startDate: new Date().toISOString().split('T')[0], // Today's date
-        endDate: new Date(Date.now() + ((proposal.proposedDuration?.value || 30) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // Add duration days
-        paymentSchedule: 'Upon milestone completion'
+        endDate: new Date(
+          Date.now() +
+            (proposal.proposedDuration?.value || 30) * 24 * 60 * 60 * 1000,
+        )
+          .toISOString()
+          .split('T')[0], // Add duration days
+        paymentSchedule: 'Upon milestone completion',
       },
-      milestones: proposal.milestones?.map(milestone => ({
-        title: milestone.title,
-        description: milestone.description,
-        amount: milestone.amount,
-        dueDate: milestone.deliveryDate?.toISOString().split('T')[0] || new Date(Date.now() + (milestone.durationDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
-      })) || []
+      milestones:
+        proposal.milestones?.map((milestone) => ({
+          title: milestone.title,
+          description: milestone.description,
+          amount: milestone.amount,
+          dueDate:
+            milestone.deliveryDate?.toISOString().split('T')[0] ||
+            new Date(Date.now() + milestone.durationDays * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split('T')[0],
+        })) || [],
     };
 
     const contract = await this.contractsService.createContract(contractDto);
@@ -299,18 +372,26 @@ export class ProposalsService {
         freelancer.email,
         freelancer.name, // Using name instead of firstName/lastName
         project.title,
-        acceptProposalDto.message || 'Congratulations! Your proposal has been accepted.'
+        acceptProposalDto.message ||
+          'Congratulations! Your proposal has been accepted.',
       );
     }
 
-    return { 
-      message: 'Proposal accepted successfully. Contract created and awaiting client approval.', 
-      contract: contract 
+    return {
+      message:
+        'Proposal accepted successfully. Contract created and awaiting client approval.',
+      contract: contract,
     };
   }
 
-  async rejectProposal(proposalId: string, clientId: string, rejectProposalDto: RejectProposalDto): Promise<{ message: string }> {
-    const proposal = await this.proposalModel.findById(proposalId).populate('projectId');
+  async rejectProposal(
+    proposalId: string,
+    clientId: string,
+    rejectProposalDto: RejectProposalDto,
+  ): Promise<{ message: string }> {
+    const proposal = await this.proposalModel
+      .findById(proposalId)
+      .populate('projectId');
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -318,7 +399,9 @@ export class ProposalsService {
 
     const project = proposal.projectId as any;
     if (project.clientId.toString() !== clientId) {
-      throw new ForbiddenException('You can only reject proposals for your own projects');
+      throw new ForbiddenException(
+        'You can only reject proposals for your own projects',
+      );
     }
 
     if (proposal.status !== 'pending') {
@@ -330,7 +413,7 @@ export class ProposalsService {
 
     // Update project proposal count
     await this.projectModel.findByIdAndUpdate(project._id, {
-      $inc: { proposalCount: -1 }
+      $inc: { proposalCount: -1 },
     });
 
     // Send notification to freelancer
@@ -340,40 +423,54 @@ export class ProposalsService {
         freelancer.email,
         freelancer.name, // Using name instead of firstName/lastName
         project.title,
-        rejectProposalDto.reason || 'Your proposal was not selected for this project.',
-        rejectProposalDto.message || ''
+        rejectProposalDto.reason ||
+          'Your proposal was not selected for this project.',
+        rejectProposalDto.message || '',
       );
     }
 
     return { message: 'Proposal rejected successfully' };
   }
 
-  async getClientProposals(clientId: string, page: number = 1, limit: number = 10): Promise<{ proposals: Proposal[], total: number, page: number, limit: number }> {
+  async getClientProposals(
+    clientId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    proposals: Proposal[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const skip = (page - 1) * limit;
 
     // First, get all project IDs that belong to this client
     const clientProjects = await this.projectModel.find({ clientId }, '_id');
-    const projectIds = clientProjects.map(project => project._id);
+    const projectIds = clientProjects.map((project) => project._id);
 
     const [proposals, total] = await Promise.all([
       this.proposalModel
         .find({ projectId: { $in: projectIds } })
         .populate({
           path: 'projectId',
-          select: 'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills createdAt updatedAt'
+          select:
+            'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills createdAt updatedAt',
         })
-        .populate('freelancerId', 'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating')
+        .populate(
+          'freelancerId',
+          'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating',
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      this.proposalModel.countDocuments({ projectId: { $in: projectIds } })
+      this.proposalModel.countDocuments({ projectId: { $in: projectIds } }),
     ]);
 
     return {
       proposals,
       total,
       page,
-      limit
+      limit,
     };
   }
 }

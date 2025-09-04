@@ -1,6 +1,4 @@
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -12,7 +10,10 @@ import { EmailService } from '../../../common/services/email.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
-import { UnauthorizedException, BadRequestException } from '../../../common/exceptions';
+import {
+  UnauthorizedException,
+  BadRequestException,
+} from '../../../common/exceptions';
 
 @Injectable()
 export class AuthService {

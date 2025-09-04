@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../../schemas/user.schema';
@@ -7,7 +11,11 @@ import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
 import { Dispute, DisputeDocument } from '../../../schemas/dispute.schema';
 import { Review, ReviewDocument } from '../../../schemas/review.schema';
-import { UpdateUserStatusDto, ApproveProjectDto, UpdateSystemSettingsDto } from '../dto';
+import {
+  UpdateUserStatusDto,
+  ApproveProjectDto,
+  UpdateSystemSettingsDto,
+} from '../dto';
 
 @Injectable()
 export class AdminService {
@@ -49,7 +57,10 @@ export class AdminService {
     };
   }
 
-  async updateUserStatus(userId: string, updateUserStatusDto: UpdateUserStatusDto) {
+  async updateUserStatus(
+    userId: string,
+    updateUserStatusDto: UpdateUserStatusDto,
+  ) {
     const user = await this.userModel.findById(userId);
 
     if (!user) {
@@ -63,7 +74,10 @@ export class AdminService {
 
     // If suspending or banning, you might want to cancel active contracts
     if (status === 'suspended' || status === 'banned') {
-      await this.handleUserSuspension(userId, reason || 'Administrative action');
+      await this.handleUserSuspension(
+        userId,
+        reason || 'Administrative action',
+      );
     }
 
     await user.save();
@@ -130,7 +144,9 @@ export class AdminService {
         { $match: { status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
-      this.disputeModel.countDocuments({ status: { $in: ['open', 'under-review'] } }),
+      this.disputeModel.countDocuments({
+        status: { $in: ['open', 'under-review'] },
+      }),
       this.userModel
         .find()
         .sort({ createdAt: -1 })
@@ -180,7 +196,10 @@ export class AdminService {
       data: revenueStats,
       summary: {
         totalRevenue: revenueStats.reduce((sum, stat) => sum + stat.revenue, 0),
-        totalTransactions: revenueStats.reduce((sum, stat) => sum + stat.transactions, 0),
+        totalTransactions: revenueStats.reduce(
+          (sum, stat) => sum + stat.transactions,
+          0,
+        ),
       },
     };
   }
@@ -223,7 +242,10 @@ export class AdminService {
       .sort({ createdAt: -1 });
   }
 
-  async approveProject(projectId: string, approveProjectDto: ApproveProjectDto) {
+  async approveProject(
+    projectId: string,
+    approveProjectDto: ApproveProjectDto,
+  ) {
     const project = await this.projectModel.findById(projectId);
 
     if (!project) {
@@ -277,15 +299,23 @@ export class AdminService {
   async updateSystemSettings(updateSystemSettingsDto: UpdateSystemSettingsDto) {
     // This would typically update a settings collection or config file
     // For now, we'll just validate and return success
-    const { platformFee, maxFileSize, allowedFileTypes } = updateSystemSettingsDto;
+    const { platformFee, maxFileSize, allowedFileTypes } =
+      updateSystemSettingsDto;
 
     // Validate settings
     if (platformFee !== undefined && (platformFee < 0 || platformFee > 50)) {
-      throw new BadRequestException('Platform fee must be between 0 and 50 percent');
+      throw new BadRequestException(
+        'Platform fee must be between 0 and 50 percent',
+      );
     }
 
-    if (maxFileSize !== undefined && (maxFileSize < 1024 || maxFileSize > 100 * 1024 * 1024)) {
-      throw new BadRequestException('Max file size must be between 1KB and 100MB');
+    if (
+      maxFileSize !== undefined &&
+      (maxFileSize < 1024 || maxFileSize > 100 * 1024 * 1024)
+    ) {
+      throw new BadRequestException(
+        'Max file size must be between 1KB and 100MB',
+      );
     }
 
     // In a real application, you'd save these to a database
@@ -343,7 +373,10 @@ export class AdminService {
     const [current, previous] = await Promise.all([
       model.countDocuments({ createdAt: { $gte: pastDate } }),
       model.countDocuments({
-        createdAt: { $gte: new Date(pastDate.getTime() - days * 24 * 60 * 60 * 1000), $lt: pastDate }
+        createdAt: {
+          $gte: new Date(pastDate.getTime() - days * 24 * 60 * 60 * 1000),
+          $lt: pastDate,
+        },
       }),
     ]);
 
@@ -401,13 +434,13 @@ export class AdminService {
       {
         status: 'cancelled',
         cancellationReason: `Account suspended: ${reason}`,
-      }
+      },
     );
 
     // Cancel pending projects
     await this.projectModel.updateMany(
       { clientId: userId, status: { $in: ['draft', 'open'] } },
-      { status: 'cancelled' }
+      { status: 'cancelled' },
     );
   }
 }

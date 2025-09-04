@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Category, CategoryDocument } from '../../../schemas';
@@ -11,9 +15,11 @@ export class CategoriesService {
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
   ) {}
 
-  async create(createCategoryDto: CreateCategoryDto): Promise<CategoryDocument> {
-    const existingCategory = await this.categoryModel.findOne({ 
-      name: new RegExp(`^${createCategoryDto.name}$`, 'i') 
+  async create(
+    createCategoryDto: CreateCategoryDto,
+  ): Promise<CategoryDocument> {
+    const existingCategory = await this.categoryModel.findOne({
+      name: new RegExp(`^${createCategoryDto.name}$`, 'i'),
     });
 
     if (existingCategory) {
@@ -31,7 +37,12 @@ export class CategoriesService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 10, sortBy = 'sortOrder', sortOrder = 'asc' } = query;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'sortOrder',
+      sortOrder = 'asc',
+    } = query;
     const skip = (page - 1) * limit;
 
     const sort: any = {};
@@ -64,7 +75,10 @@ export class CategoriesService {
     return category;
   }
 
-  async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<CategoryDocument> {
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<CategoryDocument> {
     if (updateCategoryDto.name) {
       const existingCategory = await this.categoryModel.findOne({
         name: new RegExp(`^${updateCategoryDto.name}$`, 'i'),

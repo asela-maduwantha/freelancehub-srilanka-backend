@@ -2,8 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../../schemas/user.schema';
-import { FreelancerProfile, FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
-import { ClientProfile, ClientProfileDocument } from '../../../schemas/client-profile.schema';
+import {
+  FreelancerProfile,
+  FreelancerProfileDocument,
+} from '../../../schemas/freelancer-profile.schema';
+import {
+  ClientProfile,
+  ClientProfileDocument,
+} from '../../../schemas/client-profile.schema';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
@@ -71,8 +77,10 @@ export interface ClientAnalytics extends UserAnalytics {
 export class UserAnalyticsService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(FreelancerProfile.name) private freelancerProfileModel: Model<FreelancerProfileDocument>,
-    @InjectModel(ClientProfile.name) private clientProfileModel: Model<ClientProfileDocument>,
+    @InjectModel(FreelancerProfile.name)
+    private freelancerProfileModel: Model<FreelancerProfileDocument>,
+    @InjectModel(ClientProfile.name)
+    private clientProfileModel: Model<ClientProfileDocument>,
     @InjectModel('Project') private projectModel: Model<Project>,
     @InjectModel('Contract') private contractModel: Model<Contract>,
     @InjectModel('Proposal') private proposalModel: Model<Proposal>,
@@ -89,9 +97,21 @@ export class UserAnalyticsService {
     const isClient = user.role.includes('client');
 
     // Basic project metrics
-    const totalProjects = await this.getTotalProjects(userId, isFreelancer, isClient);
-    const activeProjects = await this.getActiveProjects(userId, isFreelancer, isClient);
-    const completedProjects = await this.getCompletedProjects(userId, isFreelancer, isClient);
+    const totalProjects = await this.getTotalProjects(
+      userId,
+      isFreelancer,
+      isClient,
+    );
+    const activeProjects = await this.getActiveProjects(
+      userId,
+      isFreelancer,
+      isClient,
+    );
+    const completedProjects = await this.getCompletedProjects(
+      userId,
+      isFreelancer,
+      isClient,
+    );
 
     // Financial metrics
     const totalEarnings = await this.getTotalEarnings(userId);
@@ -100,9 +120,21 @@ export class UserAnalyticsService {
 
     // Rating and performance metrics
     const avgRating = await this.getAverageRating(userId);
-    const completionRate = await this.getCompletionRate(userId, isFreelancer, isClient);
-    const responseRate = await this.getResponseRate(userId, isFreelancer, isClient);
-    const responseTime = await this.getResponseTime(userId, isFreelancer, isClient);
+    const completionRate = await this.getCompletionRate(
+      userId,
+      isFreelancer,
+      isClient,
+    );
+    const responseRate = await this.getResponseRate(
+      userId,
+      isFreelancer,
+      isClient,
+    );
+    const responseTime = await this.getResponseTime(
+      userId,
+      isFreelancer,
+      isClient,
+    );
 
     // Activity metrics
     const proposalsSent = await this.getProposalsSent(userId);
@@ -150,17 +182,22 @@ export class UserAnalyticsService {
     };
   }
 
-  async calculateFreelancerAnalytics(userId: string): Promise<FreelancerAnalytics> {
+  async calculateFreelancerAnalytics(
+    userId: string,
+  ): Promise<FreelancerAnalytics> {
     const baseAnalytics = await this.calculateUserAnalytics(userId);
     const user = await this.userModel.findById(userId);
-    
+
     // Get freelancer profile from separate collection
-    const freelancerProfile = await this.freelancerProfileModel.findOne({ userId });
+    const freelancerProfile = await this.freelancerProfileModel.findOne({
+      userId,
+    });
 
     // Freelancer-specific metrics
     const skills = freelancerProfile?.skills || [];
     const hourlyRate = freelancerProfile?.hourlyRate || 0;
-    const availability = freelancerProfile?.availability?.status || 'not-available';
+    const availability =
+      freelancerProfile?.availability?.status || 'not-available';
     const portfolioViews = await this.getPortfolioViews(userId);
     const bidSuccessRate = await this.getBidSuccessRate(userId);
     const averageBidAmount = await this.getAverageBidAmount(userId);
@@ -186,7 +223,8 @@ export class UserAnalyticsService {
     // Client-specific metrics
     const projectsPosted = await this.getProjectsPosted(userId);
     const averageProjectBudget = await this.getAverageProjectBudget(userId);
-    const freelancerRetentionRate = await this.getFreelancerRetentionRate(userId);
+    const freelancerRetentionRate =
+      await this.getFreelancerRetentionRate(userId);
     const projectSuccessRate = await this.getProjectSuccessRate(userId);
     const averageTimeToHire = await this.getAverageTimeToHire(userId);
     const budgetUtilization = await this.getBudgetUtilization(userId);
@@ -203,7 +241,11 @@ export class UserAnalyticsService {
   }
 
   // Helper methods for calculations
-  private async getTotalProjects(userId: string, isFreelancer: boolean, isClient: boolean): Promise<number> {
+  private async getTotalProjects(
+    userId: string,
+    isFreelancer: boolean,
+    isClient: boolean,
+  ): Promise<number> {
     if (isFreelancer) {
       return await this.contractModel.countDocuments({ freelancerId: userId });
     } else if (isClient) {
@@ -212,47 +254,69 @@ export class UserAnalyticsService {
     return 0;
   }
 
-  private async getActiveProjects(userId: string, isFreelancer: boolean, isClient: boolean): Promise<number> {
+  private async getActiveProjects(
+    userId: string,
+    isFreelancer: boolean,
+    isClient: boolean,
+  ): Promise<number> {
     if (isFreelancer) {
       return await this.contractModel.countDocuments({
         freelancerId: userId,
-        status: { $in: ['active', 'in-progress'] }
+        status: { $in: ['active', 'in-progress'] },
       });
     } else if (isClient) {
       return await this.projectModel.countDocuments({
         clientId: userId,
-        status: { $in: ['open', 'in-progress'] }
+        status: { $in: ['open', 'in-progress'] },
       });
     }
     return 0;
   }
 
-  private async getCompletedProjects(userId: string, isFreelancer: boolean, isClient: boolean): Promise<number> {
+  private async getCompletedProjects(
+    userId: string,
+    isFreelancer: boolean,
+    isClient: boolean,
+  ): Promise<number> {
     if (isFreelancer) {
       return await this.contractModel.countDocuments({
         freelancerId: userId,
-        status: 'completed'
+        status: 'completed',
       });
     } else if (isClient) {
       return await this.projectModel.countDocuments({
         clientId: userId,
-        status: 'completed'
+        status: 'completed',
       });
     }
     return 0;
   }
 
   private async getTotalEarnings(userId: string): Promise<number> {
-    const payments = await this.paymentModel.find({ payeeId: userId, status: 'completed' });
-    return payments.reduce((total, payment: any) => total + (payment.amount || 0), 0);
+    const payments = await this.paymentModel.find({
+      payeeId: userId,
+      status: 'completed',
+    });
+    return payments.reduce(
+      (total, payment: any) => total + (payment.amount || 0),
+      0,
+    );
   }
 
   private async getTotalSpent(userId: string): Promise<number> {
-    const payments = await this.paymentModel.find({ payerId: userId, status: 'completed' });
-    return payments.reduce((total, payment: any) => total + (payment.amount || 0), 0);
+    const payments = await this.paymentModel.find({
+      payerId: userId,
+      status: 'completed',
+    });
+    return payments.reduce(
+      (total, payment: any) => total + (payment.amount || 0),
+      0,
+    );
   }
 
-  private async getMonthlyEarnings(userId: string): Promise<{ month: string; amount: number }[]> {
+  private async getMonthlyEarnings(
+    userId: string,
+  ): Promise<{ month: string; amount: number }[]> {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -261,26 +325,26 @@ export class UserAnalyticsService {
         $match: {
           payeeId: userId,
           status: 'completed',
-          createdAt: { $gte: sixMonthsAgo }
-        }
+          createdAt: { $gte: sixMonthsAgo },
+        },
       },
       {
         $group: {
           _id: {
             year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
+            month: { $month: '$createdAt' },
           },
-          amount: { $sum: '$amount' }
-        }
+          amount: { $sum: '$amount' },
+        },
       },
       {
-        $sort: { '_id.year': 1, '_id.month': 1 }
-      }
+        $sort: { '_id.year': 1, '_id.month': 1 },
+      },
     ]);
 
     return payments.map((payment: any) => ({
       month: `${payment._id.year}-${payment._id.month.toString().padStart(2, '0')}`,
-      amount: payment.amount
+      amount: payment.amount,
     }));
   }
 
@@ -289,39 +353,66 @@ export class UserAnalyticsService {
     return 4.5; // Placeholder
   }
 
-  private async getCompletionRate(userId: string, isFreelancer: boolean, isClient: boolean): Promise<number> {
-    const totalProjects = await this.getTotalProjects(userId, isFreelancer, isClient);
-    const completedProjects = await this.getCompletedProjects(userId, isFreelancer, isClient);
+  private async getCompletionRate(
+    userId: string,
+    isFreelancer: boolean,
+    isClient: boolean,
+  ): Promise<number> {
+    const totalProjects = await this.getTotalProjects(
+      userId,
+      isFreelancer,
+      isClient,
+    );
+    const completedProjects = await this.getCompletedProjects(
+      userId,
+      isFreelancer,
+      isClient,
+    );
 
     return totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0;
   }
 
-  private async getResponseRate(userId: string, isFreelancer: boolean, isClient: boolean): Promise<number> {
+  private async getResponseRate(
+    userId: string,
+    isFreelancer: boolean,
+    isClient: boolean,
+  ): Promise<number> {
     if (isFreelancer) {
-      const totalProposals = await this.proposalModel.countDocuments({ freelancerId: userId });
+      const totalProposals = await this.proposalModel.countDocuments({
+        freelancerId: userId,
+      });
       const respondedProposals = await this.proposalModel.countDocuments({
         freelancerId: userId,
-        status: { $ne: 'pending' }
+        status: { $ne: 'pending' },
       });
-      return totalProposals > 0 ? (respondedProposals / totalProposals) * 100 : 0;
+      return totalProposals > 0
+        ? (respondedProposals / totalProposals) * 100
+        : 0;
     }
     return 100; // Clients don't have response rate in the same way
   }
 
-  private async getResponseTime(userId: string, isFreelancer: boolean, isClient: boolean): Promise<number> {
+  private async getResponseTime(
+    userId: string,
+    isFreelancer: boolean,
+    isClient: boolean,
+  ): Promise<number> {
     // Calculate average response time in hours
     if (isFreelancer) {
-      const proposals = await this.proposalModel.find({
-        freelancerId: userId,
-        status: { $ne: 'pending' }
-      }).select('createdAt updatedAt');
+      const proposals = await this.proposalModel
+        .find({
+          freelancerId: userId,
+          status: { $ne: 'pending' },
+        })
+        .select('createdAt updatedAt');
 
       if (proposals.length === 0) return 0;
 
       const totalResponseTime = proposals.reduce((total, proposal: any) => {
         if (proposal.updatedAt && proposal.createdAt) {
-          const responseTime = proposal.updatedAt.getTime() - proposal.createdAt.getTime();
-          return total + (responseTime / (1000 * 60 * 60)); // Convert to hours
+          const responseTime =
+            proposal.updatedAt.getTime() - proposal.createdAt.getTime();
+          return total + responseTime / (1000 * 60 * 60); // Convert to hours
         }
         return total;
       }, 0);
@@ -338,13 +429,13 @@ export class UserAnalyticsService {
   private async getProposalsAccepted(userId: string): Promise<number> {
     return await this.proposalModel.countDocuments({
       freelancerId: userId,
-      status: 'accepted'
+      status: 'accepted',
     });
   }
 
   private async getContractsSigned(userId: string): Promise<number> {
     return await this.contractModel.countDocuments({
-      $or: [{ freelancerId: userId }, { clientId: userId }]
+      $or: [{ freelancerId: userId }, { clientId: userId }],
     });
   }
 
@@ -360,25 +451,35 @@ export class UserAnalyticsService {
     // Common fields (using clean User schema fields)
     const commonFields = ['username', 'email'];
     totalFields += commonFields.length;
-    commonFields.forEach(field => {
+    commonFields.forEach((field) => {
       if (user[field]) completedFields++;
     });
 
     // Role-specific fields
     if (user.role.includes('freelancer')) {
-      const freelancerProfile = await this.freelancerProfileModel.findOne({ userId: user._id });
-      const freelancerFields = ['title', 'bio', 'skills', 'hourlyRate', 'availability'];
+      const freelancerProfile = await this.freelancerProfileModel.findOne({
+        userId: user._id,
+      });
+      const freelancerFields = [
+        'title',
+        'bio',
+        'skills',
+        'hourlyRate',
+        'availability',
+      ];
       totalFields += freelancerFields.length;
-      freelancerFields.forEach(field => {
+      freelancerFields.forEach((field) => {
         if (freelancerProfile?.[field]) completedFields++;
       });
     }
 
     if (user.role.includes('client')) {
-      const clientProfile = await this.clientProfileModel.findOne({ userId: user._id });
+      const clientProfile = await this.clientProfileModel.findOne({
+        userId: user._id,
+      });
       const clientFields = ['companyName', 'industry', 'bio'];
       totalFields += clientFields.length;
-      clientFields.forEach(field => {
+      clientFields.forEach((field) => {
         if (clientProfile?.[field]) completedFields++;
       });
     }
@@ -389,22 +490,34 @@ export class UserAnalyticsService {
   private async getLastActivity(userId: string): Promise<Date> {
     // Get the most recent activity from various collections
     const activities = await Promise.all([
-      this.proposalModel.findOne({ freelancerId: userId }).sort({ updatedAt: -1 }).select('updatedAt'),
-      this.projectModel.findOne({ clientId: userId }).sort({ updatedAt: -1 }).select('updatedAt'),
-      this.contractModel.findOne({
-        $or: [{ freelancerId: userId }, { clientId: userId }]
-      }).sort({ updatedAt: -1 }).select('updatedAt')
+      this.proposalModel
+        .findOne({ freelancerId: userId })
+        .sort({ updatedAt: -1 })
+        .select('updatedAt'),
+      this.projectModel
+        .findOne({ clientId: userId })
+        .sort({ updatedAt: -1 })
+        .select('updatedAt'),
+      this.contractModel
+        .findOne({
+          $or: [{ freelancerId: userId }, { clientId: userId }],
+        })
+        .sort({ updatedAt: -1 })
+        .select('updatedAt'),
     ]);
 
-    const validActivities = activities.filter((activity: any) => activity?.updatedAt);
+    const validActivities = activities.filter(
+      (activity: any) => activity?.updatedAt,
+    );
     if (validActivities.length === 0) {
       return new Date(); // Return current date if no activity
     }
 
     const firstActivity = validActivities[0] as any;
-    return validActivities.reduce((latest: Date, activity: any) =>
-      activity.updatedAt > latest ? activity.updatedAt : latest,
-      firstActivity.updatedAt
+    return validActivities.reduce(
+      (latest: Date, activity: any) =>
+        activity.updatedAt > latest ? activity.updatedAt : latest,
+      firstActivity.updatedAt,
     );
   }
 
@@ -420,23 +533,29 @@ export class UserAnalyticsService {
 
   private async getRepeatClients(userId: string): Promise<number> {
     // Count unique clients who have worked with this freelancer multiple times
-    const contracts = await this.contractModel.find({
-      freelancerId: userId,
-      status: 'completed'
-    }).select('clientId');
+    const contracts = await this.contractModel
+      .find({
+        freelancerId: userId,
+        status: 'completed',
+      })
+      .select('clientId');
 
     const clientCounts: { [key: string]: number } = {};
     contracts.forEach((contract: any) => {
-      const clientId = contract.clientId?.toString() || contract.client?.toString();
+      const clientId =
+        contract.clientId?.toString() || contract.client?.toString();
       if (clientId) {
         clientCounts[clientId] = (clientCounts[clientId] || 0) + 1;
       }
     });
 
-    return Object.values(clientCounts).filter((count: number) => count > 1).length;
+    return Object.values(clientCounts).filter((count: number) => count > 1)
+      .length;
   }
 
-  private async getRatingTrend(userId: string): Promise<{ date: string; rating: number }[]> {
+  private async getRatingTrend(
+    userId: string,
+  ): Promise<{ date: string; rating: number }[]> {
     // This would need historical rating data - placeholder
     const trend: { date: string; rating: number }[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -444,13 +563,15 @@ export class UserAnalyticsService {
       date.setMonth(date.getMonth() - i);
       trend.push({
         date: date.toISOString().split('T')[0],
-        rating: 4.0 + Math.random() * 1 // Random rating between 4.0-5.0
+        rating: 4.0 + Math.random() * 1, // Random rating between 4.0-5.0
       });
     }
     return trend;
   }
 
-  private async getActivityTrend(userId: string): Promise<{ date: string; count: number }[]> {
+  private async getActivityTrend(
+    userId: string,
+  ): Promise<{ date: string; count: number }[]> {
     // Get activity count per month for last 6 months
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -460,20 +581,26 @@ export class UserAnalyticsService {
         { $match: { freelancerId: userId, createdAt: { $gte: sixMonthsAgo } } },
         {
           $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-            count: { $sum: 1 }
-          }
-        }
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
       ]),
       this.projectModel.aggregate([
         { $match: { clientId: userId, createdAt: { $gte: sixMonthsAgo } } },
         {
           $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-            count: { $sum: 1 }
-          }
-        }
-      ])
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
 
     const activityMap: { [key: string]: number } = {};
@@ -489,23 +616,30 @@ export class UserAnalyticsService {
       const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
       trend.push({
         date: key,
-        count: activityMap[key] || 0
+        count: activityMap[key] || 0,
       });
     }
 
     return trend;
   }
 
-  private async getPaymentHistory(userId: string): Promise<{ date: string; amount: number; type: string }[]> {
-    const payments = await this.paymentModel.find({
-      $or: [{ payerId: userId }, { payeeId: userId }],
-      status: 'completed'
-    }).sort({ createdAt: -1 }).limit(10);
+  private async getPaymentHistory(
+    userId: string,
+  ): Promise<{ date: string; amount: number; type: string }[]> {
+    const payments = await this.paymentModel
+      .find({
+        $or: [{ payerId: userId }, { payeeId: userId }],
+        status: 'completed',
+      })
+      .sort({ createdAt: -1 })
+      .limit(10);
 
     return payments.map((payment: any) => ({
-      date: payment.createdAt?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+      date:
+        payment.createdAt?.toISOString().split('T')[0] ||
+        new Date().toISOString().split('T')[0],
       amount: payment.amount || 0,
-      type: payment.payerId?.toString() === userId ? 'payment' : 'earning'
+      type: payment.payerId?.toString() === userId ? 'payment' : 'earning',
     }));
   }
 
@@ -521,18 +655,29 @@ export class UserAnalyticsService {
   }
 
   private async getAverageBidAmount(userId: string): Promise<number> {
-    const proposals = await this.proposalModel.find({ freelancerId: userId }).select('proposedBudget');
+    const proposals = await this.proposalModel
+      .find({ freelancerId: userId })
+      .select('proposedBudget');
     if (proposals.length === 0) return 0;
 
-    const total = proposals.reduce((sum, proposal: any) => sum + (proposal.proposedBudget || 0), 0);
+    const total = proposals.reduce(
+      (sum, proposal: any) => sum + (proposal.proposedBudget || 0),
+      0,
+    );
     return total / proposals.length;
   }
 
   private async getSpecializationScore(userId: string): Promise<number> {
     // Calculate based on skills, experience, and project completion
     const user = await this.userModel.findById(userId);
-    const freelancerProfile = await this.freelancerProfileModel.findOne({ userId });
-    const completedProjects = await this.getCompletedProjects(userId, true, false);
+    const freelancerProfile = await this.freelancerProfileModel.findOne({
+      userId,
+    });
+    const completedProjects = await this.getCompletedProjects(
+      userId,
+      true,
+      false,
+    );
 
     let score = 0;
     if (freelancerProfile?.skills?.length) {
@@ -547,9 +692,13 @@ export class UserAnalyticsService {
   }
 
   private async getClientRetentionRate(userId: string): Promise<number> {
-    const totalClients = await this.contractModel.distinct('clientId', { freelancerId: userId });
+    const totalClients = await this.contractModel.distinct('clientId', {
+      freelancerId: userId,
+    });
     const repeatClients = await this.getRepeatClients(userId);
-    return totalClients.length > 0 ? (repeatClients / totalClients.length) * 100 : 0;
+    return totalClients.length > 0
+      ? (repeatClients / totalClients.length) * 100
+      : 0;
   }
 
   // Client-specific methods
@@ -558,42 +707,58 @@ export class UserAnalyticsService {
   }
 
   private async getAverageProjectBudget(userId: string): Promise<number> {
-    const projects = await this.projectModel.find({ clientId: userId }).select('budget');
+    const projects = await this.projectModel
+      .find({ clientId: userId })
+      .select('budget');
     if (projects.length === 0) return 0;
 
-    const total = projects.reduce((sum, project: any) => sum + (project.budget || 0), 0);
+    const total = projects.reduce(
+      (sum, project: any) => sum + (project.budget || 0),
+      0,
+    );
     return total / projects.length;
   }
 
   private async getFreelancerRetentionRate(userId: string): Promise<number> {
-    const totalFreelancers = await this.contractModel.distinct('freelancerId', { clientId: userId });
+    const totalFreelancers = await this.contractModel.distinct('freelancerId', {
+      clientId: userId,
+    });
     const repeatFreelancers = await this.contractModel.aggregate([
       { $match: { clientId: userId } },
       { $group: { _id: '$freelancerId', count: { $sum: 1 } } },
       { $match: { count: { $gt: 1 } } },
-      { $count: 'repeatCount' }
+      { $count: 'repeatCount' },
     ]);
 
-    const repeatCount = (repeatFreelancers[0] as any)?.repeatCount || 0;
-    return totalFreelancers.length > 0 ? (repeatCount / totalFreelancers.length) * 100 : 0;
+    const repeatCount = repeatFreelancers[0]?.repeatCount || 0;
+    return totalFreelancers.length > 0
+      ? (repeatCount / totalFreelancers.length) * 100
+      : 0;
   }
 
   private async getProjectSuccessRate(userId: string): Promise<number> {
     const totalProjects = await this.getProjectsPosted(userId);
-    const completedProjects = await this.getCompletedProjects(userId, false, true);
+    const completedProjects = await this.getCompletedProjects(
+      userId,
+      false,
+      true,
+    );
     return totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0;
   }
 
   private async getAverageTimeToHire(userId: string): Promise<number> {
     // Calculate average time from project creation to contract signing
-    const contracts = await this.contractModel.find({ clientId: userId }).populate('projectId');
+    const contracts = await this.contractModel
+      .find({ clientId: userId })
+      .populate('projectId');
     if (contracts.length === 0) return 0;
 
     const totalTime = contracts.reduce((sum, contract: any) => {
-      const project = contract.projectId as any;
+      const project = contract.projectId;
       if (project?.createdAt && contract.createdAt) {
-        const timeDiff = contract.createdAt.getTime() - project.createdAt.getTime();
-        return sum + (timeDiff / (1000 * 60 * 60 * 24)); // Convert to days
+        const timeDiff =
+          contract.createdAt.getTime() - project.createdAt.getTime();
+        return sum + timeDiff / (1000 * 60 * 60 * 24); // Convert to days
       }
       return sum;
     }, 0);
@@ -602,10 +767,16 @@ export class UserAnalyticsService {
   }
 
   private async getBudgetUtilization(userId: string): Promise<number> {
-    const projects = await this.projectModel.find({ clientId: userId, status: 'completed' });
+    const projects = await this.projectModel.find({
+      clientId: userId,
+      status: 'completed',
+    });
     if (projects.length === 0) return 0;
 
-    const totalBudget = projects.reduce((sum, project: any) => sum + (project.budget || 0), 0);
+    const totalBudget = projects.reduce(
+      (sum, project: any) => sum + (project.budget || 0),
+      0,
+    );
     const totalSpent = await this.getTotalSpent(userId);
 
     return totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;

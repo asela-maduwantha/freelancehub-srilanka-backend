@@ -12,8 +12,8 @@ export class Availability {
   @Prop({
     type: {
       timezone: String,
-      schedule: Object
-    }
+      schedule: Object,
+    },
   })
   workingHours: {
     timezone: string;
@@ -74,7 +74,10 @@ export class Language {
   @Prop({ required: true })
   language: string;
 
-  @Prop({ required: true, enum: ['basic', 'conversational', 'fluent', 'native'] })
+  @Prop({
+    required: true,
+    enum: ['basic', 'conversational', 'fluent', 'native'],
+  })
   proficiency: string;
 }
 
@@ -142,7 +145,8 @@ export class FreelancerProfile {
 }
 
 export type FreelancerProfileDocument = FreelancerProfile & Document;
-export const FreelancerProfileSchema = SchemaFactory.createForClass(FreelancerProfile);
+export const FreelancerProfileSchema =
+  SchemaFactory.createForClass(FreelancerProfile);
 
 // Indexes
 FreelancerProfileSchema.index({ userId: 1 }, { unique: true });

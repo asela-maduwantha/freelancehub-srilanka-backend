@@ -21,19 +21,33 @@ export interface ApiResponse<T> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>> {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<ApiResponse<T>> {
+export class ResponseInterceptor<T>
+  implements NestInterceptor<T, ApiResponse<T>>
+{
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
       map((data) => {
         // If data is already wrapped in our format, return as is
-        if (data && typeof data === 'object' && 'data' in data && 'timestamp' in data) {
+        if (
+          data &&
+          typeof data === 'object' &&
+          'data' in data &&
+          'timestamp' in data
+        ) {
           return data;
         }
 
         // Handle pagination responses
-        if (data && typeof data === 'object' && ('total' in data || 'page' in data)) {
-          const { data: items, total, page, limit, ...rest } = data as any;
-          
+        if (
+          data &&
+          typeof data === 'object' &&
+          ('total' in data || 'page' in data)
+        ) {
+          const { data: items, total, page, limit, ...rest } = data;
+
           if (items !== undefined) {
             return {
               data: items,

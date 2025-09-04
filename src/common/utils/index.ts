@@ -7,7 +7,10 @@ export class PasswordUtils {
     return bcrypt.hash(password, saltRounds);
   }
 
-  static async comparePassword(password: string, hashedPassword: string): Promise<boolean> {
+  static async comparePassword(
+    password: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
     return bcrypt.compare(password, hashedPassword);
   }
 }
@@ -96,10 +99,10 @@ export class ObjectUtils {
 
   static pick<T extends Record<string, any>, K extends keyof T>(
     obj: T,
-    keys: K[]
+    keys: K[],
   ): Pick<T, K> {
     const result = {} as Pick<T, K>;
-    keys.forEach(key => {
+    keys.forEach((key) => {
       if (key in obj) {
         result[key] = obj[key];
       }
@@ -109,10 +112,10 @@ export class ObjectUtils {
 
   static omit<T extends Record<string, any>, K extends keyof T>(
     obj: T,
-    keys: K[]
+    keys: K[],
   ): Omit<T, K> {
     const result = { ...obj };
-    keys.forEach(key => {
+    keys.forEach((key) => {
       delete result[key];
     });
     return result;

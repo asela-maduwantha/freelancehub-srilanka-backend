@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -15,19 +19,26 @@ export class StripeConnectService {
     private configService: ConfigService,
     private emailService: EmailService,
   ) {
-    this.stripe = new Stripe(this.configService.get<string>('stripe.secretKey') || '', {
-      apiVersion: '2025-08-27.basil',
-    });
+    this.stripe = new Stripe(
+      this.configService.get<string>('stripe.secretKey') || '',
+      {
+        apiVersion: '2025-08-27.basil',
+      },
+    );
   }
 
-  async createStripeAccount(userId: string): Promise<{ accountId: string; onboardingUrl: string }> {
+  async createStripeAccount(
+    userId: string,
+  ): Promise<{ accountId: string; onboardingUrl: string }> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     if (!user.role.includes('freelancer')) {
-      throw new BadRequestException('Only freelancers can create Stripe accounts');
+      throw new BadRequestException(
+        'Only freelancers can create Stripe accounts',
+      );
     }
 
     // For clean architecture, we'll create a simple account without storing Stripe-specific fields in User schema
@@ -61,18 +72,29 @@ export class StripeConnectService {
         onboardingUrl: accountLink.url,
       };
     } catch (error) {
-      throw new BadRequestException('Failed to create Stripe account: ' + error.message);
+      throw new BadRequestException(
+        'Failed to create Stripe account: ' + error.message,
+      );
     }
   }
 
-  async getStripeAccountStatus(accountId: string): Promise<{ accountId: string; status: string; details?: any }> {
+  async getStripeAccountStatus(
+    accountId: string,
+  ): Promise<{ accountId: string; status: string; details?: any }> {
     try {
       const account = await this.stripe.accounts.retrieve(accountId);
-      
+
       let status = 'pending';
-      if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
+      if (
+        account.details_submitted &&
+        account.charges_enabled &&
+        account.payouts_enabled
+      ) {
         status = 'complete';
-      } else if (account.requirements?.errors && account.requirements.errors.length > 0) {
+      } else if (
+        account.requirements?.errors &&
+        account.requirements.errors.length > 0
+      ) {
         status = 'error';
       }
 
@@ -87,7 +109,9 @@ export class StripeConnectService {
         },
       };
     } catch (error) {
-      throw new BadRequestException('Failed to get Stripe account status: ' + error.message);
+      throw new BadRequestException(
+        'Failed to get Stripe account status: ' + error.message,
+      );
     }
   }
 
@@ -102,12 +126,19 @@ export class StripeConnectService {
 
       return { url: accountLink.url };
     } catch (error) {
-      throw new BadRequestException('Failed to create onboarding link: ' + error.message);
+      throw new BadRequestException(
+        'Failed to create onboarding link: ' + error.message,
+      );
     }
   }
 
-  async handleStripeWebhook(signature: string, rawBody: Buffer): Promise<{ received: boolean }> {
-    const endpointSecret = this.configService.get<string>('stripe.webhookSecret');
+  async handleStripeWebhook(
+    signature: string,
+    rawBody: Buffer,
+  ): Promise<{ received: boolean }> {
+    const endpointSecret = this.configService.get<string>(
+      'stripe.webhookSecret',
+    );
 
     if (!endpointSecret) {
       throw new BadRequestException('Webhook secret not configured');
@@ -116,7 +147,11 @@ export class StripeConnectService {
     let event: Stripe.Event;
 
     try {
-      event = this.stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        endpointSecret,
+      );
     } catch (err) {
       throw new BadRequestException('Invalid webhook signature');
     }

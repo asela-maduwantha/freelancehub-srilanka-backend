@@ -55,8 +55,9 @@ export class InitializeEncryptionDto {
   conversationId: string;
 
   @ApiProperty({
-    description: 'User\'s public key in PEM format',
-    example: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----',
+    description: "User's public key in PEM format",
+    example:
+      '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----',
   })
   @IsString()
   @IsNotEmpty()

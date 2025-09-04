@@ -104,7 +104,10 @@ export class EncryptionService {
     const encryptedContent = encrypted + authTag.toString('hex');
 
     // Generate message hash for integrity verification
-    const messageHash = crypto.createHash('sha256').update(message).digest('hex');
+    const messageHash = crypto
+      .createHash('sha256')
+      .update(message)
+      .digest('hex');
 
     return {
       encryptedContent,
@@ -116,7 +119,10 @@ export class EncryptionService {
   /**
    * Decrypt a message using symmetric encryption
    */
-  decryptMessage(encryptedMessage: EncryptedMessage, conversationKey: string): string {
+  decryptMessage(
+    encryptedMessage: EncryptedMessage,
+    conversationKey: string,
+  ): string {
     const { encryptedContent, iv, messageHash } = encryptedMessage;
 
     // Separate encrypted content from auth tag
@@ -135,7 +141,10 @@ export class EncryptionService {
     decrypted += decipher.final('utf8');
 
     // Verify message integrity
-    const computedHash = crypto.createHash('sha256').update(decrypted).digest('hex');
+    const computedHash = crypto
+      .createHash('sha256')
+      .update(decrypted)
+      .digest('hex');
     if (computedHash !== messageHash) {
       throw new Error('Message integrity verification failed');
     }
@@ -196,6 +205,9 @@ export class EncryptionService {
    */
   hashData(data: string, salt?: string): string {
     const saltValue = salt || crypto.randomBytes(16).toString('hex');
-    return crypto.createHash('sha256').update(data + saltValue).digest('hex');
+    return crypto
+      .createHash('sha256')
+      .update(data + saltValue)
+      .digest('hex');
   }
 }

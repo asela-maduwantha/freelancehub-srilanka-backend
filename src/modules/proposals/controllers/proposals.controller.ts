@@ -1,5 +1,17 @@
-import { Controller, Get, Param, UseGuards, Request, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ProposalsService } from '../services/proposals.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
@@ -15,7 +27,7 @@ export class ProposalsController {
   // Note: Removed duplicate endpoints that exist in other controllers
   // - /proposals/project/:projectId -> Use /projects/:id/proposals instead
   // - /proposals/client -> Use /clients/proposals instead
-  
+
   @Get('my')
   @Roles('freelancer')
   @ApiBearerAuth('JWT-auth')

@@ -1,13 +1,13 @@
-import { 
-  IsString, 
-  IsArray, 
-  IsNumber, 
-  IsOptional, 
-  IsIn, 
-  ValidateNested, 
+import {
+  IsString,
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsIn,
+  ValidateNested,
   IsDate,
   Min,
-  Max
+  Max,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -130,7 +130,9 @@ export class UpdateContractDto {
   @Type(() => MilestoneDto)
   milestones?: MilestoneDto[];
 
-  @ApiPropertyOptional({ enum: ['active', 'completed', 'cancelled', 'disputed'] })
+  @ApiPropertyOptional({
+    enum: ['active', 'completed', 'cancelled', 'disputed'],
+  })
   @IsOptional()
   @IsIn(['active', 'completed', 'cancelled', 'disputed'])
   status?: string;
@@ -143,7 +145,9 @@ export class UpdateContractDto {
 }
 
 export class UpdateMilestoneDto {
-  @ApiPropertyOptional({ enum: ['pending', 'in_progress', 'submitted', 'approved', 'rejected'] })
+  @ApiPropertyOptional({
+    enum: ['pending', 'in_progress', 'submitted', 'approved', 'rejected'],
+  })
   @IsOptional()
   @IsIn(['pending', 'in_progress', 'submitted', 'approved', 'rejected'])
   status?: string;

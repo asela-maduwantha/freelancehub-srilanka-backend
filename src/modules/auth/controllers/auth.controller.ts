@@ -155,7 +155,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user profile (merged from /users/profile)' })
+  @ApiOperation({
+    summary: 'Get current user profile (merged from /users/profile)',
+  })
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved successfully',

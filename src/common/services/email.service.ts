@@ -13,7 +13,8 @@ export class EmailService {
       'noreply@freelancehub.com';
 
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('email.smtpHost') || 'smtp.gmail.com',
+      host:
+        this.configService.get<string>('email.smtpHost') || 'smtp.gmail.com',
       port: this.configService.get<number>('email.smtpPort') || 587,
       secure: false, // true for 465, false for other ports
       auth: {
@@ -47,7 +48,11 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendProjectInvitation(to: string, projectTitle: string, clientName: string): Promise<void> {
+  async sendProjectInvitation(
+    to: string,
+    projectTitle: string,
+    clientName: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -71,7 +76,11 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendPaymentNotification(to: string, amount: number, projectTitle: string): Promise<void> {
+  async sendPaymentNotification(
+    to: string,
+    amount: number,
+    projectTitle: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -83,7 +92,12 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendContractPDF(to: string, contractId: string, pdfBuffer: Buffer, projectTitle: string): Promise<void> {
+  async sendContractPDF(
+    to: string,
+    contractId: string,
+    pdfBuffer: Buffer,
+    projectTitle: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -102,10 +116,15 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendContractReadyForApproval(to: string, contractId: string, projectTitle: string, isFreelancer: boolean = false): Promise<void> {
+  async sendContractReadyForApproval(
+    to: string,
+    contractId: string,
+    projectTitle: string,
+    isFreelancer: boolean = false,
+  ): Promise<void> {
     const role = isFreelancer ? 'freelancer' : 'client';
     const action = isFreelancer ? 'review and approve' : 'approve';
-    
+
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -117,7 +136,12 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendNewProposalNotification(to: string, projectTitle: string, freelancerName: string, freelancerEmail: string): Promise<void> {
+  async sendNewProposalNotification(
+    to: string,
+    projectTitle: string,
+    freelancerName: string,
+    freelancerEmail: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -165,7 +189,12 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendProposalAcceptedNotification(to: string, projectTitle: string, freelancerName: string, message?: string): Promise<void> {
+  async sendProposalAcceptedNotification(
+    to: string,
+    projectTitle: string,
+    freelancerName: string,
+    message?: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -186,12 +215,16 @@ export class EmailService {
               </p>
             </div>
             
-            ${message ? `
+            ${
+              message
+                ? `
             <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #e65100; margin: 0 0 10px 0; font-size: 16px;">📝 Message from Client:</h3>
               <p style="margin: 0; color: #555; font-style: italic;">"${message}"</p>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="#" style="background-color: #4caf50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
@@ -221,7 +254,13 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendProposalRejectedNotification(to: string, projectTitle: string, freelancerName: string, reason?: string, message?: string): Promise<void> {
+  async sendProposalRejectedNotification(
+    to: string,
+    projectTitle: string,
+    freelancerName: string,
+    reason?: string,
+    message?: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -241,19 +280,27 @@ export class EmailService {
               </p>
             </div>
             
-            ${reason ? `
+            ${
+              reason
+                ? `
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 16px;">Reason:</h3>
               <p style="margin: 0; color: #555;">${reason}</p>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
             
-            ${message ? `
+            ${
+              message
+                ? `
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 16px;">Message from Client:</h3>
               <p style="margin: 0; color: #555; font-style: italic;">"${message}"</p>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
             
             <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 16px;">💡 Keep Exploring:</h3>
@@ -283,7 +330,11 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendStripeConnectOnboarding(to: string, userName: string, onboardingUrl: string): Promise<void> {
+  async sendStripeConnectOnboarding(
+    to: string,
+    userName: string,
+    onboardingUrl: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,

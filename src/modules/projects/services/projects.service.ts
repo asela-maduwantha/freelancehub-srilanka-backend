@@ -7,7 +7,11 @@ import { UpdateProjectDto } from '../dto/update-project.dto';
 import { SubmitProposalDto } from '../../proposals/dto/submit-proposal.dto';
 import { UsersService } from '../../users/services/users.service';
 import { EmailService } from '../../../common/services/email.service';
-import { NotFoundException, ForbiddenException, BadRequestException } from '../../../common/exceptions';
+import {
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '../../../common/exceptions';
 
 @Injectable()
 export class ProjectsService {
@@ -17,7 +21,10 @@ export class ProjectsService {
     private emailService: EmailService,
   ) {}
 
-  async createProject(clientId: string, createProjectDto: CreateProjectDto): Promise<Project> {
+  async createProject(
+    clientId: string,
+    createProjectDto: CreateProjectDto,
+  ): Promise<Project> {
     const user = await this.usersService.getUserById(clientId);
     if (!user.role.includes('client')) {
       throw new ForbiddenException('Only clients can create projects');
@@ -55,7 +62,10 @@ export class ProjectsService {
       category: createProjectDto.category,
       subcategory: createProjectDto.subcategory,
       clientId,
-      requiredSkills: createProjectDto.requiredSkills.map(skill => ({ skill, level: 'intermediate' })),
+      requiredSkills: createProjectDto.requiredSkills.map((skill) => ({
+        skill,
+        level: 'intermediate',
+      })),
       budgetType: createProjectDto.type,
       budget: createProjectDto.budget.amount,
       duration,
@@ -82,7 +92,7 @@ export class ProjectsService {
       experienceLevel,
       workType,
       sortBy = 'postedAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
     } = query;
 
     const filter: any = {};
@@ -132,8 +142,8 @@ export class ProjectsService {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -141,7 +151,10 @@ export class ProjectsService {
     const project = await this.projectModel
       .findById(projectId)
       .populate('clientId', 'firstName lastName profilePicture clientProfile')
-      .populate('freelancerId', 'firstName lastName profilePicture freelancerProfile');
+      .populate(
+        'freelancerId',
+        'firstName lastName profilePicture freelancerProfile',
+      );
 
     if (!project) {
       throw new NotFoundException('Project not found');
@@ -149,13 +162,17 @@ export class ProjectsService {
 
     // Increment view count
     await this.projectModel.findByIdAndUpdate(projectId, {
-      $inc: { 'analytics.views': 1 }
+      $inc: { 'analytics.views': 1 },
     });
 
     return project;
   }
 
-  async updateProject(projectId: string, clientId: string, updateProjectDto: UpdateProjectDto): Promise<Project> {
+  async updateProject(
+    projectId: string,
+    clientId: string,
+    updateProjectDto: UpdateProjectDto,
+  ): Promise<Project> {
     const project = await this.projectModel.findById(projectId);
     if (!project) {
       throw new NotFoundException('Project not found');
@@ -172,7 +189,7 @@ export class ProjectsService {
     const updatedProject = await this.projectModel.findByIdAndUpdate(
       projectId,
       { $set: updateProjectDto },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedProject) {
@@ -223,8 +240,8 @@ export class ProjectsService {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -252,12 +269,15 @@ export class ProjectsService {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
-  async getClientProjectById(clientId: string, projectId: string): Promise<Project> {
+  async getClientProjectById(
+    clientId: string,
+    projectId: string,
+  ): Promise<Project> {
     // Validate if projectId is a valid ObjectId
     if (!this.isValidObjectId(projectId)) {
       throw new BadRequestException('Invalid project ID format');
@@ -266,7 +286,10 @@ export class ProjectsService {
     const project = await this.projectModel
       .findOne({ _id: projectId, clientId })
       .populate('clientId', 'firstName lastName profilePicture clientProfile')
-      .populate('freelancerId', 'firstName lastName profilePicture freelancerProfile');
+      .populate(
+        'freelancerId',
+        'firstName lastName profilePicture freelancerProfile',
+      );
 
     if (!project) {
       throw new NotFoundException('Project not found or access denied');
@@ -274,7 +297,7 @@ export class ProjectsService {
 
     // Increment view count
     await this.projectModel.findByIdAndUpdate(projectId, {
-      $inc: { 'analytics.views': 1 }
+      $inc: { 'analytics.views': 1 },
     });
 
     return project;

@@ -32,7 +32,10 @@ import {
   GetMessagesDto,
   MarkAsReadDto,
 } from '../dto/messaging.dto';
-import { ForbiddenException, BadRequestException } from '../../../common/exceptions';
+import {
+  ForbiddenException,
+  BadRequestException,
+} from '../../../common/exceptions';
 
 @ApiTags('messaging')
 @Controller('messaging')
@@ -62,16 +65,22 @@ export class MessagingController {
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createConversation(@Body() createDto: CreateConversationDto, @Request() req) {
+  async createConversation(
+    @Body() createDto: CreateConversationDto,
+    @Request() req,
+  ) {
     // Ensure the requesting user is one of the participants
     const { participant1Id, participant2Id } = createDto;
     const userId = req.user.userId;
 
     if (userId !== participant1Id && userId !== participant2Id) {
-      throw new ForbiddenException('You can only create conversations for yourself');
+      throw new ForbiddenException(
+        'You can only create conversations for yourself',
+      );
     }
 
-    const conversation = await this.messagingService.createConversation(createDto);
+    const conversation =
+      await this.messagingService.createConversation(createDto);
     return {
       conversationId: conversation.conversationId,
       participants: conversation.participants,
@@ -104,7 +113,10 @@ export class MessagingController {
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Conversation not found' })
-  async initializeEncryption(@Body() initDto: InitializeEncryptionDto, @Request() req) {
+  async initializeEncryption(
+    @Body() initDto: InitializeEncryptionDto,
+    @Request() req,
+  ) {
     const result = await this.messagingService.initializeConversationEncryption(
       initDto.conversationId,
       req.user.userId,
@@ -153,7 +165,11 @@ export class MessagingController {
       throw new BadRequestException('Conversation key is required');
     }
 
-    const message = await this.messagingService.sendMessage(sendDto, req.user.userId, conversationKey);
+    const message = await this.messagingService.sendMessage(
+      sendDto,
+      req.user.userId,
+      conversationKey,
+    );
 
     return {
       messageId: message._id,
@@ -184,8 +200,10 @@ export class MessagingController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getConversations(@Request() req) {
-    const conversations = await this.messagingService.getUserConversations(req.user.userId);
-    return conversations.map(conv => ({
+    const conversations = await this.messagingService.getUserConversations(
+      req.user.userId,
+    );
+    return conversations.map((conv) => ({
       conversationId: conv.conversationId,
       participants: conv.participants,
       lastMessageAt: conv.lastMessageAt,
@@ -199,7 +217,11 @@ export class MessagingController {
   @ApiOperation({ summary: 'Get messages for a conversation' })
   @ApiParam({ name: 'conversationId', description: 'Conversation ID' })
   @ApiQuery({ name: 'page', description: 'Page number', required: false })
-  @ApiQuery({ name: 'limit', description: 'Messages per page', required: false })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Messages per page',
+    required: false,
+  })
   @ApiResponse({
     status: 200,
     description: 'Messages retrieved successfully',
@@ -254,8 +276,14 @@ export class MessagingController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - not a participant' })
-  async markAsRead(@Param('conversationId') conversationId: string, @Request() req) {
-    await this.messagingService.markMessagesAsRead(conversationId, req.user.userId);
+  async markAsRead(
+    @Param('conversationId') conversationId: string,
+    @Request() req,
+  ) {
+    await this.messagingService.markMessagesAsRead(
+      conversationId,
+      req.user.userId,
+    );
     return 'Messages marked as read';
   }
 
@@ -276,7 +304,10 @@ export class MessagingController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Key not found' })
-  async getConversationKey(@Param('conversationId') conversationId: string, @Request() req) {
+  async getConversationKey(
+    @Param('conversationId') conversationId: string,
+    @Request() req,
+  ) {
     // Private key should be provided in headers for decryption
     const privateKey = req.headers['x-private-key'] as string;
 

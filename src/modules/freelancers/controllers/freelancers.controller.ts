@@ -1,11 +1,30 @@
-import { Controller, Get, Post, Put, UseGuards, Request, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  UseGuards,
+  Request,
+  Body,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
 import { FreelancersService } from '../services/freelancers.service';
-import { EditFreelancerProfileType, FreelancerProfileResponse } from '../types/freelancer-profile.types';
-import { CreateFreelancerProfileDto, UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
+import {
+  EditFreelancerProfileType,
+  FreelancerProfileResponse,
+} from '../types/freelancer-profile.types';
+import {
+  CreateFreelancerProfileDto,
+  UpdateFreelancerProfileDto,
+} from '../../../dto/freelancer-profile.dto';
 import { AuthenticatedRequest } from '../../../common/interfaces/pagination.interface';
 import { FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
 
@@ -70,11 +89,14 @@ export class FreelancersController {
       properties: {
         success: { type: 'boolean', example: true },
         data: { type: 'object' },
-        message: { type: 'string', example: 'Profile created successfully' }
-      }
-    }
+        message: { type: 'string', example: 'Profile created successfully' },
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'Bad request - profile already exists or invalid data' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - profile already exists or invalid data',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - not a freelancer' })
   async createProfile(
@@ -82,7 +104,10 @@ export class FreelancersController {
     @Body() createData: CreateFreelancerProfileDto,
   ): Promise<FreelancerProfileDocument> {
     const freelancerId = req.user.userId;
-    const profile = await this.freelancersService.createProfile(freelancerId, createData);
+    const profile = await this.freelancersService.createProfile(
+      freelancerId,
+      createData,
+    );
 
     return profile;
   }
@@ -91,7 +116,8 @@ export class FreelancersController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'Update freelancer profile',
-    description: 'Update the authenticated freelancer\'s profile information. All fields are optional for partial updates.'
+    description:
+      "Update the authenticated freelancer's profile information. All fields are optional for partial updates.",
   })
   @ApiResponse({
     status: 200,
@@ -101,9 +127,9 @@ export class FreelancersController {
       properties: {
         success: { type: 'boolean', example: true },
         data: { type: 'object' },
-        message: { type: 'string', example: 'Profile updated successfully' }
-      }
-    }
+        message: { type: 'string', example: 'Profile updated successfully' },
+      },
+    },
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -114,7 +140,10 @@ export class FreelancersController {
     @Body() updateData: UpdateFreelancerProfileDto,
   ): Promise<FreelancerProfileDocument> {
     const freelancerId = req.user.userId;
-    const updatedProfile = await this.freelancersService.updateProfile(freelancerId, updateData);
+    const updatedProfile = await this.freelancersService.updateProfile(
+      freelancerId,
+      updateData,
+    );
 
     return updatedProfile;
   }

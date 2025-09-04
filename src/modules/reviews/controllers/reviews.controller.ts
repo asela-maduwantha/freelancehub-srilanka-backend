@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -49,7 +60,10 @@ export class ReviewsController {
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 409, description: 'Review already exists for this contract' })
+  @ApiResponse({
+    status: 409,
+    description: 'Review already exists for this contract',
+  })
   async createReview(@Request() req, @Body() createReviewDto: CreateReviewDto) {
     return this.reviewsService.createReview(req.user.userId, createReviewDto);
   }
@@ -57,9 +71,24 @@ export class ReviewsController {
   @Get('user/:userId')
   @ApiOperation({ summary: 'Get reviews for a specific user' })
   @ApiParam({ name: 'userId', description: 'User ID to get reviews for' })
-  @ApiQuery({ name: 'limit', required: false, type: 'number', description: 'Limit number of results' })
-  @ApiQuery({ name: 'offset', required: false, type: 'number', description: 'Offset for pagination' })
-  @ApiQuery({ name: 'rating', required: false, type: 'number', description: 'Filter by rating (1-5)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: 'number',
+    description: 'Limit number of results',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: 'number',
+    description: 'Offset for pagination',
+  })
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: 'number',
+    description: 'Filter by rating (1-5)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Reviews retrieved successfully',
@@ -92,7 +121,10 @@ export class ReviewsController {
       },
     },
   })
-  async getReviewsForUser(@Param('userId') userId: string, @Query() query: ReviewQuery) {
+  async getReviewsForUser(
+    @Param('userId') userId: string,
+    @Query() query: ReviewQuery,
+  ) {
     return this.reviewsService.getReviewsForUser(userId, query);
   }
 
@@ -106,7 +138,10 @@ export class ReviewsController {
       type: 'object',
       properties: {
         averageRating: { type: 'number', description: 'Average rating (1-5)' },
-        totalReviews: { type: 'number', description: 'Total number of reviews' },
+        totalReviews: {
+          type: 'number',
+          description: 'Total number of reviews',
+        },
         ratingDistribution: {
           type: 'object',
           properties: {
@@ -198,8 +233,16 @@ export class ReviewsController {
   })
   @ApiResponse({ status: 403, description: 'Forbidden - not the reviewer' })
   @ApiResponse({ status: 404, description: 'Review not found' })
-  async updateReview(@Request() req, @Param('id') reviewId: string, @Body() updateData: Partial<CreateReviewDto>) {
-    return this.reviewsService.updateReview(reviewId, req.user.userId, updateData);
+  async updateReview(
+    @Request() req,
+    @Param('id') reviewId: string,
+    @Body() updateData: Partial<CreateReviewDto>,
+  ) {
+    return this.reviewsService.updateReview(
+      reviewId,
+      req.user.userId,
+      updateData,
+    );
   }
 
   @Delete(':id')
@@ -246,8 +289,16 @@ export class ReviewsController {
   })
   @ApiResponse({ status: 403, description: 'Forbidden - not the reviewee' })
   @ApiResponse({ status: 404, description: 'Review not found' })
-  async respondToReview(@Request() req, @Param('id') reviewId: string, @Body('response') response: string) {
-    return this.reviewsService.respondToReview(reviewId, req.user.userId, response);
+  async respondToReview(
+    @Request() req,
+    @Param('id') reviewId: string,
+    @Body('response') response: string,
+  ) {
+    return this.reviewsService.respondToReview(
+      reviewId,
+      req.user.userId,
+      response,
+    );
   }
 
   @Post(':id/helpful')

@@ -3,7 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 export class FileDataDto {
   @ApiProperty({
     description: 'The URL of the uploaded file in Azure Blob Storage',
-    example: 'https://freelancehub.blob.core.windows.net/freelancehub/contracts/uuid-filename.pdf',
+    example:
+      'https://freelancehub.blob.core.windows.net/freelancehub/contracts/uuid-filename.pdf',
   })
   url: string;
 

@@ -5,7 +5,10 @@ import { ClientsService } from './services/clients.service';
 import { ProposalsModule } from '../proposals/proposals.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { User, UserSchema } from '../../schemas/user.schema';
-import { ClientProfile, ClientProfileSchema } from '../../schemas/client-profile.schema';
+import {
+  ClientProfile,
+  ClientProfileSchema,
+} from '../../schemas/client-profile.schema';
 import { Project, ProjectSchema } from '../../schemas/project.schema';
 import { Contract, ContractSchema } from '../../schemas/contract.schema';
 
@@ -17,8 +20,8 @@ import { Contract, ContractSchema } from '../../schemas/contract.schema';
       { name: Project.name, schema: ProjectSchema },
       { name: Contract.name, schema: ContractSchema },
     ]),
-    ProposalsModule, 
-    ProjectsModule
+    ProposalsModule,
+    ProjectsModule,
   ],
   controllers: [ClientsController],
   providers: [ClientsService],

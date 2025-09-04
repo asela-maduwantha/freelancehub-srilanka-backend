@@ -3,8 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UsersController } from './controllers/users.controller';
 import { UsersService } from './services/users.service';
 import { UserAnalyticsService } from './services/user-analytics.service';
-import { 
-  User, 
+import {
+  User,
   UserSchema,
   FreelancerProfile,
   FreelancerProfileSchema,
@@ -19,7 +19,7 @@ import {
   Proposal,
   ProposalSchema,
   Payment,
-  PaymentSchema
+  PaymentSchema,
 } from '../../schemas';
 
 @Module({

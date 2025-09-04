@@ -1,9 +1,22 @@
 // User and Profile schemas
 export { User, UserDocument, UserSchema } from './user.schema';
 export { Otp, OtpDocument, OtpSchema } from './otp.schema';
-export { ClientProfile, ClientProfileDocument, ClientProfileSchema } from './client-profile.schema';
-export { FreelancerProfile, FreelancerProfileDocument, FreelancerProfileSchema, 
-         Availability, Portfolio, Education, Certification, Language, Location } from './freelancer-profile.schema';
+export {
+  ClientProfile,
+  ClientProfileDocument,
+  ClientProfileSchema,
+} from './client-profile.schema';
+export {
+  FreelancerProfile,
+  FreelancerProfileDocument,
+  FreelancerProfileSchema,
+  Availability,
+  Portfolio,
+  Education,
+  Certification,
+  Language,
+  Location,
+} from './freelancer-profile.schema';
 
 // Project and Proposal schemas
 export * from './project.schema';

@@ -47,11 +47,17 @@ class LanguageDto {
 }
 
 class EducationDto {
-  @ApiProperty({ description: 'Degree or qualification', example: 'Bachelor of Computer Science' })
+  @ApiProperty({
+    description: 'Degree or qualification',
+    example: 'Bachelor of Computer Science',
+  })
   @IsString()
   degree: string;
 
-  @ApiProperty({ description: 'Institution name', example: 'University of Colombo' })
+  @ApiProperty({
+    description: 'Institution name',
+    example: 'University of Colombo',
+  })
   @IsString()
   institution: string;
 
@@ -63,11 +69,17 @@ class EducationDto {
 }
 
 class CertificationDto {
-  @ApiProperty({ description: 'Certification name', example: 'AWS Certified Developer' })
+  @ApiProperty({
+    description: 'Certification name',
+    example: 'AWS Certified Developer',
+  })
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Issuing organization', example: 'Amazon Web Services' })
+  @ApiProperty({
+    description: 'Issuing organization',
+    example: 'Amazon Web Services',
+  })
   @IsString()
   issuer: string;
 
@@ -75,7 +87,10 @@ class CertificationDto {
   @IsString()
   date: string;
 
-  @ApiProperty({ description: 'Certificate URL', example: 'https://aws.amazon.com/certification' })
+  @ApiProperty({
+    description: 'Certificate URL',
+    example: 'https://aws.amazon.com/certification',
+  })
   @IsUrl()
   @IsOptional()
   url?: string;
@@ -86,7 +101,10 @@ class PortfolioItemDto {
   @IsString()
   title: string;
 
-  @ApiProperty({ description: 'Project description', example: 'A full-stack e-commerce platform' })
+  @ApiProperty({
+    description: 'Project description',
+    example: 'A full-stack e-commerce platform',
+  })
   @IsString()
   description: string;
 
@@ -99,7 +117,10 @@ class PortfolioItemDto {
   @IsString({ each: true })
   images: string[];
 
-  @ApiProperty({ description: 'Project URL', example: 'https://github.com/user/project' })
+  @ApiProperty({
+    description: 'Project URL',
+    example: 'https://github.com/user/project',
+  })
   @IsUrl()
   @IsOptional()
   url?: string;
@@ -155,7 +176,10 @@ export class EditFreelancerProfileDto {
   @IsOptional()
   lastName?: string;
 
-  @ApiProperty({ description: 'Profile picture URL', example: 'https://example.com/profile.jpg' })
+  @ApiProperty({
+    description: 'Profile picture URL',
+    example: 'https://example.com/profile.jpg',
+  })
   @IsUrl()
   @IsOptional()
   profilePicture?: string;
@@ -183,7 +207,10 @@ export class EditFreelancerProfileDto {
   languages?: LanguageDto[];
 
   // Freelancer Profile Fields
-  @ApiProperty({ description: 'Professional title', example: 'Full Stack Developer' })
+  @ApiProperty({
+    description: 'Professional title',
+    example: 'Full Stack Developer',
+  })
   @IsString()
   @IsOptional()
   title?: string;

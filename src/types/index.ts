@@ -14,17 +14,32 @@ export type ProficiencyLevel = 'basic' | 'intermediate' | 'fluent' | 'native';
 export type ProjectType = 'fixed_price' | 'hourly';
 export type BudgetType = 'fixed' | 'range';
 export type ProjectVisibility = 'public' | 'invite_only';
-export type ProjectStatus = 'draft' | 'active' | 'closed' | 'completed' | 'cancelled';
+export type ProjectStatus =
+  | 'draft'
+  | 'active'
+  | 'closed'
+  | 'completed'
+  | 'cancelled';
 
 // Proposal Types
-export type ProposalStatus = 'submitted' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn';
+export type ProposalStatus =
+  | 'submitted'
+  | 'shortlisted'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn';
 
 // Contract Types
 export type ContractType = 'fixed_price' | 'hourly';
 export type ContractStatus = 'active' | 'completed' | 'cancelled' | 'disputed';
 
 // Milestone Types
-export type MilestoneStatus = 'pending' | 'in_progress' | 'submitted' | 'approved' | 'rejected';
+export type MilestoneStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'submitted'
+  | 'approved'
+  | 'rejected';
 
 // Payment Types
 export type EscrowStatus = 'held' | 'released' | 'refunded';
@@ -37,7 +52,12 @@ export type MessageType = 'text' | 'file' | 'system';
 export type ReviewerType = 'client' | 'freelancer';
 
 // Notification Types
-export type NotificationType = 'message' | 'proposal' | 'payment' | 'milestone' | 'review';
+export type NotificationType =
+  | 'message'
+  | 'proposal'
+  | 'payment'
+  | 'milestone'
+  | 'review';
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 // Dispute Types

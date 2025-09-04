@@ -35,7 +35,7 @@ import {
   DisputeType,
   DisputeStatus,
   DisputeResolution,
-  Currency
+  Currency,
 } from '../types';
 
 // Core Entity Interfaces

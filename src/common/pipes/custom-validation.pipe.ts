@@ -31,7 +31,7 @@ export class CustomValidationPipe extends ValidationPipe {
   private formatValidationErrors(errors: ValidationError[]): any {
     const formattedErrors: any = {};
 
-    errors.forEach(error => {
+    errors.forEach((error) => {
       const field = error.property;
       const constraints = error.constraints;
 

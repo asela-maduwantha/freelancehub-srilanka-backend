@@ -21,7 +21,8 @@ interface RateLimitOptions {
 }
 
 export const RATE_LIMIT_KEY = 'rateLimit';
-export const RateLimit = (options: RateLimitOptions) => SetMetadata(RATE_LIMIT_KEY, options);
+export const RateLimit = (options: RateLimitOptions) =>
+  SetMetadata(RATE_LIMIT_KEY, options);
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -36,13 +37,12 @@ export class RateLimitGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const rateLimitOptions = this.reflector.get<RateLimitOptions>(
-      RATE_LIMIT_KEY,
-      context.getHandler(),
-    ) || this.reflector.get<RateLimitOptions>(
-      RATE_LIMIT_KEY,
-      context.getClass(),
-    );
+    const rateLimitOptions =
+      this.reflector.get<RateLimitOptions>(
+        RATE_LIMIT_KEY,
+        context.getHandler(),
+      ) ||
+      this.reflector.get<RateLimitOptions>(RATE_LIMIT_KEY, context.getClass());
 
     const windowMs = rateLimitOptions?.windowMs || this.defaultWindowMs;
     const maxRequests = rateLimitOptions?.requests || this.defaultMaxRequests;

@@ -103,16 +103,28 @@ export interface UpdateFreelancerProfileRequest {
 }
 
 // Type guards for validation
-export const isValidProficiency = (value: string): value is Language['proficiency'] => {
+export const isValidProficiency = (
+  value: string,
+): value is Language['proficiency'] => {
   return ['basic', 'conversational', 'fluent', 'native'].includes(value);
 };
 
-export const isValidExperience = (value: string | undefined): value is NonNullable<EditFreelancerProfileType['experience']> => {
-  return value !== undefined && ['beginner', 'intermediate', 'expert'].includes(value);
+export const isValidExperience = (
+  value: string | undefined,
+): value is NonNullable<EditFreelancerProfileType['experience']> => {
+  return (
+    value !== undefined &&
+    ['beginner', 'intermediate', 'expert'].includes(value)
+  );
 };
 
-export const isValidAvailability = (value: Availability | undefined): value is NonNullable<EditFreelancerProfileType['availability']> => {
-  return value !== undefined && ['available', 'busy', 'unavailable'].includes(value.status);
+export const isValidAvailability = (
+  value: Availability | undefined,
+): value is NonNullable<EditFreelancerProfileType['availability']> => {
+  return (
+    value !== undefined &&
+    ['available', 'busy', 'unavailable'].includes(value.status)
+  );
 };
 
 // Interface for freelancer search query

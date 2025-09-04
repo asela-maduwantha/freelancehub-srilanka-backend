@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
@@ -18,7 +22,14 @@ export class PaymentsService {
 
   // Create payment for milestone release using Stripe escrow model
   async createPayment(payerId: string, createPaymentDto: CreatePaymentDto) {
-    const { payeeId, projectId, milestoneId, amount, paymentMethod = 'stripe', description } = createPaymentDto;
+    const {
+      payeeId,
+      projectId,
+      milestoneId,
+      amount,
+      paymentMethod = 'stripe',
+      description,
+    } = createPaymentDto;
 
     // Find contract for this project - for simplified implementation, we'll assume one contract per project
     const contract = await this.contractModel.findOne({ project: projectId });
@@ -142,20 +153,25 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found or not eligible for refund');
+      throw new NotFoundException(
+        'Payment not found or not eligible for refund',
+      );
     }
 
     // Update escrow status to refunded
     payment.escrowStatus = 'refunded';
     payment.status = 'refunded';
-    
+
     await payment.save();
 
     return { message: 'Payment refunded successfully' };
   }
 
   // Helper method for contract integration (if needed)
-  private async updateContractPaymentStatus(contractId: string, paymentId: string) {
+  private async updateContractPaymentStatus(
+    contractId: string,
+    paymentId: string,
+  ) {
     // Update the contract with payment information
     // This would typically update the contract's milestone payment status
     const contract = await this.contractModel.findById(contractId);

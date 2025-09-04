@@ -87,7 +87,10 @@ export class Proposal {
   @Prop({ type: [Milestone], default: [] })
   milestones: Milestone[];
 
-  @Prop({ default: 'submitted', enum: ['submitted', 'shortlisted', 'accepted', 'rejected', 'withdrawn'] })
+  @Prop({
+    default: 'submitted',
+    enum: ['submitted', 'shortlisted', 'accepted', 'rejected', 'withdrawn'],
+  })
   status: string;
 
   @Prop({ default: Date.now })

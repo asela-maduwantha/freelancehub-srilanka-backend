@@ -29,7 +29,10 @@ export class ContractMilestone {
   @Prop()
   deadline: Date;
 
-  @Prop({ default: 'pending', enum: ['pending', 'in_progress', 'submitted', 'approved', 'rejected'] })
+  @Prop({
+    default: 'pending',
+    enum: ['pending', 'in_progress', 'submitted', 'approved', 'rejected'],
+  })
   status: string;
 
   @Prop({ type: [Deliverable], default: [] })
@@ -80,7 +83,10 @@ export class Contract {
   @Prop({ type: [ContractMilestone], default: [] })
   milestones: ContractMilestone[];
 
-  @Prop({ default: 'active', enum: ['active', 'completed', 'cancelled', 'disputed'] })
+  @Prop({
+    default: 'active',
+    enum: ['active', 'completed', 'cancelled', 'disputed'],
+  })
   status: string;
 
   @Prop()

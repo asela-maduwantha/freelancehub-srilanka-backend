@@ -13,7 +13,7 @@ import { ContractsModule } from '../contracts/contracts.module';
     MongooseModule.forFeature([
       { name: Dispute.name, schema: DisputeSchema },
       { name: User.name, schema: UserSchema },
-      { name: Contract.name, schema: ContractSchema }
+      { name: Contract.name, schema: ContractSchema },
     ]),
     UsersModule,
     ContractsModule,

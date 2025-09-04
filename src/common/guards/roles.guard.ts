@@ -1,23 +1,28 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { SetMetadata } from '@nestjs/common';
 import { UserRole } from '../../types';
 
 export const ROLES_KEY = 'roles';
-export const Roles = (...roles: (UserRole | 'self')[]) => SetMetadata(ROLES_KEY, roles);
+export const Roles = (...roles: (UserRole | 'self')[]) =>
+  SetMetadata(ROLES_KEY, roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.get<(UserRole | 'self')[]>(
-      ROLES_KEY,
-      context.getHandler(),
-    ) || this.reflector.get<(UserRole | 'self')[]>(
-      ROLES_KEY,
-      context.getClass(),
-    );
+    const requiredRoles =
+      this.reflector.get<(UserRole | 'self')[]>(
+        ROLES_KEY,
+        context.getHandler(),
+      ) ||
+      this.reflector.get<(UserRole | 'self')[]>(ROLES_KEY, context.getClass());
 
     if (!requiredRoles) {
       return true; // No roles required, allow access
@@ -45,8 +50,8 @@ export class RolesGuard implements CanActivate {
 
     // Check for specific role access
     const userRoles = Array.isArray(user.role) ? user.role : [user.role];
-    const hasRole = requiredRoles.some(role => 
-      role !== 'self' && userRoles.includes(role)
+    const hasRole = requiredRoles.some(
+      (role) => role !== 'self' && userRoles.includes(role),
     );
 
     if (!hasRole) {

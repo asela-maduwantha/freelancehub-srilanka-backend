@@ -14,7 +14,7 @@ import { ContractsModule } from '../contracts/contracts.module';
     MongooseModule.forFeature([
       { name: Proposal.name, schema: ProposalSchema },
       { name: User.name, schema: UserSchema },
-      { name: Project.name, schema: ProjectSchema }
+      { name: Project.name, schema: ProjectSchema },
     ]),
     UsersModule,
     CommonModule,

@@ -27,7 +27,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
-      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      } else if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null
+      ) {
         const responseObj = exceptionResponse as any;
         message = responseObj.message || message;
         error = responseObj.error || error;
@@ -38,19 +41,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     // Log the error
-    this.logger.error(
-      `HTTP ${status} Error: ${message}`,
-      {
-        url: request.url,
-        method: request.method,
-        ip: request.ip,
-        userAgent: request.get('User-Agent'),
-        body: request.body,
-        query: request.query,
-        params: request.params,
-        stack: exception instanceof Error ? exception.stack : undefined,
-      },
-    );
+    this.logger.error(`HTTP ${status} Error: ${message}`, {
+      url: request.url,
+      method: request.method,
+      ip: request.ip,
+      userAgent: request.get('User-Agent'),
+      body: request.body,
+      query: request.query,
+      params: request.params,
+      stack: exception instanceof Error ? exception.stack : undefined,
+    });
 
     const errorResponse = {
       statusCode: status,

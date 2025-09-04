@@ -69,7 +69,10 @@ export class AdminController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
   async getDashboardStats() {
     return this.adminService.getDashboardStats();
   }
@@ -77,7 +80,12 @@ export class AdminController {
   @Get('stats/revenue')
   @RateLimit({ requests: 20, windowMs: 60000 }) // 20 requests per minute for revenue stats
   @ApiOperation({ summary: 'Get revenue statistics' })
-  @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Time period for statistics' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['day', 'week', 'month', 'year'],
+    description: 'Time period for statistics',
+  })
   @ApiResponse({
     status: 200,
     description: 'Revenue statistics retrieved successfully',
@@ -122,10 +130,30 @@ export class AdminController {
   // User Management
   @Get('users')
   @ApiOperation({ summary: 'Get all users with pagination and filtering' })
-  @ApiQuery({ name: 'page', required: false, type: 'number', description: 'Page number' })
-  @ApiQuery({ name: 'limit', required: false, type: 'number', description: 'Items per page' })
-  @ApiQuery({ name: 'role', required: false, enum: ['freelancer', 'client'], description: 'Filter by user role' })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'suspended'], description: 'Filter by user status' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: 'number',
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: 'number',
+    description: 'Items per page',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: ['freelancer', 'client'],
+    description: 'Filter by user role',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'inactive', 'suspended'],
+    description: 'Filter by user status',
+  })
   @ApiResponse({
     status: 200,
     description: 'Users retrieved successfully',
@@ -206,7 +234,10 @@ export class AdminController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'User status updated successfully' },
+        message: {
+          type: 'string',
+          example: 'User status updated successfully',
+        },
       },
     },
   })
@@ -217,7 +248,9 @@ export class AdminController {
     @Request() req,
   ) {
     // Enhanced audit logging for critical admin action
-    console.log(`[ADMIN_AUDIT] Admin ${req.user.userId} (${req.user.email}) updating user ${userId} status to ${updateUserStatusDto.status} at ${new Date().toISOString()}`);
+    console.log(
+      `[ADMIN_AUDIT] Admin ${req.user.userId} (${req.user.email}) updating user ${userId} status to ${updateUserStatusDto.status} at ${new Date().toISOString()}`,
+    );
     return this.adminService.updateUserStatus(userId, updateUserStatusDto);
   }
 
@@ -274,7 +307,9 @@ export class AdminController {
     @Body() approveProjectDto: ApproveProjectDto,
     @Request() req,
   ) {
-    console.log(`[ADMIN_AUDIT] Admin ${req.user.userId} approved project ${projectId} at ${new Date().toISOString()}`);
+    console.log(
+      `[ADMIN_AUDIT] Admin ${req.user.userId} approved project ${projectId} at ${new Date().toISOString()}`,
+    );
     return this.adminService.approveProject(projectId, approveProjectDto);
   }
 
@@ -307,7 +342,9 @@ export class AdminController {
     @Body('reason') reason: string,
     @Request() req,
   ) {
-    console.log(`[ADMIN_AUDIT] Admin ${req.user.userId} rejected project ${projectId} with reason: ${reason} at ${new Date().toISOString()}`);
+    console.log(
+      `[ADMIN_AUDIT] Admin ${req.user.userId} rejected project ${projectId} with reason: ${reason} at ${new Date().toISOString()}`,
+    );
     return this.adminService.rejectProject(projectId, reason);
   }
 
@@ -333,7 +370,10 @@ export class AdminController {
               lastName: { type: 'string' },
             },
           },
-          status: { type: 'string', enum: ['pending', 'resolved', 'dismissed'] },
+          status: {
+            type: 'string',
+            enum: ['pending', 'resolved', 'dismissed'],
+          },
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
@@ -373,11 +413,16 @@ export class AdminController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'System settings updated successfully' },
+        message: {
+          type: 'string',
+          example: 'System settings updated successfully',
+        },
       },
     },
   })
-  async updateSystemSettings(@Body() updateSystemSettingsDto: UpdateSystemSettingsDto) {
+  async updateSystemSettings(
+    @Body() updateSystemSettingsDto: UpdateSystemSettingsDto,
+  ) {
     return this.adminService.updateSystemSettings(updateSystemSettingsDto);
   }
 
@@ -521,7 +566,10 @@ export class AdminController {
       type: 'object',
       properties: {
         platformFee: { type: 'number', description: 'Platform fee percentage' },
-        paymentProcessingFee: { type: 'number', description: 'Payment processing fee percentage' },
+        paymentProcessingFee: {
+          type: 'number',
+          description: 'Payment processing fee percentage',
+        },
         currency: { type: 'string' },
       },
     },
@@ -542,7 +590,10 @@ export class AdminController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Platform fees updated successfully' },
+        message: {
+          type: 'string',
+          example: 'Platform fees updated successfully',
+        },
         fees: { type: 'object' },
       },
     },
@@ -555,7 +606,12 @@ export class AdminController {
   // Analytics endpoints
   @Get('analytics/projects')
   @ApiOperation({ summary: 'Get project analytics' })
-  @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Time period for analytics' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['day', 'week', 'month', 'year'],
+    description: 'Time period for analytics',
+  })
   @ApiResponse({
     status: 200,
     description: 'Project analytics retrieved successfully',
@@ -600,7 +656,12 @@ export class AdminController {
 
   @Get('analytics/contracts')
   @ApiOperation({ summary: 'Get contract analytics' })
-  @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Time period for analytics' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['day', 'week', 'month', 'year'],
+    description: 'Time period for analytics',
+  })
   @ApiResponse({
     status: 200,
     description: 'Contract analytics retrieved successfully',
@@ -612,7 +673,10 @@ export class AdminController {
         activeContracts: { type: 'number' },
         completedContracts: { type: 'number' },
         disputedContracts: { type: 'number' },
-        averageDuration: { type: 'number', description: 'Average duration in days' },
+        averageDuration: {
+          type: 'number',
+          description: 'Average duration in days',
+        },
         averageValue: { type: 'number' },
         successRate: { type: 'number', description: 'Success rate percentage' },
       },
@@ -633,7 +697,12 @@ export class AdminController {
 
   @Get('analytics/payments')
   @ApiOperation({ summary: 'Get payment analytics' })
-  @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Time period for analytics' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['day', 'week', 'month', 'year'],
+    description: 'Time period for analytics',
+  })
   @ApiResponse({
     status: 200,
     description: 'Payment analytics retrieved successfully',

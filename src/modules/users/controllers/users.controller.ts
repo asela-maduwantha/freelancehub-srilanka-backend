@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  UseInterceptors,
+} from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
@@ -54,7 +66,10 @@ export class UsersController {
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async updateProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
+  async updateProfile(
+    @Request() req,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
     return this.usersService.updateProfile(req.user.userId, updateProfileDto);
   }
 
@@ -68,15 +83,27 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Freelancer profile updated successfully' },
+        message: {
+          type: 'string',
+          example: 'Freelancer profile updated successfully',
+        },
       },
     },
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - user is not a freelancer' })
-  async updateFreelancerProfile(@Request() req, @Body() updateFreelancerProfileDto: UpdateFreelancerProfileDto) {
-    return this.usersService.updateFreelancerProfile(req.user.userId, updateFreelancerProfileDto);
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user is not a freelancer',
+  })
+  async updateFreelancerProfile(
+    @Request() req,
+    @Body() updateFreelancerProfileDto: UpdateFreelancerProfileDto,
+  ) {
+    return this.usersService.updateFreelancerProfile(
+      req.user.userId,
+      updateFreelancerProfileDto,
+    );
   }
 
   @Put('client-profile')
@@ -89,28 +116,67 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Client profile updated successfully' },
+        message: {
+          type: 'string',
+          example: 'Client profile updated successfully',
+        },
       },
     },
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - user is not a client' })
-  async updateClientProfile(@Request() req, @Body() updateClientProfileDto: UpdateClientProfileDto) {
-    return this.usersService.updateClientProfile(req.user.userId, updateClientProfileDto);
+  async updateClientProfile(
+    @Request() req,
+    @Body() updateClientProfileDto: UpdateClientProfileDto,
+  ) {
+    return this.usersService.updateClientProfile(
+      req.user.userId,
+      updateClientProfileDto,
+    );
   }
 
   @Get('freelancers')
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300)
   @ApiOperation({ summary: 'Get freelancers with filtering' })
-  @ApiQuery({ name: 'skills', required: false, description: 'Filter by skills (comma-separated)' })
-  @ApiQuery({ name: 'experience', required: false, description: 'Filter by experience level' })
-  @ApiQuery({ name: 'minRate', required: false, description: 'Minimum hourly rate' })
-  @ApiQuery({ name: 'maxRate', required: false, description: 'Maximum hourly rate' })
-  @ApiQuery({ name: 'availability', required: false, description: 'Filter by availability' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number', type: Number })
-  @ApiQuery({ name: 'limit', required: false, description: 'Items per page', type: Number })
+  @ApiQuery({
+    name: 'skills',
+    required: false,
+    description: 'Filter by skills (comma-separated)',
+  })
+  @ApiQuery({
+    name: 'experience',
+    required: false,
+    description: 'Filter by experience level',
+  })
+  @ApiQuery({
+    name: 'minRate',
+    required: false,
+    description: 'Minimum hourly rate',
+  })
+  @ApiQuery({
+    name: 'maxRate',
+    required: false,
+    description: 'Maximum hourly rate',
+  })
+  @ApiQuery({
+    name: 'availability',
+    required: false,
+    description: 'Filter by availability',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page',
+    type: Number,
+  })
   @ApiResponse({
     status: 200,
     description: 'Freelancers retrieved successfully',
@@ -165,8 +231,18 @@ export class UsersController {
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300)
   @ApiOperation({ summary: 'Get clients' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number', type: Number })
-  @ApiQuery({ name: 'limit', required: false, description: 'Items per page', type: Number })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page',
+    type: Number,
+  })
   @ApiResponse({
     status: 200,
     description: 'Clients retrieved successfully',
@@ -408,7 +484,8 @@ export class UsersController {
       throw new ForbiddenException('You can only view your own analytics');
     }
 
-    const analytics = await this.userAnalyticsService.calculateUserAnalytics(userId);
+    const analytics =
+      await this.userAnalyticsService.calculateUserAnalytics(userId);
     return {
       overview: {
         totalProjects: analytics.totalProjects,
@@ -460,7 +537,8 @@ export class UsersController {
       throw new ForbiddenException('You can only view your own analytics');
     }
 
-    const analytics = await this.userAnalyticsService.calculateFreelancerAnalytics(userId);
+    const analytics =
+      await this.userAnalyticsService.calculateFreelancerAnalytics(userId);
     return analytics;
   }
 
@@ -484,7 +562,8 @@ export class UsersController {
       throw new ForbiddenException('You can only view your own analytics');
     }
 
-    const analytics = await this.userAnalyticsService.calculateClientAnalytics(userId);
+    const analytics =
+      await this.userAnalyticsService.calculateClientAnalytics(userId);
     return analytics;
   }
 }
