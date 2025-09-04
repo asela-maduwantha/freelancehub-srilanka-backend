@@ -136,7 +136,7 @@ export class ReviewsService {
       throw new NotFoundException('Review not found');
     }
 
-    if (review.helpful.includes(userId)) {
+    if (review.helpful.some(id => id.toString() === userId)) {
       // Remove from helpful
       await this.reviewModel.findByIdAndUpdate(reviewId, {
         $pull: { helpful: userId }

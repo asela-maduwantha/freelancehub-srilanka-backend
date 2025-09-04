@@ -12,8 +12,29 @@ export class Evidence {
   @Prop()
   description: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  uploadedBy: Types.ObjectId;
+
   @Prop({ default: Date.now })
   uploadedAt: Date;
+
+  @Prop({ type: [String], default: [] })
+  files: string[];
+}
+
+@Schema({ _id: false })
+export class DisputeMessage {
+  @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
+  senderId: Types.ObjectId;
+
+  @Prop({ required: true })
+  content: string;
+
+  @Prop({ required: true })
+  message: string;
+
+  @Prop({ default: Date.now })
+  timestamp: Date;
 }
 
 @Schema({ _id: false })
@@ -26,6 +47,12 @@ export class Resolution {
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   resolvedBy: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  decidedBy: Types.ObjectId;
+
+  @Prop({ default: 0 })
+  refundAmount: number;
 
   @Prop({ default: Date.now })
   resolvedAt: Date;
@@ -53,6 +80,9 @@ export class Dispute {
 
   @Prop({ type: [Evidence], default: [] })
   evidence: Evidence[];
+
+  @Prop({ type: [DisputeMessage], default: [] })
+  messages: DisputeMessage[];
 
   @Prop({ default: 'open', enum: ['open', 'in_review', 'resolved', 'escalated'] })
   status: string;

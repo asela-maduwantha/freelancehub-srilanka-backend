@@ -14,7 +14,27 @@ export class Deliverable {
 }
 
 @Schema({ _id: false })
+export class MilestoneSubmission {
+  @Prop({ required: true })
+  description: string;
+
+  @Prop({ type: [Deliverable], default: [] })
+  deliverables: Deliverable[];
+
+  @Prop({ type: [String], default: [] })
+  files: string[];
+
+  @Prop({ default: Date.now })
+  submittedAt: Date;
+
+  @Prop()
+  feedback: string;
+}
+
+@Schema({ _id: false })
 export class ContractMilestone {
+  _id: Types.ObjectId;
+
   @Prop({ required: true })
   title: string;
 
@@ -27,11 +47,17 @@ export class ContractMilestone {
   @Prop()
   deadline: Date;
 
+  @Prop()
+  dueDate: Date;
+
   @Prop({ default: 'pending', enum: ['pending', 'in_progress', 'submitted', 'approved', 'rejected'] })
   status: string;
 
   @Prop({ type: [Deliverable], default: [] })
   deliverables: Deliverable[];
+
+  @Prop({ type: [MilestoneSubmission], default: [] })
+  submissions: MilestoneSubmission[];
 
   @Prop()
   feedback: string;
@@ -41,6 +67,24 @@ export class ContractMilestone {
 
   @Prop()
   completedAt: Date;
+}
+
+@Schema({ _id: false })
+export class ApprovalWorkflow {
+  @Prop({ default: false })
+  clientApproved: boolean;
+
+  @Prop()
+  clientApprovedAt: Date;
+
+  @Prop({ default: false })
+  freelancerApproved: boolean;
+
+  @Prop()
+  freelancerApprovedAt: Date;
+
+  @Prop({ default: 'client_first', enum: ['client_first', 'freelancer_first', 'simultaneous'] })
+  approvalOrder: string;
 }
 
 @Schema({ timestamps: true })
@@ -66,6 +110,9 @@ export class Contract {
   @Prop({ required: true })
   totalAmount: number;
 
+  @Prop({ default: 0 })
+  totalPaid: number;
+
   @Prop({ default: 'USD' })
   currency: string;
 
@@ -86,6 +133,18 @@ export class Contract {
 
   @Prop()
   endDate: Date;
+
+  @Prop()
+  completedAt: Date;
+
+  @Prop()
+  cancellationReason: string;
+
+  @Prop({ type: ApprovalWorkflow })
+  approvalWorkflow: ApprovalWorkflow;
+
+  @Prop()
+  pdfUrl: string;
 
   createdAt?: Date;
   updatedAt?: Date;

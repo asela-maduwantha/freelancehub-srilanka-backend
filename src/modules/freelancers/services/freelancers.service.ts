@@ -130,23 +130,30 @@ export class FreelancersService {
       lastName: updatedFreelancer.lastName,
       profilePicture: updatedFreelancer.profilePicture,
       phone: updatedFreelancer.phone,
-      location: updatedFreelancer.location,
+      location: updatedFreelancer.location as any,
       languages: updatedFreelancer.languages as any, // Type assertion for schema compatibility
-      title: updatedFreelancer.freelancerProfile?.title,
-      bio: updatedFreelancer.freelancerProfile?.bio,
-      skills: updatedFreelancer.freelancerProfile?.skills,
-      experience: updatedFreelancer.freelancerProfile?.experience as any,
-      education: updatedFreelancer.freelancerProfile?.education,
-      certifications: updatedFreelancer.freelancerProfile?.certifications as any, // Date to string conversion needed
-      portfolio: updatedFreelancer.freelancerProfile?.portfolio,
-      hourlyRate: updatedFreelancer.freelancerProfile?.hourlyRate,
-      availability: updatedFreelancer.freelancerProfile?.availability as any,
-      workingHours: updatedFreelancer.freelancerProfile?.workingHours,
-      stats: updatedFreelancer.stats,
+      title: '', // Default values since freelancerProfile is a reference
+      bio: '',
+      skills: [],
+      experience: [] as any,
+      education: [],
+      certifications: [] as any, // Date to string conversion needed
+      portfolio: [],
+      hourlyRate: 0,
+      availability: { status: 'available', hoursPerWeek: 40, workingHours: { timezone: 'UTC', schedule: {} } } as any,
+      workingHours: {},
+      stats: {
+        projectsCompleted: updatedFreelancer.stats?.totalJobs || 0,
+        totalEarnings: updatedFreelancer.stats?.totalEarnings || 0,
+        avgRating: updatedFreelancer.stats?.averageRating || 0,
+        responseRate: 0,
+        responseTime: 0,
+        completionRate: 0
+      },
       status: updatedFreelancer.status as any,
-      lastLogin: updatedFreelancer.lastLogin,
-      followers: updatedFreelancer.followers,
-      following: updatedFreelancer.following,
+      lastLogin: updatedFreelancer.lastLoginAt,
+      followers: updatedFreelancer.followers?.map(id => id.toString()) || [],
+      following: updatedFreelancer.following?.map(id => id.toString()) || [],
     };
 
     return profile;

@@ -27,8 +27,20 @@ export class Message {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   receiverId: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  recipientId: Types.ObjectId;
+
   @Prop({ required: true })
   content: string;
+
+  @Prop()
+  encryptedContent: string;
+
+  @Prop()
+  iv: string;
+
+  @Prop()
+  messageHash: string;
 
   @Prop({ default: 'text', enum: ['text', 'file', 'system'] })
   messageType: string;
@@ -41,6 +53,12 @@ export class Message {
 
   @Prop()
   readAt: Date;
+
+  @Prop({ default: 'sent', enum: ['sent', 'delivered', 'read', 'failed'] })
+  status: string;
+
+  @Prop()
+  deliveredAt: Date;
 
   createdAt?: Date;
   updatedAt?: Date;

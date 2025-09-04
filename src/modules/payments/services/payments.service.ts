@@ -104,7 +104,9 @@ export class PaymentsService {
         await payment.save();
 
         // Update project payment status
-        await this.updateProjectPaymentStatus(payment.projectId, (payment._id as any).toString());
+        if (payment.projectId) {
+          await this.updateProjectPaymentStatus(payment.projectId.toString(), (payment._id as any).toString());
+        }
 
         return { message: 'Payment confirmed successfully' };
       } else if (paymentIntent.status === 'canceled') {
@@ -208,7 +210,7 @@ export class PaymentsService {
       payment.refund = {
         amount: payment.amount,
         reason,
-        processedAt: new Date(),
+        refundedAt: new Date(),
         stripeRefundId: refund.id,
       };
       payment.history.push({

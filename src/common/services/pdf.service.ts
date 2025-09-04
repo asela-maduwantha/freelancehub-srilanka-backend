@@ -32,23 +32,21 @@ export class PdfService {
         doc.moveDown(0.5);
         doc.fontSize(12).font('Helvetica');
         doc.text(`Contract ID: ${(contract as any)._id?.toString()}`);
-        doc.text(`Project: ${(contract.project._id as any)?.title || 'N/A'}`);
-        doc.text(`Start Date: ${contract.terms.startDate}`);
-        doc.text(`End Date: ${contract.terms.endDate}`);
-        doc.text(`Payment Type: ${contract.terms.paymentType}`);
-        doc.text(`Total Budget: $${contract.terms.budget}`);
-        doc.text(`Payment Schedule: ${contract.terms.paymentSchedule}`);
+        doc.text(`Project: ${contract.title || 'N/A'}`);
+        doc.text(`Start Date: ${contract.startDate?.toISOString().split('T')[0] || 'N/A'}`);
+        doc.text(`End Date: ${contract.endDate?.toISOString().split('T')[0] || 'N/A'}`);
+        doc.text(`Payment Type: ${contract.contractType}`);
+        doc.text(`Total Budget: $${contract.totalAmount}`);
+        doc.text(`Currency: ${contract.currency}`);
         doc.moveDown(2);
 
         // Parties
         doc.fontSize(14).font('Helvetica-Bold').text('Parties Involved', { underline: true });
         doc.moveDown(0.5);
         doc.fontSize(12).font('Helvetica');
-        doc.text(`Client: ${(contract.client._id as any)?.firstName} ${(contract.client._id as any)?.lastName}`);
-        doc.text(`Email: ${(contract.client._id as any)?.email}`);
+        doc.text(`Client ID: ${contract.clientId.toString()}`);
         doc.moveDown(0.5);
-        doc.text(`Freelancer: ${(contract.freelancer._id as any)?.firstName} ${(contract.freelancer._id as any)?.lastName}`);
-        doc.text(`Email: ${(contract.freelancer._id as any)?.email}`);
+        doc.text(`Freelancer ID: ${contract.freelancerId.toString()}`);
         doc.moveDown(2);
 
         // Milestones
@@ -60,7 +58,7 @@ export class PdfService {
           doc.text(`${index + 1}. ${milestone.title}`);
           doc.text(`   Description: ${milestone.description}`);
           doc.text(`   Amount: $${milestone.amount}`);
-          doc.text(`   Due Date: ${milestone.dueDate}`);
+          doc.text(`   Due Date: ${milestone.dueDate?.toISOString().split('T')[0] || milestone.deadline?.toISOString().split('T')[0] || 'N/A'}`);
           doc.moveDown(0.5);
         });
 

@@ -110,10 +110,10 @@ export class ContractsService {
       projectId: proposal.projectId.toString(),
       proposalId: proposalId,
       terms: {
-        budget: proposal.proposedBudget,
+        budget: proposal.proposedBudget.amount,
         type: (project.budgetType === 'hourly' ? 'hourly' : 'fixed') as 'fixed' | 'hourly',
         startDate: new Date().toISOString().split('T')[0], // Today's date
-        endDate: new Date(Date.now() + (proposal.proposedDuration.value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // Add duration days
+        endDate: new Date(Date.now() + (proposal.proposedDuration?.value || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Add duration days
         paymentSchedule: 'Upon milestone completion'
       },
       milestones: proposal.milestones?.map(milestone => ({
@@ -192,7 +192,7 @@ export class ContractsService {
     }
 
     // Check if user has permission to view this contract
-    if (contract.client._id.toString() !== userId && contract.freelancer._id.toString() !== userId) {
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to view this contract');
     }
 
@@ -212,7 +212,7 @@ export class ContractsService {
     }
 
     // Only client can update milestones
-    if (contract.client._id.toString() !== userId) {
+    if (contract.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can update milestones');
     }
 
@@ -247,7 +247,7 @@ export class ContractsService {
     }
 
     // Only freelancer can submit work
-    if (contract.freelancer._id.toString() !== userId) {
+    if (contract.freelancerId.toString() !== userId) {
       throw new ForbiddenException('Only the freelancer can submit milestone work');
     }
 
@@ -266,8 +266,9 @@ export class ContractsService {
 
     // Add submission to milestone
     milestone.submissions.push({
-      files: submitMilestoneDto.files || [],
       description: submitMilestoneDto.description,
+      deliverables: [],
+      files: submitMilestoneDto.files || [],
       submittedAt: new Date(),
       feedback: ''
     });
@@ -290,7 +291,7 @@ export class ContractsService {
     }
 
     // Only client can approve milestones
-    if (contract.client.toString() !== userId) {
+    if (contract.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can approve milestones');
     }
 
@@ -338,7 +339,7 @@ export class ContractsService {
     }
 
     // Only client can reject milestones
-    if (contract.client.toString() !== userId) {
+    if (contract.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can reject milestones');
     }
 
@@ -373,7 +374,7 @@ export class ContractsService {
     }
 
     // Only client can mark contract as complete
-    if (contract.client.toString() !== userId) {
+    if (contract.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can complete the contract');
     }
 
@@ -406,7 +407,7 @@ export class ContractsService {
     }
 
     // Only client or freelancer can cancel
-    if (contract.client.toString() !== userId && contract.freelancer._id.toString() !== userId) {
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to cancel this contract');
     }
 
@@ -428,7 +429,7 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.client.toString() !== client) {
+    if (contract.clientId.toString() !== client) {
       throw new ForbiddenException('Only the client can approve this contract');
     }
 
@@ -446,8 +447,8 @@ export class ContractsService {
       await this.generateAndSendContractPDF(updatedContract);
     } else {
       // Send notification to freelancer that contract is ready for approval
-      const freelancer = await this.userModel.findById(updatedContract.freelancer._id);
-      const project = await this.projectModel.findById(updatedContract.project._id);
+      const freelancer = await this.userModel.findById(updatedContract.freelancerId);
+      const project = await this.projectModel.findById(updatedContract.projectId);
       if (freelancer && project) {
         await this.emailService.sendContractReadyForApproval(
           freelancer.email,
@@ -471,7 +472,7 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.freelancer._id.toString() !== freelancerId) {
+    if (contract.freelancerId.toString() !== freelancerId) {
       throw new ForbiddenException('Only the freelancer can approve this contract');
     }
 
@@ -507,7 +508,7 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.freelancer._id.toString() !== freelancerId) {
+    if (contract.freelancerId.toString() !== freelancerId) {
       throw new ForbiddenException('You do not have permission to view this contract');
     }
 
@@ -533,12 +534,12 @@ export class ContractsService {
       await contract.save();
 
       // Get project details for email
-      const project = await this.projectModel.findById(contract.project._id);
+      const project = await this.projectModel.findById(contract.projectId);
       const projectTitle = project?.title || 'Project';
 
       // Send emails to both parties
-      const client = await this.userModel.findById(contract.client);
-      const freelancer = await this.userModel.findById(contract.freelancer._id);
+      const client = await this.userModel.findById(contract.clientId);
+      const freelancer = await this.userModel.findById(contract.freelancerId);
 
       if (client) {
         await this.emailService.sendContractPDF(
@@ -571,7 +572,7 @@ export class ContractsService {
     }
 
     // Check if user has permission
-    if (contract.client.toString() !== userId && contract.freelancer._id.toString() !== userId) {
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to download this contract');
     }
 

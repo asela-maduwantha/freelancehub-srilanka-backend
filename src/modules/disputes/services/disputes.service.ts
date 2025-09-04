@@ -27,7 +27,7 @@ export class DisputesService {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.client._id.toString() !== userId && contract.freelancer._id.toString() !== userId) {
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
       throw new ForbiddenException('You can only create disputes for contracts you are involved in');
     }
 
@@ -47,9 +47,9 @@ export class DisputesService {
     }
 
     // Determine respondent (the other party)
-    const respondentId = contract.client._id.toString() === userId
-      ? contract.freelancer._id
-      : contract.client._id;
+    const respondentId = contract.clientId.toString() === userId
+      ? contract.freelancerId
+      : contract.clientId;
 
     const dispute = new this.disputeModel({
       ...disputeData,
@@ -128,6 +128,8 @@ export class DisputesService {
 
     // Add evidence
     dispute.evidence.push({
+      filename: submitEvidenceDto.files?.[0] || 'evidence.txt',
+      url: submitEvidenceDto.files?.[0] || '',
       uploadedBy: new Types.ObjectId(userId),
       description: submitEvidenceDto.description,
       files: submitEvidenceDto.files || [],
@@ -160,6 +162,7 @@ export class DisputesService {
     // Add message
     dispute.messages.push({
       senderId: new Types.ObjectId(userId),
+      content: addMessageDto.message,
       message: addMessageDto.message,
       timestamp: new Date(),
     });
@@ -212,10 +215,12 @@ export class DisputesService {
 
     dispute.status = 'resolved';
     dispute.resolution = {
-      decidedBy: new Types.ObjectId(userId),
       decision: resolveDisputeDto.decision,
+      explanation: 'Dispute resolved',
+      resolvedBy: new Types.ObjectId(userId),
+      decidedBy: new Types.ObjectId(userId),
       refundAmount: resolveDisputeDto.refundAmount || 0,
-      timestamp: new Date(),
+      resolvedAt: new Date(),
     };
 
     return dispute.save();

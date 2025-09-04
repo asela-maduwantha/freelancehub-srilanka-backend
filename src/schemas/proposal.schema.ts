@@ -23,6 +23,15 @@ export class Timeline {
 }
 
 @Schema({ _id: false })
+export class ProposedDuration {
+  @Prop({ required: true })
+  value: number;
+
+  @Prop({ required: true, enum: ['days', 'weeks', 'months'] })
+  unit: string;
+}
+
+@Schema({ _id: false })
 export class ProposalAttachment {
   @Prop({ required: true })
   filename: string;
@@ -47,6 +56,9 @@ export class Milestone {
 
   @Prop({ required: true })
   durationDays: number;
+
+  @Prop()
+  deliveryDate: Date;
 }
 
 @Schema({ timestamps: true })
@@ -62,6 +74,9 @@ export class Proposal {
 
   @Prop({ type: ProposedBudget, required: true })
   proposedBudget: ProposedBudget;
+
+  @Prop({ type: ProposedDuration })
+  proposedDuration: ProposedDuration;
 
   @Prop({ type: Timeline })
   timeline: Timeline;
@@ -80,6 +95,12 @@ export class Proposal {
 
   @Prop()
   respondedAt: Date;
+
+  @Prop({ default: false })
+  clientViewed: boolean;
+
+  @Prop()
+  clientViewedAt: Date;
 
   createdAt?: Date;
   updatedAt?: Date;

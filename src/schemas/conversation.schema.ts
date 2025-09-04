@@ -24,8 +24,17 @@ export class UnreadCount {
 
 @Schema({ timestamps: true })
 export class Conversation {
+  @Prop()
+  conversationId: string;
+
   @Prop({ type: [Types.ObjectId], ref: 'User', required: true })
   participants: Types.ObjectId[];
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  participant1: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  participant2: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Project' })
   projectId: Types.ObjectId;
@@ -36,11 +45,20 @@ export class Conversation {
   @Prop({ type: LastMessage })
   lastMessage: LastMessage;
 
+  @Prop()
+  lastMessageAt: Date;
+
+  @Prop()
+  lastMessagePreview: string;
+
   @Prop({ type: [UnreadCount], default: [] })
   unreadCount: UnreadCount[];
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ type: Object })
+  metadata: any;
 
   createdAt?: Date;
   updatedAt?: Date;

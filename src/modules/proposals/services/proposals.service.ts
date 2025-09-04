@@ -276,17 +276,17 @@ export class ProposalsService {
       projectId: project._id.toString(),
       proposalId: proposalId,
       terms: {
-        budget: proposal.proposedBudget,
+        budget: proposal.proposedBudget.amount,
         type: (project.budgetType === 'hourly' ? 'hourly' : 'fixed') as 'fixed' | 'hourly',
         startDate: new Date().toISOString().split('T')[0], // Today's date
-        endDate: new Date(Date.now() + (proposal.proposedDuration.value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // Add duration days
+        endDate: new Date(Date.now() + ((proposal.proposedDuration?.value || 30) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // Add duration days
         paymentSchedule: 'Upon milestone completion'
       },
       milestones: proposal.milestones?.map(milestone => ({
         title: milestone.title,
         description: milestone.description,
         amount: milestone.amount,
-        dueDate: milestone.deliveryDate.toISOString().split('T')[0]
+        dueDate: milestone.deliveryDate?.toISOString().split('T')[0] || new Date(Date.now() + (milestone.durationDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
       })) || []
     };
 
