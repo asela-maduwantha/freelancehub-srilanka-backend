@@ -52,7 +52,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       stack: exception instanceof Error ? exception.stack : undefined,
     });
 
-    const errorResponse = {
+    const errorResponse: any = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
@@ -60,6 +60,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error,
       message: Array.isArray(message) ? message : [message],
     };
+
+    // Include validation errors if present
+    if (exception instanceof HttpException) {
+      const exceptionResponse = exception.getResponse();
+      if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null
+      ) {
+        const responseObj = exceptionResponse as any;
+        if (responseObj.errors) {
+          errorResponse.errors = responseObj.errors;
+        }
+      }
+    }
 
     response.status(status).json(errorResponse);
   }
