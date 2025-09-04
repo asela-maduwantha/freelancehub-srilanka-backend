@@ -40,7 +40,13 @@ export interface WorkingHour {
 
 export interface WorkingHours {
   timezone: string;
-  hours: WorkingHour[];
+  schedule: Record<string, any>;
+}
+
+export interface Availability {
+  status: 'available' | 'busy' | 'unavailable';
+  hoursPerWeek: number;
+  workingHours: WorkingHours;
 }
 
 export interface EditFreelancerProfileType {
@@ -61,8 +67,7 @@ export interface EditFreelancerProfileType {
   certifications?: Certification[];
   portfolio?: PortfolioItem[];
   hourlyRate?: number;
-  availability?: 'full-time' | 'part-time' | 'not-available' | 'available';
-  workingHours?: WorkingHours;
+  availability?: Availability;
 }
 
 // Utility type for partial updates
@@ -106,6 +111,17 @@ export const isValidExperience = (value: string | undefined): value is NonNullab
   return value !== undefined && ['beginner', 'intermediate', 'expert'].includes(value);
 };
 
-export const isValidAvailability = (value: string | undefined): value is NonNullable<EditFreelancerProfileType['availability']> => {
-  return value !== undefined && ['full-time', 'part-time', 'not-available', 'available'].includes(value);
+export const isValidAvailability = (value: Availability | undefined): value is NonNullable<EditFreelancerProfileType['availability']> => {
+  return value !== undefined && ['available', 'busy', 'unavailable'].includes(value.status);
 };
+
+// Interface for freelancer search query
+export interface FreelancerSearchQuery {
+  page?: number;
+  limit?: number;
+  skills?: string;
+  experienceLevel?: string;
+  minRate?: string;
+  maxRate?: string;
+  availability?: string;
+}

@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../../schemas/user.schema';
+import { FreelancerProfile, FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
+import { ClientProfile, ClientProfileDocument } from '../../../schemas/client-profile.schema';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
@@ -69,6 +71,8 @@ export interface ClientAnalytics extends UserAnalytics {
 export class UserAnalyticsService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(FreelancerProfile.name) private freelancerProfileModel: Model<FreelancerProfileDocument>,
+    @InjectModel(ClientProfile.name) private clientProfileModel: Model<ClientProfileDocument>,
     @InjectModel('Project') private projectModel: Model<Project>,
     @InjectModel('Contract') private contractModel: Model<Contract>,
     @InjectModel('Proposal') private proposalModel: Model<Proposal>,
@@ -107,7 +111,7 @@ export class UserAnalyticsService {
 
     // Engagement metrics
     const profileViews = await this.getProfileViews(userId);
-    const profileCompletion = this.calculateProfileCompletion(user);
+    const profileCompletion = await this.calculateProfileCompletion(user);
     const lastActivity = await this.getLastActivity(userId);
 
     // Performance metrics
@@ -149,11 +153,14 @@ export class UserAnalyticsService {
   async calculateFreelancerAnalytics(userId: string): Promise<FreelancerAnalytics> {
     const baseAnalytics = await this.calculateUserAnalytics(userId);
     const user = await this.userModel.findById(userId);
+    
+    // Get freelancer profile from separate collection
+    const freelancerProfile = await this.freelancerProfileModel.findOne({ userId });
 
     // Freelancer-specific metrics
-    const skills = user?.freelancerProfile?.skills || [];
-    const hourlyRate = user?.freelancerProfile?.hourlyRate || 0;
-    const availability = user?.freelancerProfile?.availability || 'not-available';
+    const skills = freelancerProfile?.skills || [];
+    const hourlyRate = freelancerProfile?.hourlyRate || 0;
+    const availability = freelancerProfile?.availability?.status || 'not-available';
     const portfolioViews = await this.getPortfolioViews(userId);
     const bidSuccessRate = await this.getBidSuccessRate(userId);
     const averageBidAmount = await this.getAverageBidAmount(userId);
@@ -346,12 +353,12 @@ export class UserAnalyticsService {
     return Math.floor(Math.random() * 1000) + 100; // Placeholder
   }
 
-  private calculateProfileCompletion(user: any): number {
+  private async calculateProfileCompletion(user: any): Promise<number> {
     let completedFields = 0;
     let totalFields = 0;
 
-    // Common fields
-    const commonFields = ['firstName', 'lastName', 'profilePicture', 'phone', 'location'];
+    // Common fields (using clean User schema fields)
+    const commonFields = ['username', 'email'];
     totalFields += commonFields.length;
     commonFields.forEach(field => {
       if (user[field]) completedFields++;
@@ -359,18 +366,20 @@ export class UserAnalyticsService {
 
     // Role-specific fields
     if (user.role.includes('freelancer')) {
+      const freelancerProfile = await this.freelancerProfileModel.findOne({ userId: user._id });
       const freelancerFields = ['title', 'bio', 'skills', 'hourlyRate', 'availability'];
       totalFields += freelancerFields.length;
       freelancerFields.forEach(field => {
-        if (user.freelancerProfile?.[field]) completedFields++;
+        if (freelancerProfile?.[field]) completedFields++;
       });
     }
 
     if (user.role.includes('client')) {
-      const clientFields = ['companyName', 'industry', 'description'];
+      const clientProfile = await this.clientProfileModel.findOne({ userId: user._id });
+      const clientFields = ['companyName', 'industry', 'bio'];
       totalFields += clientFields.length;
       clientFields.forEach(field => {
-        if (user.clientProfile?.[field]) completedFields++;
+        if (clientProfile?.[field]) completedFields++;
       });
     }
 
@@ -522,15 +531,16 @@ export class UserAnalyticsService {
   private async getSpecializationScore(userId: string): Promise<number> {
     // Calculate based on skills, experience, and project completion
     const user = await this.userModel.findById(userId);
+    const freelancerProfile = await this.freelancerProfileModel.findOne({ userId });
     const completedProjects = await this.getCompletedProjects(userId, true, false);
 
     let score = 0;
-    if (user?.freelancerProfile?.skills?.length) {
-      score += Math.min(user.freelancerProfile.skills.length * 5, 50);
+    if (freelancerProfile?.skills?.length) {
+      score += Math.min(freelancerProfile.skills.length * 5, 50);
     }
-    if (user?.freelancerProfile?.experienceLevel === 'expert') score += 30;
-    else if (user?.freelancerProfile?.experienceLevel === 'intermediate') score += 20;
-    else if (user?.freelancerProfile?.experienceLevel === 'beginner') score += 10;
+    if (freelancerProfile?.experienceLevel === 'expert') score += 30;
+    else if (freelancerProfile?.experienceLevel === 'intermediate') score += 20;
+    else if (freelancerProfile?.experienceLevel === 'beginner') score += 10;
 
     score += Math.min(completedProjects * 2, 20);
     return Math.min(score, 100);

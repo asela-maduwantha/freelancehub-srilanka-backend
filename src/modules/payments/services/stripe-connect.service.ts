@@ -1,10 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 import { User, UserDocument } from '../../../schemas/user.schema';
 import { EmailService } from '../../../common/services/email.service';
-import Stripe from 'stripe';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class StripeConnectService {
@@ -16,7 +16,7 @@ export class StripeConnectService {
     private emailService: EmailService,
   ) {
     this.stripe = new Stripe(this.configService.get<string>('stripe.secretKey') || '', {
-      apiVersion: '2025-08-27.basil' as any,
+      apiVersion: '2025-08-27.basil',
     });
   }
 
@@ -30,16 +30,11 @@ export class StripeConnectService {
       throw new BadRequestException('Only freelancers can create Stripe accounts');
     }
 
-    // Check if user already has a Stripe account
-    if (user.stripeAccountId) {
-      throw new BadRequestException('User already has a Stripe account');
-    }
-
+    // For clean architecture, we'll create a simple account without storing Stripe-specific fields in User schema
     try {
-      // Create Express account
       const account = await this.stripe.accounts.create({
         type: 'express',
-        country: user.location?.country || 'US',
+        country: 'US', // Default to US since location is not in clean User schema
         email: user.email,
         capabilities: {
           card_payments: { requested: true },
@@ -48,15 +43,10 @@ export class StripeConnectService {
         business_type: 'individual',
         individual: {
           email: user.email,
-          first_name: user.firstName,
-          last_name: user.lastName,
+          first_name: user.name.split(' ')[0] || user.name,
+          last_name: user.name.split(' ').slice(1).join(' ') || '',
         },
       });
-
-      // Update user with Stripe account ID
-      user.stripeAccountId = account.id;
-      user.stripeAccountStatus = 'pending';
-      await user.save();
 
       // Create account link for onboarding
       const accountLink = await this.stripe.accountLinks.create({
@@ -65,13 +55,6 @@ export class StripeConnectService {
         return_url: `${this.configService.get('app.frontendUrl')}/freelancer/payments`,
         type: 'account_onboarding',
       });
-
-      // Send onboarding email
-      await this.emailService.sendStripeConnectOnboarding(
-        user.email,
-        `${user.firstName} ${user.lastName}`,
-        accountLink.url
-      );
 
       return {
         accountId: account.id,
@@ -82,59 +65,36 @@ export class StripeConnectService {
     }
   }
 
-  async getStripeAccountStatus(userId: string): Promise<{ accountId: string; status: string; details?: any }> {
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.stripeAccountId) {
-      throw new BadRequestException('User does not have a Stripe account');
-    }
-
+  async getStripeAccountStatus(accountId: string): Promise<{ accountId: string; status: string; details?: any }> {
     try {
-      const account = await this.stripe.accounts.retrieve(user.stripeAccountId);
-
-      // Update local status
+      const account = await this.stripe.accounts.retrieve(accountId);
+      
       let status = 'pending';
-      if (account.details_submitted && account.charges_enabled) {
+      if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
         status = 'complete';
-      } else if (account.details_submitted) {
-        status = 'incomplete';
-      } else if (account.requirements?.disabled_reason) {
-        status = 'rejected';
+      } else if (account.requirements?.errors && account.requirements.errors.length > 0) {
+        status = 'error';
       }
 
-      user.stripeAccountStatus = status;
-      await user.save();
-
       return {
-        accountId: user.stripeAccountId,
+        accountId: accountId,
         status,
         details: {
-          charges_enabled: account.charges_enabled,
-          details_submitted: account.details_submitted,
+          detailsSubmitted: account.details_submitted,
+          chargesEnabled: account.charges_enabled,
+          payoutsEnabled: account.payouts_enabled,
           requirements: account.requirements,
         },
       };
     } catch (error) {
-      throw new BadRequestException('Failed to retrieve account status: ' + error.message);
+      throw new BadRequestException('Failed to get Stripe account status: ' + error.message);
     }
   }
 
-  async getAccountOnboardingLink(userId: string): Promise<{ url: string }> {
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.stripeAccountId) {
-      throw new BadRequestException('User does not have a Stripe account');
-    }
-
+  async getAccountOnboardingLink(accountId: string): Promise<{ url: string }> {
     try {
       const accountLink = await this.stripe.accountLinks.create({
-        account: user.stripeAccountId,
+        account: accountId,
         refresh_url: `${this.configService.get('app.frontendUrl')}/freelancer/payments`,
         return_url: `${this.configService.get('app.frontendUrl')}/freelancer/payments`,
         type: 'account_onboarding',
@@ -144,23 +104,6 @@ export class StripeConnectService {
     } catch (error) {
       throw new BadRequestException('Failed to create onboarding link: ' + error.message);
     }
-  }
-
-  async getStripeAccountId(userId: string): Promise<string> {
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.stripeAccountId) {
-      throw new BadRequestException('User does not have a Stripe account set up');
-    }
-
-    if (user.stripeAccountStatus !== 'complete') {
-      throw new BadRequestException('Stripe account is not fully set up yet');
-    }
-
-    return user.stripeAccountId;
   }
 
   async handleStripeWebhook(signature: string, rawBody: Buffer): Promise<{ received: boolean }> {
@@ -181,55 +124,15 @@ export class StripeConnectService {
     // Handle the event
     switch (event.type) {
       case 'account.updated':
-        await this.handleAccountUpdated(event.data.object as Stripe.Account);
+        console.log('Stripe account updated:', event.data.object);
         break;
-      case 'capability.updated':
-        await this.handleCapabilityUpdated(event.data.object as Stripe.Capability);
+      case 'payment_intent.succeeded':
+        console.log('Payment succeeded:', event.data.object);
         break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
 
     return { received: true };
-  }
-
-  private async handleAccountUpdated(account: Stripe.Account): Promise<void> {
-    // Find user by Stripe account ID
-    const user = await this.userModel.findOne({ stripeAccountId: account.id });
-    if (!user) {
-      console.log(`User not found for Stripe account ${account.id}`);
-      return;
-    }
-
-    // Update account status based on capabilities
-    let status = 'pending';
-    if (account.details_submitted && account.charges_enabled) {
-      status = 'complete';
-    } else if (account.details_submitted) {
-      status = 'incomplete';
-    } else if (account.requirements?.disabled_reason) {
-      status = 'rejected';
-    }
-
-    user.stripeAccountStatus = status;
-    await user.save();
-
-    console.log(`Updated Stripe account status for user ${user._id}: ${status}`);
-  }
-
-  private async handleCapabilityUpdated(capability: Stripe.Capability): Promise<void> {
-    // Find user by Stripe account ID
-    const user = await this.userModel.findOne({ stripeAccountId: capability.account });
-    if (!user) {
-      console.log(`User not found for Stripe account ${capability.account}`);
-      return;
-    }
-
-    // Update status if transfers capability becomes active
-    if (capability.id === 'transfers' && capability.status === 'active') {
-      user.stripeAccountStatus = 'complete';
-      await user.save();
-      console.log(`Stripe transfers capability activated for user ${user._id}`);
-    }
   }
 }

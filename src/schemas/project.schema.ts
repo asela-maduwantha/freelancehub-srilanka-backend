@@ -48,9 +48,6 @@ export class Project {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   clientId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  freelancerId: Types.ObjectId;
-
   @Prop({ required: true })
   title: string;
 
@@ -65,9 +62,6 @@ export class Project {
 
   @Prop({ required: true, enum: ['fixed_price', 'hourly'] })
   projectType: string;
-
-  @Prop({ required: true, enum: ['fixed', 'hourly'] })
-  budgetType: string;
 
   @Prop({ type: Budget, required: true })
   budget: Budget;

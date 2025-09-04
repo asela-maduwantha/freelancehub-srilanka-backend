@@ -1,5 +1,6 @@
 // User and Profile schemas
-export { User, UserDocument, UserSchema, UserLocation, UserLanguage, UserStats } from './user.schema';
+export { User, UserDocument, UserSchema } from './user.schema';
+export { Otp, OtpDocument, OtpSchema } from './otp.schema';
 export { ClientProfile, ClientProfileDocument, ClientProfileSchema } from './client-profile.schema';
 export { FreelancerProfile, FreelancerProfileDocument, FreelancerProfileSchema, 
          Availability, Portfolio, Education, Certification, Language, Location } from './freelancer-profile.schema';
@@ -31,7 +32,3 @@ export * from './saved-project.schema';
 
 // Notifications
 export * from './notification.schema';
-
-// Other schemas
-export * from './otp.schema';
-export * from './encryption-key.schema';

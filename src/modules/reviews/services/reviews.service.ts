@@ -136,17 +136,11 @@ export class ReviewsService {
       throw new NotFoundException('Review not found');
     }
 
-    if (review.helpful.some(id => id.toString() === userId)) {
-      // Remove from helpful
-      await this.reviewModel.findByIdAndUpdate(reviewId, {
-        $pull: { helpful: userId }
-      });
-    } else {
-      // Add to helpful
-      await this.reviewModel.findByIdAndUpdate(reviewId, {
-        $addToSet: { helpful: userId }
-      });
-    }
+    // Note: helpful property was removed from clean Review schema
+    // This functionality would need to be reimplemented differently
+    // or removed entirely in the clean architecture
+    
+    throw new BadRequestException('Review helpful functionality not available in clean schema');
   }
 
   async getUserReviewStats(userId: string) {

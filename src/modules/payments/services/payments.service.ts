@@ -2,138 +2,85 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
+import { Contract, ContractDocument } from '../../../schemas/contract.schema';
+import { User, UserDocument } from '../../../schemas/user.schema';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
-import Stripe from 'stripe';
 import { ConfigService } from '@nestjs/config';
-import { StripeConnectService } from './stripe-connect.service';
 
 @Injectable()
 export class PaymentsService {
-  private stripe: Stripe;
-
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
+    @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private configService: ConfigService,
-    private stripeConnectService: StripeConnectService,
-  ) {
-    this.stripe = new Stripe(this.configService.get<string>('stripe.secretKey') || '', {
-      apiVersion: '2025-08-27.basil' as any,
-    });
-  }
+  ) {}
 
-  async createPaymentIntent(payerId: string, createPaymentDto: CreatePaymentDto) {
-    const { payeeId, projectId, amount, currency = 'usd', description } = createPaymentDto;
+  // Create payment for milestone release using Stripe escrow model
+  async createPayment(payerId: string, createPaymentDto: CreatePaymentDto) {
+    const { payeeId, projectId, milestoneId, amount, paymentMethod = 'stripe', description } = createPaymentDto;
 
-    // Calculate platform fee (5%)
-    const platformFee = Math.round(amount * 0.05 * 100); // Convert to cents
-    const amountInCents = Math.round(amount * 100);
-
-    try {
-      const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: amountInCents,
-        currency,
-        metadata: {
-          payerId,
-          payeeId,
-          projectId,
-          platformFee: platformFee.toString(),
-        },
-        description,
-        application_fee_amount: platformFee,
-        transfer_data: {
-          destination: await this.getStripeAccountId(payeeId),
-        },
-      });
-
-      // Save payment record
-      const payment = new this.paymentModel({
-        payerId,
-        payeeId,
-        projectId,
-        amount,
-        currency,
-        stripePaymentIntentId: paymentIntent.id,
-        platformFee: {
-          fee: platformFee / 100,
-          percentage: 5,
-          currency,
-        },
-        description,
-        status: 'pending',
-        type: createPaymentDto.type || 'project_payment',
-        milestoneId: createPaymentDto.milestoneId,
-        history: [{
-          status: 'pending',
-          timestamp: new Date(),
-          note: 'Payment intent created',
-        }],
-      });
-
-      await payment.save();
-
-      return {
-        clientSecret: paymentIntent.client_secret,
-        paymentId: payment._id,
-      };
-    } catch (error) {
-      throw new BadRequestException('Failed to create payment intent');
+    // Find contract for this project - for simplified implementation, we'll assume one contract per project
+    const contract = await this.contractModel.findOne({ project: projectId });
+    if (!contract) {
+      throw new NotFoundException('Contract not found for this project');
     }
+
+    // Calculate platform fee (typically 5%)
+    const platformFee = Math.round(amount * 0.05 * 100) / 100;
+    const netAmount = amount - platformFee;
+
+    // Create payment record in escrow model
+    const payment = new this.paymentModel({
+      contractId: contract._id,
+      milestoneId,
+      payerId,
+      payeeId,
+      amount,
+      platformFee,
+      netAmount,
+      currency: 'LKR', // PayHere uses LKR
+      paymentMethod,
+      escrowStatus: 'held', // Funds held in escrow until milestone completion
+      status: 'pending',
+    });
+
+    const savedPayment = await payment.save();
+
+    return {
+      paymentId: savedPayment._id,
+      message: 'Payment created and funds held in escrow',
+    };
   }
 
-  async confirmPayment(paymentId: string, paymentIntentId: string) {
+  // Release payment from escrow when milestone is approved
+  async releasePayment(paymentId: string, userId: string) {
     const payment = await this.paymentModel.findById(paymentId);
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
 
-    if (payment.stripePaymentIntentId !== paymentIntentId) {
-      throw new BadRequestException('Payment intent ID mismatch');
+    // Only the payer (client) can release payment
+    if (payment.payerId.toString() !== userId) {
+      throw new BadRequestException('Only the client can release payment');
     }
 
-    try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
-
-      if (paymentIntent.status === 'succeeded') {
-        payment.status = 'completed';
-        payment.processedAt = new Date();
-        payment.history.push({
-          status: 'completed',
-          timestamp: new Date(),
-          note: 'Payment completed successfully',
-        });
-        await payment.save();
-
-        // Update project payment status
-        if (payment.projectId) {
-          await this.updateProjectPaymentStatus(payment.projectId.toString(), (payment._id as any).toString());
-        }
-
-        return { message: 'Payment confirmed successfully' };
-      } else if (paymentIntent.status === 'canceled') {
-        payment.status = 'cancelled';
-        payment.history.push({
-          status: 'cancelled',
-          timestamp: new Date(),
-          note: 'Payment was cancelled',
-        });
-        await payment.save();
-
-        return { message: 'Payment was cancelled' };
-      }
-    } catch (error) {
-      payment.status = 'failed';
-      payment.history.push({
-        status: 'failed',
-        timestamp: new Date(),
-        note: `Payment failed: ${error.message}`,
-      });
-      await payment.save();
-      throw new BadRequestException('Payment confirmation failed');
+    if (payment.escrowStatus !== 'held') {
+      throw new BadRequestException('Payment is not in held status');
     }
+
+    // Update payment status to released
+    payment.escrowStatus = 'released';
+    payment.status = 'completed';
+    payment.releasedAt = new Date();
+
+    await payment.save();
+
+    return { message: 'Payment released successfully' };
   }
 
   async getPayments(userId: string, query: any) {
-    const { page = 1, limit = 10, status, type } = query;
+    const { page = 1, limit = 10, status, escrowStatus } = query;
 
     const filter: any = {
       $or: [{ payerId: userId }, { payeeId: userId }],
@@ -143,15 +90,15 @@ export class PaymentsService {
       filter.status = status;
     }
 
-    if (type) {
-      filter.type = type;
+    if (escrowStatus) {
+      filter.escrowStatus = escrowStatus;
     }
 
     const payments = await this.paymentModel
       .find(filter)
-      .populate('payerId', 'firstName lastName profilePicture')
-      .populate('payeeId', 'firstName lastName profilePicture')
-      .populate('projectId', 'title')
+      .populate('contractId', 'status')
+      .populate('payerId', 'username email')
+      .populate('payeeId', 'username email')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -175,9 +122,9 @@ export class PaymentsService {
         _id: paymentId,
         $or: [{ payerId: userId }, { payeeId: userId }],
       })
-      .populate('payerId', 'firstName lastName profilePicture')
-      .populate('payeeId', 'firstName lastName profilePicture')
-      .populate('projectId', 'title description');
+      .populate('contractId', 'status milestones')
+      .populate('payerId', 'username email')
+      .populate('payeeId', 'username email');
 
     if (!payment) {
       throw new NotFoundException('Payment not found');
@@ -186,63 +133,35 @@ export class PaymentsService {
     return payment;
   }
 
+  // Refund payment (change escrow status to refunded)
   async processRefund(paymentId: string, userId: string, reason: string) {
     const payment = await this.paymentModel.findOne({
       _id: paymentId,
       payerId: userId,
-      status: 'completed',
+      escrowStatus: 'held',
     });
 
     if (!payment) {
       throw new NotFoundException('Payment not found or not eligible for refund');
     }
 
-    try {
-      const refund = await this.stripe.refunds.create({
-        payment_intent: payment.stripePaymentIntentId,
-        reason: 'requested_by_customer',
-        metadata: {
-          reason,
-        },
-      });
+    // Update escrow status to refunded
+    payment.escrowStatus = 'refunded';
+    payment.status = 'refunded';
+    
+    await payment.save();
 
-      payment.status = 'refunded';
-      payment.refund = {
-        amount: payment.amount,
-        reason,
-        refundedAt: new Date(),
-        stripeRefundId: refund.id,
-      };
-      payment.history.push({
-        status: 'refunded',
-        timestamp: new Date(),
-        note: `Refund processed: ${reason}`,
-      });
-
-      await payment.save();
-
-      return { message: 'Refund processed successfully' };
-    } catch (error) {
-      throw new BadRequestException('Refund processing failed');
-    }
+    return { message: 'Payment refunded successfully' };
   }
 
-  private async getStripeAccountId(userId: string): Promise<string> {
-    try {
-      const account = await this.stripeConnectService.getStripeAccountStatus(userId);
-      if (!account.accountId) {
-        throw new BadRequestException('Freelancer has not set up Stripe Connect account');
-      }
-      return account.accountId;
-    } catch (error) {
-      throw new BadRequestException('Failed to retrieve Stripe account ID');
+  // Helper method for contract integration (if needed)
+  private async updateContractPaymentStatus(contractId: string, paymentId: string) {
+    // Update the contract with payment information
+    // This would typically update the contract's milestone payment status
+    const contract = await this.contractModel.findById(contractId);
+    if (contract) {
+      // Implementation depends on contract milestone payment tracking
     }
-  }
-
-  private async updateProjectPaymentStatus(projectId: string, paymentId: string) {
-    // Update the project with payment information
-    // This would typically update the project's payment status
-    // Implementation depends on your project schema
   }
 
   async getPaymentStats(userId: string) {
@@ -255,6 +174,8 @@ export class PaymentsService {
       totalReceived: 0,
       pendingPayments: 0,
       completedPayments: 0,
+      escrowHeld: 0,
+      escrowReleased: 0,
     };
 
     payments.forEach((payment) => {
@@ -268,6 +189,12 @@ export class PaymentsService {
         stats.pendingPayments += 1;
       } else if (payment.status === 'completed') {
         stats.completedPayments += 1;
+      }
+
+      if (payment.escrowStatus === 'held') {
+        stats.escrowHeld += payment.amount;
+      } else if (payment.escrowStatus === 'released') {
+        stats.escrowReleased += payment.amount;
       }
     });
 

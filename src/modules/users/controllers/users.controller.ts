@@ -189,6 +189,10 @@ export class UsersController {
     return this.usersService.getUserById(id);
   }
 
+  // Note: Follow/unfollow functionality removed due to clean User schema
+  // The following endpoints have been commented out as followers/following were removed
+
+  /*
   @Post(':id/follow')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -263,6 +267,7 @@ export class UsersController {
   async getFollowing(@Param('id') userId: string) {
     return this.usersService.getFollowing(userId);
   }
+  */
 
   @Get(':id/analytics')
   @UseGuards(JwtAuthGuard)

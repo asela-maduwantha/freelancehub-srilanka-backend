@@ -23,25 +23,24 @@ export class PaymentsController {
     private readonly stripeConnectService: StripeConnectService,
   ) {}
 
-  @Post('create-intent')
-  @ApiOperation({ summary: 'Create Stripe payment intent' })
+  @Post('create')
+  @ApiOperation({ summary: 'Create payment for milestone release (PayHere escrow model)' })
+  @ApiBody({ type: CreatePaymentDto })
   @ApiResponse({
     status: 201,
-    description: 'Payment intent created successfully',
+    description: 'Payment created and funds held in escrow',
     schema: {
       type: 'object',
       properties: {
-        clientSecret: { type: 'string', description: 'Stripe client secret for payment confirmation' },
         paymentId: { type: 'string', description: 'Internal payment ID' },
-        amount: { type: 'number', description: 'Payment amount in cents' },
-        currency: { type: 'string', example: 'usd' },
+        message: { type: 'string', description: 'Payment creation status' },
       },
     },
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid payment data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createPaymentIntent(@Request() req, @Body() createPaymentDto: CreatePaymentDto) {
-    return this.paymentsService.createPaymentIntent(req.user.userId, createPaymentDto);
+  async createPayment(@Request() req, @Body() createPaymentDto: CreatePaymentDto) {
+    return this.paymentsService.createPayment(req.user.id, createPaymentDto);
   }
 
   @Post(':id/confirm')
@@ -75,10 +74,10 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Payment confirmation failed' })
+  @ApiResponse({ status: 400, description: 'Payment release failed' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  async confirmPayment(@Param('id') paymentId: string, @Body('paymentIntentId') paymentIntentId: string) {
-    return this.paymentsService.confirmPayment(paymentId, paymentIntentId);
+  async releasePayment(@Param('id') paymentId: string, @Request() req) {
+    return this.paymentsService.releasePayment(paymentId, req.user.userId);
   }
 
   @Get()
@@ -243,8 +242,9 @@ export class PaymentsController {
     return this.stripeConnectService.createStripeAccount(req.user.userId);
   }
 
-  @Get('stripe-connect/status')
+  @Get('stripe-connect/status/:accountId')
   @ApiOperation({ summary: 'Get Stripe Connect account status' })
+  @ApiParam({ name: 'accountId', description: 'Stripe account ID' })
   @ApiResponse({
     status: 200,
     description: 'Account status retrieved successfully',
@@ -256,22 +256,22 @@ export class PaymentsController {
         details: {
           type: 'object',
           properties: {
-            charges_enabled: { type: 'boolean' },
-            details_submitted: { type: 'boolean' },
+            chargesEnabled: { type: 'boolean' },
+            detailsSubmitted: { type: 'boolean' },
             requirements: { type: 'object' },
           },
         },
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'User does not have a Stripe account' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getStripeAccountStatus(@Request() req) {
-    return this.stripeConnectService.getStripeAccountStatus(req.user.userId);
+  @ApiResponse({ status: 400, description: 'Invalid account ID' })
+  async getStripeAccountStatus(@Param('accountId') accountId: string) {
+    return this.stripeConnectService.getStripeAccountStatus(accountId);
   }
 
-  @Get('stripe-connect/onboarding-link')
+  @Get('stripe-connect/onboarding-link/:accountId')
   @ApiOperation({ summary: 'Get Stripe Connect onboarding link' })
+  @ApiParam({ name: 'accountId', description: 'Stripe account ID' })
   @ApiResponse({
     status: 200,
     description: 'Onboarding link generated successfully',
@@ -282,10 +282,9 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'User does not have a Stripe account' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getAccountOnboardingLink(@Request() req) {
-    return this.stripeConnectService.getAccountOnboardingLink(req.user.userId);
+  @ApiResponse({ status: 400, description: 'Invalid account ID' })
+  async getAccountOnboardingLink(@Param('accountId') accountId: string) {
+    return this.stripeConnectService.getAccountOnboardingLink(accountId);
   }
 
   // Stripe webhook endpoint (no auth required)

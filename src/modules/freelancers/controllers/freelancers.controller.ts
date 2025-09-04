@@ -1,10 +1,11 @@
-import { Controller, Get, Put, UseGuards, Request, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, UseGuards, Request, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
 import { FreelancersService } from '../services/freelancers.service';
 import { EditFreelancerProfileType, FreelancerProfileResponse } from '../types/freelancer-profile.types';
+import { CreateFreelancerProfileDto, UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
 
 @ApiTags('freelancers')
 @Controller('freelancers')
@@ -56,6 +57,38 @@ export class FreelancersController {
     return this.freelancersService.getFreelancerDashboard(freelancerId);
   }
 
+  @Post('profile')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create freelancer profile' })
+  @ApiResponse({
+    status: 201,
+    description: 'Profile created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { type: 'object' },
+        message: { type: 'string', example: 'Profile created successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - profile already exists or invalid data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - not a freelancer' })
+  async createProfile(
+    @Request() req: any,
+    @Body() createData: CreateFreelancerProfileDto,
+  ): Promise<FreelancerProfileResponse> {
+    const freelancerId = req.user.userId;
+    const profile = await this.freelancersService.createProfile(freelancerId, createData);
+
+    return {
+      success: true,
+      data: profile as any,
+      message: 'Profile created successfully'
+    };
+  }
+
   @Put('profile')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -80,14 +113,14 @@ export class FreelancersController {
   @ApiResponse({ status: 404, description: 'Freelancer not found' })
   async updateProfile(
     @Request() req: any,
-    @Body() updateData: EditFreelancerProfileType,
+    @Body() updateData: UpdateFreelancerProfileDto,
   ): Promise<FreelancerProfileResponse> {
     const freelancerId = req.user.userId;
     const updatedProfile = await this.freelancersService.updateProfile(freelancerId, updateData);
 
     return {
       success: true,
-      data: updatedProfile,
+      data: updatedProfile as any, // Type casting to resolve schema vs types incompatibility
       message: 'Profile updated successfully'
     };
   }

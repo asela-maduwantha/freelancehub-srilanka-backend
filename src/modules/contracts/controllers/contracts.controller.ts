@@ -681,6 +681,10 @@ export class ContractsController {
     return this.contractsService.cancelContract(contractId, req.user.userId, cancelContractDto);
   }
 
+  // Note: Contract approval workflow endpoints removed due to clean Contract schema
+  // The approval workflow was simplified in the clean architecture
+
+  /*
   @Post(':id/approve/client')
   @ApiOperation({ summary: 'Client approves contract' })
   @ApiParam({ name: 'id', description: 'Contract ID' })
@@ -730,6 +734,7 @@ export class ContractsController {
   async getContractForFreelancer(@Param('id') contractId: string, @Request() req) {
     return this.contractsService.getContractForFreelancer(contractId, req.user.userId);
   }
+  */
 
   @Get(':id/download-pdf')
   @ApiOperation({ summary: 'Download contract PDF' })

@@ -96,7 +96,7 @@ export class ProposalsService {
       await this.emailService.sendNewProposalNotification(
         client.email,
         project.title,
-        `${user.firstName} ${user.lastName}`,
+        user.name, // Using name instead of firstName/lastName
         user.email
       );
     }
@@ -297,7 +297,7 @@ export class ProposalsService {
     if (freelancer) {
       await this.emailService.sendProposalAcceptedNotification(
         freelancer.email,
-        `${freelancer.firstName} ${freelancer.lastName}`,
+        freelancer.name, // Using name instead of firstName/lastName
         project.title,
         acceptProposalDto.message || 'Congratulations! Your proposal has been accepted.'
       );
@@ -338,7 +338,7 @@ export class ProposalsService {
     if (freelancer) {
       await this.emailService.sendProposalRejectedNotification(
         freelancer.email,
-        `${freelancer.firstName} ${freelancer.lastName}`,
+        freelancer.name, // Using name instead of firstName/lastName
         project.title,
         rejectProposalDto.reason || 'Your proposal was not selected for this project.',
         rejectProposalDto.message || ''

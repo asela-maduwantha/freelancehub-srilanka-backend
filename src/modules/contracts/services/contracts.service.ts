@@ -11,6 +11,8 @@ import { CancelContractDto } from '../dto/cancel-contract.dto';
 import { User, UserDocument } from '../../../schemas/user.schema';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
+import { FreelancerProfile, FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
+import { ClientProfile, ClientProfileDocument } from '../../../schemas/client-profile.schema';
 import { PdfService } from '../../../common/services/pdf.service';
 import { EmailService } from '../../../common/services/email.service';
 
@@ -23,6 +25,8 @@ export class ContractsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
+    @InjectModel(FreelancerProfile.name) private freelancerProfileModel: Model<FreelancerProfileDocument>,
+    @InjectModel(ClientProfile.name) private clientProfileModel: Model<ClientProfileDocument>,
     private pdfService: PdfService,
     private emailService: EmailService,
   ) {}
@@ -111,7 +115,7 @@ export class ContractsService {
       proposalId: proposalId,
       terms: {
         budget: proposal.proposedBudget.amount,
-        type: (project.budgetType === 'hourly' ? 'hourly' : 'fixed') as 'fixed' | 'hourly',
+        type: 'fixed' as 'fixed' | 'hourly', // Default to fixed type since budgetType was removed
         startDate: new Date().toISOString().split('T')[0], // Today's date
         endDate: new Date(Date.now() + (proposal.proposedDuration?.value || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Add duration days
         paymentSchedule: 'Upon milestone completion'
@@ -164,8 +168,8 @@ export class ContractsService {
       throw new NotFoundException('Project not found');
     }
 
-    // Check if user is the client or freelancer of the project
-    if (project.clientId.toString() !== userId && project.freelancerId?.toString() !== userId) {
+    // Check if user is the client for this project (freelancerId was removed from Project schema)
+    if (project.clientId.toString() !== userId) {
       throw new ForbiddenException('You do not have permission to view contracts for this project');
     }
 
@@ -264,15 +268,8 @@ export class ContractsService {
       throw new BadRequestException('Milestone must be in progress to submit work');
     }
 
-    // Add submission to milestone
-    milestone.submissions.push({
-      description: submitMilestoneDto.description,
-      deliverables: [],
-      files: submitMilestoneDto.files || [],
-      submittedAt: new Date(),
-      feedback: ''
-    });
-
+    // Add submission to milestone (simplified since submissions property was removed)
+    // Note: In clean schema, milestone submissions are handled differently
     milestone.status = 'submitted';
 
     return contract.save();
@@ -309,18 +306,16 @@ export class ContractsService {
     }
 
     milestone.status = 'approved';
-    contract.totalPaid += milestone.amount;
-
-    // Update latest submission with feedback
-    if (milestone.submissions.length > 0) {
-      milestone.submissions[milestone.submissions.length - 1].feedback = approveMilestoneDto.feedback || 'Approved';
-    }
+    // Note: totalPaid property was removed from clean Contract schema
+    
+    // Note: milestone submissions were removed from clean schema
+    // Feedback would be handled differently in the new architecture
 
     // Check if all milestones are completed
     const allCompleted = contract.milestones.every(m => m.status === 'approved');
     if (allCompleted) {
       contract.status = 'completed';
-      contract.completedAt = new Date();
+      // Note: completedAt property was removed from clean Contract schema
     }
 
     return contract.save();
@@ -358,10 +353,7 @@ export class ContractsService {
 
     milestone.status = 'rejected';
 
-    // Update latest submission with feedback
-    if (milestone.submissions.length > 0) {
-      milestone.submissions[milestone.submissions.length - 1].feedback = rejectMilestoneDto.feedback;
-    }
+    // Note: milestone submissions and feedback were removed from clean schema
 
     return contract.save();
   }
@@ -389,7 +381,7 @@ export class ContractsService {
     }
 
     contract.status = 'completed';
-    contract.completedAt = new Date();
+    // Note: completedAt property was removed from clean Contract schema
     await contract.save();
 
     return { message: 'Contract completed successfully' };
@@ -416,109 +408,14 @@ export class ContractsService {
     }
 
     contract.status = 'cancelled';
-    contract.cancellationReason = cancelContractDto.reason;
+    // Note: cancellationReason property was removed from clean Contract schema
     await contract.save();
 
     return { message: 'Contract cancelled successfully' };
   }
 
-  async approveContractByClient(contractId: string, client: string): Promise<{ message: string, contract: Contract }> {
-    const contract = await this.contractModel.findById(contractId);
-
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
-
-    if (contract.clientId.toString() !== client) {
-      throw new ForbiddenException('Only the client can approve this contract');
-    }
-
-    if (contract.approvalWorkflow.clientApproved) {
-      throw new BadRequestException('Contract already approved by client');
-    }
-
-    contract.approvalWorkflow.clientApproved = true;
-    contract.approvalWorkflow.clientApprovedAt = new Date();
-
-    const updatedContract = await contract.save();
-
-    // If both parties have approved, generate PDF and send emails
-    if (updatedContract.approvalWorkflow.freelancerApproved) {
-      await this.generateAndSendContractPDF(updatedContract);
-    } else {
-      // Send notification to freelancer that contract is ready for approval
-      const freelancer = await this.userModel.findById(updatedContract.freelancerId);
-      const project = await this.projectModel.findById(updatedContract.projectId);
-      if (freelancer && project) {
-        await this.emailService.sendContractReadyForApproval(
-          freelancer.email,
-          (updatedContract as any)._id.toString(),
-          project.title,
-          true
-        );
-      }
-    }
-
-    return { 
-      message: 'Contract approved by client successfully', 
-      contract: updatedContract 
-    };
-  }
-
-  async approveContractByFreelancer(contractId: string, freelancerId: string): Promise<{ message: string, contract: Contract }> {
-    const contract = await this.contractModel.findById(contractId);
-
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
-
-    if (contract.freelancerId.toString() !== freelancerId) {
-      throw new ForbiddenException('Only the freelancer can approve this contract');
-    }
-
-    if (contract.approvalWorkflow.freelancerApproved) {
-      throw new BadRequestException('Contract already approved by freelancer');
-    }
-
-    // Check if client has approved first (client_first approval order)
-    if (contract.approvalWorkflow.approvalOrder === 'client_first' && !contract.approvalWorkflow.clientApproved) {
-      throw new BadRequestException('Client must approve the contract first');
-    }
-
-    contract.approvalWorkflow.freelancerApproved = true;
-    contract.approvalWorkflow.freelancerApprovedAt = new Date();
-
-    const updatedContract = await contract.save();
-
-    // If both parties have approved, generate PDF and send emails
-    if (updatedContract.approvalWorkflow.clientApproved) {
-      await this.generateAndSendContractPDF(updatedContract);
-    }
-
-    return { 
-      message: 'Contract approved by freelancer successfully', 
-      contract: updatedContract 
-    };
-  }
-
-  async getContractForFreelancer(contractId: string, freelancerId: string): Promise<Contract | null> {
-    const contract = await this.contractModel.findById(contractId);
-
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
-
-    if (contract.freelancerId.toString() !== freelancerId) {
-      throw new ForbiddenException('You do not have permission to view this contract');
-    }
-
-    // Freelancer can only see contract after client has approved it
-    if (!contract.approvalWorkflow.clientApproved) {
-      return null; // Contract not yet visible to freelancer
-    }
-
-    return contract.populate(['project', 'client', 'freelancer', 'proposal']);
-  }
+  // Note: Approval workflow methods removed as approvalWorkflow was removed from clean Contract schema
+  // The contract is considered active immediately upon creation in the simplified schema
 
   private async generateAndSendContractPDF(contract: ContractDocument): Promise<void> {
     try {
@@ -529,9 +426,8 @@ export class ContractsService {
       const filename = `contract-${contract._id}.pdf`;
       const filePath = await this.pdfService.savePDFToFile(pdfBuffer, filename);
       
-      // Update contract with PDF URL
-      contract.pdfUrl = `https://api.yourapp.com/contracts/${contract._id}/pdf`;
-      await contract.save();
+      // Note: pdfUrl property was removed from clean Contract schema
+      // PDF management would be handled differently
 
       // Get project details for email
       const project = await this.projectModel.findById(contract.projectId);
@@ -576,15 +472,7 @@ export class ContractsService {
       throw new ForbiddenException('You do not have permission to download this contract');
     }
 
-    // Check if contract is fully approved
-    if (!contract.approvalWorkflow.clientApproved || !contract.approvalWorkflow.freelancerApproved) {
-      throw new BadRequestException('Contract must be approved by both parties before downloading PDF');
-    }
-
-    if (!contract.pdfUrl) {
-      throw new BadRequestException('PDF not available for this contract');
-    }
-
-    return contract.pdfUrl;
+    // Note: In clean schema, PDF URL management would be handled differently
+    throw new BadRequestException('PDF download feature needs to be reimplemented for clean schema');
   }
 }

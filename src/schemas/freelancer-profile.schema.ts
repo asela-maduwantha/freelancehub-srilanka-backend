@@ -74,7 +74,7 @@ export class Language {
   @Prop({ required: true })
   language: string;
 
-  @Prop({ required: true, enum: ['basic', 'intermediate', 'fluent', 'native'] })
+  @Prop({ required: true, enum: ['basic', 'conversational', 'fluent', 'native'] })
   proficiency: string;
 }
 

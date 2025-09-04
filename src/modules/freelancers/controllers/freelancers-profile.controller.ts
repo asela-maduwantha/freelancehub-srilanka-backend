@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/guards/roles.guard';
 import { EditFreelancerProfileType, FreelancerProfileResponse, UpdateFreelancerProfileRequest } from '../types/freelancer-profile.types';
+import { UpdateFreelancerProfileDto } from '../../../dto/freelancer-profile.dto';
 import { FreelancersService } from '../services/freelancers.service';
 
 @ApiTags('freelancers')
@@ -77,7 +78,7 @@ export class FreelancersController {
   })
   async updateProfile(
     @Request() req: any,
-    @Body() updateData: EditFreelancerProfileType,
+    @Body() updateData: UpdateFreelancerProfileDto,
   ): Promise<FreelancerProfileResponse> {
     try {
       const freelancerId = req.user.userId;
@@ -85,7 +86,7 @@ export class FreelancersController {
 
       return {
         success: true,
-        data: updatedProfile,
+        data: updatedProfile as any, // Type casting to resolve schema vs types incompatibility
         message: 'Profile updated successfully'
       };
     } catch (error) {

@@ -58,7 +58,7 @@ export class PdfService {
           doc.text(`${index + 1}. ${milestone.title}`);
           doc.text(`   Description: ${milestone.description}`);
           doc.text(`   Amount: $${milestone.amount}`);
-          doc.text(`   Due Date: ${milestone.dueDate?.toISOString().split('T')[0] || milestone.deadline?.toISOString().split('T')[0] || 'N/A'}`);
+          doc.text(`   Due Date: ${milestone.deadline || 'N/A'}`); // deadline is a Date in clean schema
           doc.moveDown(0.5);
         });
 
@@ -82,12 +82,12 @@ export class PdfService {
         // Client signature area
         doc.fontSize(12).font('Helvetica');
         doc.text('Client Signature: _______________________________');
-        doc.text(`Date: ${contract.approvalWorkflow.clientApprovedAt ? contract.approvalWorkflow.clientApprovedAt.toDateString() : '____________'}`);
+        doc.text(`Date: ${contract.createdAt ? new Date(contract.createdAt).toDateString() : '____________'}`); // Using createdAt instead
         doc.moveDown(1);
 
         // Freelancer signature area
         doc.text('Freelancer Signature: _______________________________');
-        doc.text(`Date: ${contract.approvalWorkflow.freelancerApprovedAt ? contract.approvalWorkflow.freelancerApprovedAt.toDateString() : '____________'}`);
+        doc.text(`Date: ${contract.createdAt ? new Date(contract.createdAt).toDateString() : '____________'}`); // Using createdAt instead
         doc.moveDown(2);
 
         // Footer

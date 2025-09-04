@@ -2,18 +2,20 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../../schemas/user.schema';
+import { FreelancerProfile, FreelancerProfileDocument } from '../../../schemas/freelancer-profile.schema';
+import { ClientProfile, ClientProfileDocument } from '../../../schemas/client-profile.schema';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { Contract, ContractDocument } from '../../../schemas/contract.schema';
 import { Proposal, ProposalDocument } from '../../../schemas/proposal.schema';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
-import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
-import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
 import { PaginatedResponse } from '../../../common/interfaces/pagination.interface';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(FreelancerProfile.name) private freelancerProfileModel: Model<FreelancerProfileDocument>,
+    @InjectModel(ClientProfile.name) private clientProfileModel: Model<ClientProfileDocument>,
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
@@ -32,7 +34,7 @@ export class UsersService {
       userId,
       { $set: updateProfileDto },
       { new: true, runValidators: true }
-    ).select('-password -otpCode -otpExpiry');
+    ).select('-password');
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -40,81 +42,99 @@ export class UsersService {
     return user;
   }
 
-  async updateFreelancerProfile(userId: string, updateFreelancerProfileDto: UpdateFreelancerProfileDto) {
+  async getFreelancerProfile(userId: string) {
+    const profile = await this.freelancerProfileModel.findOne({ userId }).populate('userId', 'name email profilePicture');
+    if (!profile) {
+      throw new NotFoundException('Freelancer profile not found');
+    }
+    return profile;
+  }
+
+  async updateFreelancerProfile(userId: string, updateData: any) {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.role.includes('freelancer')) {
+    if (user.role !== 'freelancer') {
       throw new BadRequestException('User is not a freelancer');
     }
 
-    const updatedUser = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $set: { freelancerProfile: updateFreelancerProfileDto } },
-      { new: true, runValidators: true }
-    ).select('-password -otpCode -otpExpiry');
+    const profile = await this.freelancerProfileModel.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { new: true, runValidators: true, upsert: true }
+    );
 
-    return updatedUser;
+    return profile;
   }
 
-  async updateClientProfile(userId: string, updateClientProfileDto: UpdateClientProfileDto) {
+  async getClientProfile(userId: string) {
+    const profile = await this.clientProfileModel.findOne({ userId }).populate('userId', 'name email profilePicture');
+    if (!profile) {
+      throw new NotFoundException('Client profile not found');
+    }
+    return profile;
+  }
+
+  async updateClientProfile(userId: string, updateData: any) {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.role.includes('client')) {
+    if (user.role !== 'client') {
       throw new BadRequestException('User is not a client');
     }
 
-    const updatedUser = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $set: { clientProfile: updateClientProfileDto } },
-      { new: true, runValidators: true }
-    ).select('-password -otpCode -otpExpiry');
+    const profile = await this.clientProfileModel.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { new: true, runValidators: true, upsert: true }
+    );
 
-    return updatedUser;
+    return profile;
   }
 
   async getFreelancers(query: any): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, skills, experience, minRate, maxRate, availability } = query;
 
-    const filter: any = {
-      role: { $in: ['freelancer'] },
-      status: 'active'
-    };
+    const filter: any = {};
 
     if (skills) {
-      filter['freelancerProfile.skills'] = { $in: skills.split(',') };
+      filter.skills = { $in: skills.split(',') };
     }
 
     if (experience) {
-      filter['freelancerProfile.experience'] = experience;
+      filter.experienceLevel = experience;
     }
 
     if (minRate || maxRate) {
-      filter['freelancerProfile.hourlyRate'] = {};
-      if (minRate) filter['freelancerProfile.hourlyRate'].$gte = Number(minRate);
-      if (maxRate) filter['freelancerProfile.hourlyRate'].$lte = Number(maxRate);
+      filter.hourlyRate = {};
+      if (minRate) filter.hourlyRate.$gte = Number(minRate);
+      if (maxRate) filter.hourlyRate.$lte = Number(maxRate);
     }
 
     if (availability) {
-      filter['freelancerProfile.availability'] = availability;
+      filter['availability.status'] = availability;
     }
 
-    const freelancers = await this.userModel
+    const freelancers = await this.freelancerProfileModel
       .find(filter)
-      .select('firstName lastName profilePicture freelancerProfile stats')
+      .populate('userId', 'name email profilePicture isActive')
       .skip((page - 1) * limit)
       .limit(limit)
-      .sort({ 'stats.avgRating': -1, 'stats.projectsCompleted': -1 });
+      .sort({ hourlyRate: -1, createdAt: -1 });
 
-    const total = await this.userModel.countDocuments(filter);
+    // Filter out inactive users
+    const activeFreelancers = freelancers.filter(freelancer => 
+      freelancer.userId && (freelancer.userId as any).isActive
+    );
+
+    const total = await this.freelancerProfileModel.countDocuments(filter);
 
     return {
-      data: freelancers,
+      data: activeFreelancers,
       pagination: {
         page,
         limit,
@@ -127,30 +147,32 @@ export class UsersService {
   async getClients(query: any): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, industry, companySize } = query;
 
-    const filter: any = {
-      role: { $in: ['client'] },
-      status: 'active'
-    };
+    const filter: any = {};
 
     if (industry) {
-      filter['clientProfile.industry'] = industry;
+      filter.industry = industry;
     }
 
     if (companySize) {
-      filter['clientProfile.companySize'] = companySize;
+      filter.companySize = companySize;
     }
 
-    const clients = await this.userModel
+    const clients = await this.clientProfileModel
       .find(filter)
-      .select('firstName lastName profilePicture clientProfile stats')
+      .populate('userId', 'name email profilePicture isActive')
       .skip((page - 1) * limit)
       .limit(limit)
-      .sort({ 'stats.totalSpent': -1 });
+      .sort({ createdAt: -1 });
 
-    const total = await this.userModel.countDocuments(filter);
+    // Filter out inactive users
+    const activeClients = clients.filter(client => 
+      client.userId && (client.userId as any).isActive
+    );
+
+    const total = await this.clientProfileModel.countDocuments(filter);
 
     return {
-      data: clients,
+      data: activeClients,
       pagination: {
         page,
         limit,
@@ -161,74 +183,21 @@ export class UsersService {
   }
 
   async getUserById(userId: string) {
-    const user = await this.userModel.findById(userId).select('-password -otpCode -otpExpiry');
+    const user = await this.userModel.findById(userId).select('-password');
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return user;
   }
 
-  async followUser(followerId: string, userId: string) {
-    if (followerId === userId) {
-      throw new BadRequestException('Cannot follow yourself');
-    }
-
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Add to following list of follower
-    await this.userModel.findByIdAndUpdate(followerId, {
-      $addToSet: { following: userId }
-    });
-
-    // Add to followers list of user
-    await this.userModel.findByIdAndUpdate(userId, {
-      $addToSet: { followers: followerId }
-    });
-
-    return { message: 'Successfully followed user' };
-  }
-
-  async unfollowUser(followerId: string, userId: string) {
-    // Remove from following list of follower
-    await this.userModel.findByIdAndUpdate(followerId, {
-      $pull: { following: userId }
-    });
-
-    // Remove from followers list of user
-    await this.userModel.findByIdAndUpdate(userId, {
-      $pull: { followers: followerId }
-    });
-
-    return { message: 'Successfully unfollowed user' };
-  }
-
-  async getFollowers(userId: string) {
-    const user = await this.userModel.findById(userId).populate('followers', 'firstName lastName profilePicture');
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return user.followers;
-  }
-
-  async getFollowing(userId: string) {
-    const user = await this.userModel.findById(userId).populate('following', 'firstName lastName profilePicture');
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return user.following;
-  }
-
   async getClientDashboard(clientId: string) {
     // Get total projects
     const totalProjects = await this.projectModel.countDocuments({ clientId });
 
-    // Get active projects (open or in-progress)
+    // Get active projects 
     const activeProjects = await this.projectModel.countDocuments({
       clientId,
-      status: { $in: ['open', 'in-progress'] }
+      status: { $in: ['active'] }
     });
 
     // Get completed projects
@@ -240,43 +209,30 @@ export class UsersService {
     // Get active contracts
     const activeContracts = await this.contractModel.countDocuments({
       clientId,
-      status: { $in: ['active', 'in-progress'] }
+      status: { $in: ['active'] }
     });
 
     // Get recent projects
-    const recentProjectsRaw = await this.projectModel
+    const recentProjects = await this.projectModel
       .find({ clientId })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('title status createdAt budget');
 
-    // Transform recent projects to include budget as object
-    const recentProjects = recentProjectsRaw.map(project => ({
-      _id: project._id,
-      title: project.title,
-      status: project.status,
-      createdAt: project.createdAt,
-      budget: { amount: project.budget }
-    }));
-
-    // Calculate total spent (this would need payment data)
-    const totalSpent = 0; // Placeholder - would need to aggregate payments
-
     // Get project IDs for proposals query
     const clientProjects = await this.projectModel.find({ clientId }).select('_id');
     const projectIds = clientProjects.map(project => project._id);
 
-    // Get pending proposals count from separate proposals collection
+    // Get pending proposals count
     const pendingProposalsCount = await this.proposalModel.countDocuments({
       projectId: { $in: projectIds },
-      status: 'pending'
+      status: 'submitted'
     });
 
     return {
       totalProjects,
       activeProjects,
       completedProjects,
-      totalSpent,
       activeContracts,
       pendingProposals: pendingProposalsCount,
       recentProjects,

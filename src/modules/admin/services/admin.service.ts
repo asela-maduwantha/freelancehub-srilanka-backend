@@ -58,8 +58,8 @@ export class AdminService {
 
     const { status, reason } = updateUserStatusDto;
 
-    // Update user status
-    user.status = status;
+    // Note: status property was removed from clean User schema
+    // Status management would need to be handled differently in the new architecture
 
     // If suspending or banning, you might want to cancel active contracts
     if (status === 'suspended' || status === 'banned') {
@@ -73,9 +73,8 @@ export class AdminService {
       user: {
         _id: user._id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        status: user.status,
+        username: user.name, // Using name instead of firstName/lastName
+        // Note: firstName, lastName, status properties removed from clean User schema
       },
     };
   }
