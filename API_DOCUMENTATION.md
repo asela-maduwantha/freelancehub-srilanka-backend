@@ -406,6 +406,15 @@ Cancel contract.
 ### GET /contracts/{id}/download-pdf
 Download contract PDF.
 
+### POST /contracts/{id}/approve/client
+Approve contract as client.
+
+### POST /contracts/{id}/approve/freelancer
+Approve contract as freelancer.
+
+### GET /contracts/{id}/freelancer-view
+Get contract details from freelancer perspective.
+
 ---
 
 ## Disputes Endpoints
@@ -777,12 +786,30 @@ Create a new project.
 {
   "title": "E-commerce Website",
   "description": "Build a modern e-commerce platform",
-  "budget": 5000,
   "category": "Web Development",
-  "skills": ["React", "Node.js", "MongoDB"],
-  "deadline": "2024-02-01",
-  "requirements": "Detailed project requirements...",
-  "attachments": ["file1.pdf"]
+  "subcategory": "Full Stack",
+  "requiredSkills": ["React", "Node.js", "MongoDB"],
+  "type": "fixed",
+  "budget": {
+    "amount": 5000,
+    "currency": "USD",
+    "type": "fixed"
+  },
+  "timeline": {
+    "deadline": "2024-02-01",
+    "duration": 30,
+    "isUrgent": false,
+    "isFlexible": true
+  },
+  "requirements": {
+    "experienceLevel": "intermediate",
+    "minimumRating": 4.0,
+    "minimumCompletedProjects": 5,
+    "preferredLanguages": ["English"],
+    "preferredCountries": ["USA"]
+  },
+  "visibility": "public",
+  "tags": ["ecommerce", "react"]
 }
 ```
 
@@ -807,21 +834,36 @@ Submit proposal for project.
 **Request Body:**
 ```json
 {
-  "proposedBudget": 4500,
-  "proposedDuration": {
-    "value": 30,
-    "unit": "days"
-  },
   "coverLetter": "I am excited to work on this project...",
-  "milestones": [
+  "pricing": {
+    "amount": 4500,
+    "currency": "USD",
+    "type": "fixed",
+    "estimatedHours": 120,
+    "breakdown": "Detailed pricing breakdown..."
+  },
+  "timeline": {
+    "deliveryTime": 30,
+    "startDate": "2024-01-15",
+    "milestones": [
+      {
+        "title": "Setup and Design",
+        "description": "Initial setup and UI design",
+        "deliveryDate": "2024-01-20",
+        "amount": 1500
+      }
+    ]
+  },
+  "portfolioLinks": ["https://portfolio.com/project1"],
+  "attachments": [
     {
-      "title": "Setup and Design",
-      "description": "Initial setup and UI design",
-      "amount": 1500,
-      "dueDate": "2024-01-20"
+      "url": "https://example.com/file.pdf",
+      "fileType": "application/pdf",
+      "fileSize": 1024000,
+      "description": "Project proposal document"
     }
   ],
-  "attachments": ["portfolio.pdf"]
+  "additionalInfo": "Additional details about my approach..."
 }
 ```
 
@@ -965,6 +1007,27 @@ Get clients.
 
 ### GET /users/{id}
 Get user by ID.
+
+### GET /users/{id}/profile
+Get user profile by ID.
+
+### GET /users/{id}/freelancer-profile
+Get freelancer profile by ID.
+
+### GET /users/{id}/client-profile
+Get client profile by ID.
+
+### POST /users/{id}/follow
+Follow a user.
+
+### DELETE /users/{id}/follow
+Unfollow a user.
+
+### GET /users/{id}/followers
+Get user's followers.
+
+### GET /users/{id}/following
+Get users that this user is following.
 
 ### GET /users/{id}/analytics
 Get user analytics (own analytics only).
@@ -1251,14 +1314,17 @@ The API supports file uploads for project attachments, proposal files, contract 
 - Documents: PDF, DOC, DOCX (max 10MB)
 - Archives: ZIP, RAR (max 50MB)
 
-### Upload Endpoint
+### Upload Endpoints
 ```
-POST /storage/upload
+POST /files/upload/single
+POST /files/upload/multiple
 ```
 
-**Form Data:**
+**Form Data for single upload:**
 - `file`: File to upload
-- `type`: Type of upload (profile, project, proposal, contract)
+
+**Form Data for multiple upload:**
+- `files`: Files to upload
 
 **Response:**
 ```json
