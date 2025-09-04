@@ -68,6 +68,7 @@ export class ProjectsService {
       })),
       budgetType: createProjectDto.type,
       budget: createProjectDto.budget.amount,
+      currency: createProjectDto.budget.currency,
       duration,
       deadline: createProjectDto.timeline.deadline || undefined,
       workType: ['remote'],

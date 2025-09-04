@@ -8,7 +8,7 @@ export type OtpType = 'email_verification' | 'password_reset';
 // Freelancer Types
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'expert';
 export type AvailabilityStatus = 'available' | 'busy' | 'unavailable';
-export type ProficiencyLevel = 'basic' | 'intermediate' | 'fluent' | 'native';
+export type ProficiencyLevel = 'basic' | 'conversational' | 'fluent' | 'native';
 
 // Project Types
 export type ProjectType = 'fixed_price' | 'hourly';

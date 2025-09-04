@@ -8,7 +8,9 @@ import {
   Param,
   UseGuards,
   Request,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -822,23 +824,74 @@ export class ContractsController {
   @ApiParam({ name: 'id', description: 'Contract ID' })
   @ApiResponse({
     status: 200,
-    description: 'PDF download URL',
-    schema: {
-      type: 'object',
-      properties: {
-        pdfUrl: {
+    description: 'PDF file download',
+    content: {
+      'application/pdf': {
+        schema: {
           type: 'string',
-          example: 'https://api.yourapp.com/contracts/123/pdf',
+          format: 'binary',
         },
       },
     },
   })
   @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
-  async downloadContractPDF(@Param('id') contractId: string, @Request() req) {
-    const pdfUrl = await this.contractsService.downloadContractPDF(
+  async downloadContractPDF(
+    @Param('id') contractId: string,
+    @Request() req,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.contractsService.downloadContractPDF(
       contractId,
       req.user.userId,
     );
-    return pdfUrl;
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="contract-${contractId}.pdf"`,
+    });
+
+    res.send(pdfBuffer);
+  }
+
+  @Post(':id/sign/client')
+  @ApiOperation({ summary: 'Sign contract by client' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contract signed by client successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - only client can sign' })
+  @ApiResponse({ status: 404, description: 'Contract not found' })
+  async signContractByClient(@Param('id') contractId: string, @Request() req) {
+    return this.contractsService.signContractByClient(contractId, req.user.userId);
+  }
+
+  @Post(':id/sign/freelancer')
+  @ApiOperation({ summary: 'Sign contract by freelancer' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contract signed by freelancer successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  })
+  async signContractByFreelancer(
+    @Param('id') contractId: string,
+    @Request() req,
+  ) {
+    return this.contractsService.signContractByFreelancer(
+      contractId,
+      req.user.userId,
+    );
   }
 }

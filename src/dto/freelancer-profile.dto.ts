@@ -120,8 +120,8 @@ class LanguageDto {
   @IsString()
   language: string;
 
-  @ApiProperty({ enum: ['basic', 'intermediate', 'fluent', 'native'] })
-  @IsIn(['basic', 'intermediate', 'fluent', 'native'])
+  @ApiProperty({ enum: ['basic', 'conversational', 'fluent', 'native'] })
+  @IsIn(['basic', 'conversational', 'fluent', 'native'])
   proficiency: string;
 }
 

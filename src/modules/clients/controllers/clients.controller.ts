@@ -115,6 +115,7 @@ export class ClientsController {
       proposalId,
       clientId,
       acceptProposalDto,
+      projectId,
     );
   }
 

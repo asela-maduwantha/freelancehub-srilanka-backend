@@ -29,6 +29,17 @@ import {
 import { PdfService } from '../../../common/services/pdf.service';
 import { EmailService } from '../../../common/services/email.service';
 
+// Interface for enriched contract data
+interface EnrichedContractData {
+  contract: ContractDocument;
+  client: UserDocument;
+  clientProfile: ClientProfileDocument | null;
+  freelancer: UserDocument;
+  freelancerProfile: FreelancerProfileDocument | null;
+  project: ProjectDocument | null;
+  proposal: ProposalDocument;
+}
+
 @Injectable()
 export class ContractsService {
   private readonly logger = new Logger(ContractsService.name);
@@ -36,6 +47,7 @@ export class ContractsService {
   constructor(
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(ClientProfile.name)
     @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
     @InjectModel(FreelancerProfile.name)
@@ -48,13 +60,18 @@ export class ContractsService {
 
   async createContract(
     createContractDto: CreateContractDto,
+    project?: any,
   ): Promise<Contract> {
     const { projectId, proposalId, terms, milestones } = createContractDto;
 
-    // Validate project and proposal exist
-    const project = await this.projectModel.findById(projectId);
+    // If project is not passed, find it
     if (!project) {
-      throw new NotFoundException('Project not found');
+      console.log('Looking for project with ID:', projectId);
+      project = await this.projectModel.findById(projectId);
+      console.log('Found project:', project ? project._id : 'null');
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
     }
 
     const proposal = await this.proposalModel.findById(proposalId);
@@ -71,16 +88,24 @@ export class ContractsService {
 
     // Create contract
     const contract = new this.contractModel({
-      project: projectId,
-      client: project.clientId,
-      freelancer: proposal.freelancerId,
-      proposal: proposalId,
-      terms,
+      projectId: projectId,
+      clientId: project.clientId,
+      freelancerId: proposal.freelancerId,
+      proposalId: proposalId,
+      title: project.title,
+      description: `Contract for project: ${project.title}`,
+      totalAmount: terms.budget,
+      contractType: terms.type === 'hourly' ? 'hourly' : 'fixed_price',
+      terms: `Budget: $${terms.budget}, Type: ${terms.type}, Start Date: ${terms.startDate}, End Date: ${terms.endDate}, Payment Schedule: ${terms.paymentSchedule}`,
       milestones: milestones.map((milestone) => ({
-        ...milestone,
+        title: milestone.title,
+        description: milestone.description,
+        amount: milestone.amount,
+        deadline: new Date(milestone.dueDate),
         status: 'pending' as const,
-        submissions: [],
       })),
+      startDate: new Date(terms.startDate),
+      endDate: new Date(terms.endDate),
     });
 
     const savedContract = await contract.save();
@@ -93,19 +118,19 @@ export class ContractsService {
     const populatedContract = await this.contractModel
       .findById(savedContract._id)
       .populate(
-        'project',
+        'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
       .populate(
-        'client',
+        'clientId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
       )
       .populate(
-        'freelancer',
+        'freelancerId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
       )
       .populate(
-        'proposal',
+        'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
       );
 
@@ -143,7 +168,7 @@ export class ContractsService {
 
     // Check if contract already exists for this proposal
     const existingContract = await this.contractModel.findOne({
-      proposal: proposalId,
+      proposalId: proposalId,
     });
     if (existingContract) {
       throw new ConflictException('Contract already exists for this proposal');
@@ -184,28 +209,28 @@ export class ContractsService {
 
   async checkContractExistsForProposal(proposalId: string): Promise<boolean> {
     const existingContract = await this.contractModel.findOne({
-      proposal: proposalId,
+      proposalId: proposalId,
     });
     return !!existingContract;
   }
 
   async getContractByProposalId(proposalId: string): Promise<Contract | null> {
     return this.contractModel
-      .findOne({ proposal: proposalId })
+      .findOne({ proposalId: proposalId })
       .populate(
-        'project',
+        'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
       .populate(
-        'client',
+        'clientId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
       )
       .populate(
-        'freelancer',
+        'freelancerId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
       )
       .populate(
-        'proposal',
+        'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
       );
   }
@@ -213,22 +238,22 @@ export class ContractsService {
   async getUserContracts(userId: string): Promise<Contract[]> {
     return this.contractModel
       .find({
-        $or: [{ client: userId }, { freelancer: userId }],
+        $or: [{ clientId: userId }, { freelancerId: userId }],
       })
       .populate(
-        'project',
+        'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
       .populate(
-        'client',
+        'clientId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
       )
       .populate(
-        'freelancer',
+        'freelancerId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
       )
       .populate(
-        'proposal',
+        'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
       )
       .sort({ createdAt: -1 });
@@ -253,21 +278,21 @@ export class ContractsService {
 
     // Get all contracts for this project
     return this.contractModel
-      .find({ project: projectId })
+      .find({ projectId: projectId })
       .populate(
-        'project',
+        'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
       .populate(
-        'client',
+        'clientId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
       )
       .populate(
-        'freelancer',
+        'freelancerId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
       )
       .populate(
-        'proposal',
+        'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
       )
       .sort({ createdAt: -1 });
@@ -277,19 +302,19 @@ export class ContractsService {
     const contract = await this.contractModel
       .findById(contractId)
       .populate(
-        'project',
+        'projectId',
         'title description status budget deadline category skills client freelancer createdAt updatedAt',
       )
       .populate(
-        'client',
+        'clientId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount location bio',
       )
       .populate(
-        'freelancer',
+        'freelancerId',
         'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills location bio',
       )
       .populate(
-        'proposal',
+        'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt updatedAt',
       );
 
@@ -299,8 +324,8 @@ export class ContractsService {
 
     // Check if user has permission to view this contract
     if (
-      contract.clientId.toString() !== userId &&
-      contract.freelancerId.toString() !== userId
+      contract.clientId._id.toString() !== userId &&
+      contract.freelancerId._id.toString() !== userId
     ) {
       throw new ForbiddenException(
         'You do not have permission to view this contract',
@@ -375,6 +400,7 @@ export class ContractsService {
         'Cannot submit work for inactive contracts',
       );
     }
+console.log("milestoneId:", contract.milestones)
 
     const milestone = contract.milestones.find(
       (m) => m._id.toString() === milestoneId,
@@ -561,58 +587,11 @@ export class ContractsService {
     return { message: 'Contract cancelled successfully' };
   }
 
-  // Note: Approval workflow methods removed as approvalWorkflow was removed from clean Contract schema
-  // The contract is considered active immediately upon creation in the simplified schema
-
-  private async generateAndSendContractPDF(
-    contract: ContractDocument,
-  ): Promise<void> {
-    try {
-      // Generate PDF
-      const pdfBuffer = await this.pdfService.generateContractPDF(contract);
-
-      // Save PDF to file
-      const filename = `contract-${contract._id}.pdf`;
-      const filePath = await this.pdfService.savePDFToFile(pdfBuffer, filename);
-
-      // Note: pdfUrl property was removed from clean Contract schema
-      // PDF management would be handled differently
-
-      // Get project details for email
-      const project = await this.projectModel.findById(contract.projectId);
-      const projectTitle = project?.title || 'Project';
-
-      // Send emails to both parties
-      const client = await this.userModel.findById(contract.clientId);
-      const freelancer = await this.userModel.findById(contract.freelancerId);
-
-      if (client) {
-        await this.emailService.sendContractPDF(
-          client.email,
-          (contract as any)._id.toString(),
-          pdfBuffer,
-          projectTitle,
-        );
-      }
-
-      if (freelancer) {
-        await this.emailService.sendContractPDF(
-          freelancer.email,
-          (contract as any)._id.toString(),
-          pdfBuffer,
-          projectTitle,
-        );
-      }
-    } catch (error) {
-      console.error('Error generating/sending contract PDF:', error);
-      // Don't throw error to avoid breaking the approval flow
-    }
-  }
 
   async downloadContractPDF(
     contractId: string,
     userId: string,
-  ): Promise<string> {
+  ): Promise<Buffer> {
     const contract = await this.contractModel.findById(contractId);
 
     if (!contract) {
@@ -629,9 +608,46 @@ export class ContractsService {
       );
     }
 
-    // Note: In clean schema, PDF URL management would be handled differently
-    throw new BadRequestException(
-      'PDF download feature needs to be reimplemented for clean schema',
-    );
+  
+
+    // Generate PDF with enriched data
+    const pdfBuffer = await this.pdfService.generateContractPDF(contract);
+    return pdfBuffer;
+  }
+
+  async signContractByClient(contractId: string, userId: string) {
+    const contract = await this.contractModel.findById(contractId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.clientId.toString() !== userId) {
+      throw new ForbiddenException('Only the client can sign this contract');
+    }
+
+    await this.contractModel.findByIdAndUpdate(contractId, {
+      client_digital_signed: true,
+    });
+
+    return { message: 'Contract signed by client successfully' };
+  }
+
+  async signContractByFreelancer(contractId: string, userId: string) {
+    const contract = await this.contractModel.findById(contractId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.freelancerId.toString() !== userId) {
+      throw new ForbiddenException('Only the freelancer can sign this contract');
+    }
+
+    await this.contractModel.findByIdAndUpdate(contractId, {
+      freelancer_digital_signed: true,
+    });
+
+    return { message: 'Contract signed by freelancer successfully' };
   }
 }

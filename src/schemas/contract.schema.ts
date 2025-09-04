@@ -13,7 +13,7 @@ export class Deliverable {
   uploadedAt: Date;
 }
 
-@Schema({ _id: false })
+@Schema({ _id: true })
 export class ContractMilestone {
   _id: Types.ObjectId;
 
@@ -94,6 +94,12 @@ export class Contract {
 
   @Prop()
   endDate: Date;
+
+  @Prop({ default: false })
+  client_digital_signed: boolean;
+
+  @Prop({ default: false })
+  freelancer_digital_signed: boolean;
 
   createdAt?: Date;
   updatedAt?: Date;

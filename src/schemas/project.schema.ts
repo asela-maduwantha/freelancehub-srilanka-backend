@@ -2,45 +2,12 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 @Schema({ _id: false })
-export class Budget {
-  @Prop({ required: true, enum: ['fixed', 'range'] })
-  type: string;
-
-  @Prop()
-  amount: number;
-
-  @Prop()
-  minAmount: number;
-
-  @Prop()
-  maxAmount: number;
-
-  @Prop({ default: 'USD' })
-  currency: string;
-}
-
-@Schema({ _id: false })
-export class Duration {
-  @Prop()
-  estimated: number; // in days
-
-  @Prop()
-  deadline: Date;
-}
-
-@Schema({ _id: false })
-export class Attachment {
+export class RequiredSkill {
   @Prop({ required: true })
-  filename: string;
+  skill: string;
 
-  @Prop({ required: true })
-  url: string;
-
-  @Prop({ required: true })
-  size: number;
-
-  @Prop({ default: Date.now })
-  uploadedAt: Date;
+  @Prop({ default: 'intermediate' })
+  level: string;
 }
 
 @Schema({ timestamps: true })
@@ -57,38 +24,51 @@ export class Project {
   @Prop({ required: true })
   category: string;
 
-  @Prop({ type: [String], required: true })
-  requiredSkills: string[];
+  @Prop()
+  subcategory: string;
 
-  @Prop({ required: true, enum: ['fixed_price', 'hourly'] })
-  projectType: string;
+  @Prop({ type: [RequiredSkill], required: true })
+  requiredSkills: RequiredSkill[];
 
-  @Prop({ type: Budget, required: true })
-  budget: Budget;
+  @Prop({ required: true, enum: ['fixed', 'hourly'] })
+  budgetType: string;
 
-  @Prop({ type: Duration })
-  duration: Duration;
+  @Prop({ required: true })
+  budget: number;
 
-  @Prop({ type: [Attachment], default: [] })
-  attachments: Attachment[];
+  @Prop({ default: 'USD' })
+  currency: string;
 
-  @Prop({ default: 'public', enum: ['public', 'invite_only'] })
+  @Prop({ enum: ['short-term', 'long-term', 'ongoing'] })
+  duration: string;
+
+  @Prop()
+  deadline: Date;
+
+  @Prop({ type: [String], default: ['remote'] })
+  workType: string[];
+
+  @Prop({ enum: ['basic', 'standard', 'premium'] })
+  experienceLevel: string;
+
+  @Prop({ default: 'public', enum: ['public', 'private'] })
   visibility: string;
 
   @Prop({
-    default: 'draft',
-    enum: ['draft', 'active', 'closed', 'completed', 'cancelled'],
+    default: 'open',
+    enum: ['open', 'in_progress', 'completed', 'cancelled'],
   })
   status: string;
 
-  @Prop({ default: 0 })
-  proposalCount: number;
-
-  @Prop({ default: 0 })
-  viewCount: number;
-
   @Prop({ type: [String], default: [] })
   tags: string[];
+
+  @Prop({ type: Object, default: { views: 0, applications: 0, saves: 0 } })
+  analytics: {
+    views: number;
+    applications: number;
+    saves: number;
+  };
 
   @Prop()
   publishedAt: Date;
@@ -107,6 +87,9 @@ export const ProjectSchema = SchemaFactory.createForClass(Project);
 ProjectSchema.index({ clientId: 1 });
 ProjectSchema.index({ status: 1 });
 ProjectSchema.index({ category: 1 });
-ProjectSchema.index({ requiredSkills: 1 });
+ProjectSchema.index({ 'requiredSkills.skill': 1 });
+ProjectSchema.index({ budgetType: 1 });
+ProjectSchema.index({ budget: 1 });
+ProjectSchema.index({ deadline: 1 });
 ProjectSchema.index({ createdAt: -1 });
 ProjectSchema.index({ publishedAt: -1 });

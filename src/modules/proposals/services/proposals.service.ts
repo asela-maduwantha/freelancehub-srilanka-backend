@@ -66,7 +66,7 @@ export class ProposalsService {
     const existingProposal = await this.proposalModel.findOne({
       projectId: finalProjectId,
       freelancerId: userId,
-      status: { $in: ['pending', 'accepted'] },
+      status: { $in: ['submitted', 'accepted'] },
     });
 
     if (existingProposal) {
@@ -79,25 +79,38 @@ export class ProposalsService {
       projectId: finalProjectId,
       freelancerId: userId,
       coverLetter: submitProposalDto.coverLetter,
-      proposedBudget:
-        submitProposalDto.proposedBudget || submitProposalDto.pricing.amount,
-      proposedDuration:
-        submitProposalDto.proposedDuration &&
-        submitProposalDto.proposedDuration > 0
-          ? typeof submitProposalDto.proposedDuration === 'number'
-            ? { value: submitProposalDto.proposedDuration, unit: 'days' }
-            : submitProposalDto.proposedDuration
-          : { value: submitProposalDto.timeline.deliveryTime, unit: 'days' },
-      milestones: submitProposalDto.timeline.milestones,
+      proposedBudget: {
+        amount: submitProposalDto.pricing.amount,
+        currency: submitProposalDto.pricing.currency,
+        type: submitProposalDto.pricing.type,
+      },
+      proposedDuration: {
+        value: submitProposalDto.timeline.deliveryTime,
+        unit: 'days',
+      },
+      timeline: {
+        estimatedDuration: submitProposalDto.timeline.deliveryTime,
+        proposedDeadline: new Date(submitProposalDto.timeline.startDate),
+      },
+      milestones: submitProposalDto.timeline.milestones.map((milestone, index) => ({
+        title: milestone.title,
+        description: milestone.description,
+        amount: milestone.amount,
+        durationDays: Math.ceil(
+          (new Date(milestone.deliveryDate).getTime() - new Date(submitProposalDto.timeline.startDate).getTime()) /
+          (1000 * 60 * 60 * 24)
+        ),
+        deliveryDate: new Date(milestone.deliveryDate),
+      })),
       attachments:
         submitProposalDto.attachments?.map((att) => ({
-          name: att.description || 'Attachment',
+          filename: att.url.split('/').pop() || 'attachment',
           url: att.url,
-          type: att.fileType,
+          description: att.description || '',
         })) || [],
       portfolioLinks: submitProposalDto.portfolioLinks || [],
       additionalInfo: submitProposalDto.additionalInfo,
-      status: 'pending',
+      status: 'submitted',
       submittedAt: new Date(),
     });
 
@@ -210,7 +223,7 @@ export class ProposalsService {
       throw new ForbiddenException('You can only update your own proposals');
     }
 
-    if (proposal.status !== 'pending') {
+    if (proposal.status !== 'submitted') {
       throw new BadRequestException(
         'Cannot update a proposal that has been accepted or rejected',
       );
@@ -234,7 +247,7 @@ export class ProposalsService {
       throw new ForbiddenException('You can only withdraw your own proposals');
     }
 
-    if (proposal.status !== 'pending') {
+    if (proposal.status !== 'submitted') {
       throw new BadRequestException(
         'Cannot withdraw a proposal that has been accepted or rejected',
       );
@@ -267,6 +280,18 @@ export class ProposalsService {
       );
     }
 
+    console.log(`Checking proposals for project ${projectId}`);
+    const proposals = await this.proposalModel.find({ projectId });
+    console.log(`Found ${proposals.length} proposals for project ${projectId}`);
+    if (proposals.length > 0) {
+      console.log('Proposal details:', proposals.map(p => ({
+        id: p._id,
+        projectId: p.projectId,
+        status: p.status,
+        freelancerId: p.freelancerId
+      })));
+    }
+
     return this.proposalModel
       .find({ projectId })
       .populate(
@@ -280,6 +305,7 @@ export class ProposalsService {
     proposalId: string,
     clientId: string,
     acceptProposalDto: AcceptProposalDto,
+    projectId?: string,
   ): Promise<{ message: string; contract: any }> {
     const proposal = await this.proposalModel
       .findById(proposalId)
@@ -290,13 +316,20 @@ export class ProposalsService {
     }
 
     const project = proposal.projectId as any;
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+    console.log('Project _id:', project._id, 'toString:', project._id.toString());
+    if (projectId && project._id.toString() !== projectId) {
+      throw new BadRequestException('Proposal does not belong to the specified project');
+    }
     if (project.clientId.toString() !== clientId) {
       throw new ForbiddenException(
         'You can only accept proposals for your own projects',
       );
     }
 
-    if (proposal.status !== 'pending') {
+    if (proposal.status !== 'submitted') {
       throw new BadRequestException('Proposal has already been processed');
     }
 
@@ -309,14 +342,15 @@ export class ProposalsService {
     await proposal.save();
 
     // Update project status and selected proposal
-    await this.projectModel.findByIdAndUpdate(project._id, {
+    const updateResult = await this.projectModel.findByIdAndUpdate(project._id, {
       status: 'in-progress',
       selectedProposal: proposalId,
     });
+    console.log('Update result:', updateResult ? updateResult._id : 'null');
 
     // Reject all other proposals for this project
     await this.proposalModel.updateMany(
-      { projectId: project._id, _id: { $ne: proposalId }, status: 'pending' },
+      { projectId: project._id, _id: { $ne: proposalId }, status: 'submitted' },
       { status: 'rejected' },
     );
 
@@ -363,7 +397,7 @@ export class ProposalsService {
         })) || [],
     };
 
-    const contract = await this.contractsService.createContract(contractDto);
+    const contract = await this.contractsService.createContract(contractDto, project);
 
     // Send notification to freelancer
     const freelancer = await this.userModel.findById(proposal.freelancerId);
@@ -404,7 +438,7 @@ export class ProposalsService {
       );
     }
 
-    if (proposal.status !== 'pending') {
+    if (proposal.status !== 'submitted') {
       throw new BadRequestException('Proposal has already been processed');
     }
 
@@ -432,45 +466,21 @@ export class ProposalsService {
     return { message: 'Proposal rejected successfully' };
   }
 
-  async getClientProposals(
-    clientId: string,
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<{
-    proposals: Proposal[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    const skip = (page - 1) * limit;
+async getClientProposals(clientId: string, page: number = 1, limit: number = 10) {
+  const skip = (page - 1) * limit;
+  
+  const clientProjects = await this.projectModel.find({ clientId }).select('_id');
+  const projectIds = clientProjects.map(p => p._id);
+  
+  const [proposals, total] = await Promise.all([
+    this.proposalModel
+      .find({ projectId: { $in: projectIds.map(id => (id as Types.ObjectId).toString()) } })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    this.proposalModel.countDocuments({ projectId: { $in: projectIds.map(id => (id as Types.ObjectId).toString()) } })
+  ]);
 
-    // First, get all project IDs that belong to this client
-    const clientProjects = await this.projectModel.find({ clientId }, '_id');
-    const projectIds = clientProjects.map((project) => project._id);
-
-    const [proposals, total] = await Promise.all([
-      this.proposalModel
-        .find({ projectId: { $in: projectIds } })
-        .populate({
-          path: 'projectId',
-          select:
-            'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills createdAt updatedAt',
-        })
-        .populate(
-          'freelancerId',
-          'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating',
-        )
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      this.proposalModel.countDocuments({ projectId: { $in: projectIds } }),
-    ]);
-
-    return {
-      proposals,
-      total,
-      page,
-      limit,
-    };
-  }
+  return { proposals, total, page, limit };
+}
 }

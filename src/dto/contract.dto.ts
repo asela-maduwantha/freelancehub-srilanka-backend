@@ -211,6 +211,12 @@ export class ContractResponseDto {
   @ApiPropertyOptional()
   endDate?: Date;
 
+  @ApiProperty({ default: false })
+  client_digital_signed: boolean;
+
+  @ApiProperty({ default: false })
+  freelancer_digital_signed: boolean;
+
   @ApiProperty()
   createdAt: Date;
 
