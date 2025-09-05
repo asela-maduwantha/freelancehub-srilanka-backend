@@ -132,7 +132,10 @@ export class ProposalsService {
       );
     }
 
-    return savedProposal.populate(['freelancerId', 'projectId']);
+    return savedProposal.populate([
+      { path: 'freelancerId', select: '-password' },
+      { path: 'projectId', populate: { path: 'clientId', select: '-password' } }
+    ]);
   }
 
   async getUserProposals(
@@ -156,9 +159,13 @@ export class ProposalsService {
             'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
           populate: {
             path: 'clientId',
-            select: 'firstName lastName email profilePicture phone location',
+            select: '-password',
           },
         })
+        .populate(
+          'freelancerId',
+          '-password',
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -173,15 +180,20 @@ export class ProposalsService {
     };
   }
   async getProposalById(proposalId: string, userId: string): Promise<Proposal> {
-    const proposal = await this.proposalModel.findById(proposalId).populate({
-      path: 'projectId',
-      select:
-        'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
-      populate: {
-        path: 'clientId',
-        select: 'firstName lastName email profilePicture phone location',
-      },
-    });
+    const proposal = await this.proposalModel.findById(proposalId)
+      .populate({
+        path: 'projectId',
+        select:
+          'title description category subcategory status budget budgetType minBudget maxBudget duration deadline workType experienceLevel requiredSkills milestones contract payments createdAt updatedAt',
+        populate: {
+          path: 'clientId',
+          select: '-password',
+        },
+      })
+      .populate(
+        'freelancerId',
+        '-password',
+      );
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -280,24 +292,16 @@ export class ProposalsService {
       );
     }
 
-    console.log(`Checking proposals for project ${projectId}`);
-    const proposals = await this.proposalModel.find({ projectId });
-    console.log(`Found ${proposals.length} proposals for project ${projectId}`);
-    if (proposals.length > 0) {
-      console.log('Proposal details:', proposals.map(p => ({
-        id: p._id,
-        projectId: p.projectId,
-        status: p.status,
-        freelancerId: p.freelancerId
-      })));
-    }
-
     return this.proposalModel
       .find({ projectId })
-      .populate(
-        'freelancerId',
-        'firstName lastName email profilePicture freelancerProfile.hourlyRate stats.avgRating',
-      )
+      .populate({
+        path: 'projectId',
+        populate: {
+          path: 'clientId',
+          select: '-password'
+        }
+      })
+      .populate('freelancerId', '-password')
       .sort({ createdAt: -1 });
   }
 
@@ -309,7 +313,13 @@ export class ProposalsService {
   ): Promise<{ message: string; contract: any }> {
     const proposal = await this.proposalModel
       .findById(proposalId)
-      .populate('projectId');
+      .populate({
+        path: 'projectId',
+        populate: {
+          path: 'clientId',
+          select: '-password'
+        }
+      });
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -319,11 +329,12 @@ export class ProposalsService {
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-    console.log('Project _id:', project._id, 'toString:', project._id.toString());
+
     if (projectId && project._id.toString() !== projectId) {
       throw new BadRequestException('Proposal does not belong to the specified project');
     }
-    if (project.clientId.toString() !== clientId) {
+
+    if (project.clientId._id.toString() !== clientId) {
       throw new ForbiddenException(
         'You can only accept proposals for your own projects',
       );
@@ -425,7 +436,13 @@ export class ProposalsService {
   ): Promise<{ message: string }> {
     const proposal = await this.proposalModel
       .findById(proposalId)
-      .populate('projectId');
+      .populate({
+        path: 'projectId',
+        populate: {
+          path: 'clientId',
+          select: '-password'
+        }
+      });
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -466,19 +483,32 @@ export class ProposalsService {
     return { message: 'Proposal rejected successfully' };
   }
 
-async getClientProposals(clientId: string, page: number = 1, limit: number = 10) {
+async getClientProposals(clientId: string, page: number = 1, limit: number = 10, status?: string) {
   const skip = (page - 1) * limit;
   
   const clientProjects = await this.projectModel.find({ clientId }).select('_id');
   const projectIds = clientProjects.map(p => p._id);
   
+  const filter: any = { projectId: { $in: projectIds.map(id => (id as Types.ObjectId).toString()) } };
+  if (status) {
+    filter.status = status;
+  }
+  
   const [proposals, total] = await Promise.all([
     this.proposalModel
-      .find({ projectId: { $in: projectIds.map(id => (id as Types.ObjectId).toString()) } })
+      .find(filter)
+      .populate({
+        path: 'projectId',
+        populate: {
+          path: 'clientId',
+          select: '-password'
+        }
+      })
+      .populate('freelancerId', '-password')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    this.proposalModel.countDocuments({ projectId: { $in: projectIds.map(id => (id as Types.ObjectId).toString()) } })
+    this.proposalModel.countDocuments(filter)
   ]);
 
   return { proposals, total, page, limit };

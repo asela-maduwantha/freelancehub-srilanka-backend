@@ -228,7 +228,6 @@ export class ProjectsService {
 
     const projects = await this.projectModel
       .find(filter)
-      .populate('freelancerId', 'firstName lastName profilePicture')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -287,10 +286,6 @@ export class ProjectsService {
     const project = await this.projectModel
       .findOne({ _id: projectId, clientId })
       .populate('clientId', 'firstName lastName profilePicture clientProfile')
-      .populate(
-        'freelancerId',
-        'firstName lastName profilePicture freelancerProfile',
-      );
 
     if (!project) {
       throw new NotFoundException('Project not found or access denied');

@@ -61,7 +61,7 @@ export class UsersService {
   async getFreelancerProfile(userId: string) {
     const profile = await this.freelancerProfileModel
       .findOne({ userId })
-      .populate('userId', 'name email profilePicture');
+      .populate('userId', '-password');
     if (!profile) {
       throw new NotFoundException('Freelancer profile not found');
     }
@@ -90,7 +90,7 @@ export class UsersService {
   async getClientProfile(userId: string) {
     const profile = await this.clientProfileModel
       .findOne({ userId })
-      .populate('userId', 'name email profilePicture');
+      .populate('userId', '-password');
     if (!profile) {
       throw new NotFoundException('Client profile not found');
     }
@@ -149,7 +149,7 @@ export class UsersService {
 
     const freelancers = await this.freelancerProfileModel
       .find(filter)
-      .populate('userId', 'name email profilePicture isActive')
+      .populate('userId', '-password')
       .skip((page - 1) * limit)
       .limit(limit)
       .sort({ hourlyRate: -1, createdAt: -1 });
@@ -187,7 +187,7 @@ export class UsersService {
 
     const clients = await this.clientProfileModel
       .find(filter)
-      .populate('userId', 'name email profilePicture isActive')
+      .populate('userId', '-password')
       .skip((page - 1) * limit)
       .limit(limit)
       .sort({ createdAt: -1 });

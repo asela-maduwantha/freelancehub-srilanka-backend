@@ -53,7 +53,7 @@ export class ReviewsService {
 
     const reviews = await this.reviewModel
       .find(filter)
-      .populate('reviewerId', 'firstName lastName profilePicture')
+      .populate('reviewerId', '-password')
       .populate('projectId', 'title')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -82,8 +82,8 @@ export class ReviewsService {
   async getReviewById(reviewId: string): Promise<Review> {
     const review = await this.reviewModel
       .findById(reviewId)
-      .populate('reviewerId', 'firstName lastName profilePicture')
-      .populate('revieweeId', 'firstName lastName profilePicture')
+      .populate('reviewerId', '-password')
+      .populate('revieweeId', '-password')
       .populate('projectId', 'title');
 
     if (!review) {

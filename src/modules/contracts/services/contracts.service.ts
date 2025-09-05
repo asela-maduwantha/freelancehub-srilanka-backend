@@ -123,11 +123,11 @@ export class ContractsService {
       )
       .populate(
         'clientId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
+        '-password',
       )
       .populate(
         'freelancerId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
+        '-password',
       )
       .populate(
         'proposalId',
@@ -223,11 +223,11 @@ export class ContractsService {
       )
       .populate(
         'clientId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
+        '-password',
       )
       .populate(
         'freelancerId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
+        '-password',
       )
       .populate(
         'proposalId',
@@ -246,11 +246,11 @@ export class ContractsService {
       )
       .populate(
         'clientId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
+        '-password',
       )
       .populate(
         'freelancerId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
+        '-password',
       )
       .populate(
         'proposalId',
@@ -285,11 +285,11 @@ export class ContractsService {
       )
       .populate(
         'clientId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount',
+        '-password',
       )
       .populate(
         'freelancerId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills',
+        '-password',
       )
       .populate(
         'proposalId',
@@ -307,11 +307,11 @@ export class ContractsService {
       )
       .populate(
         'clientId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount location bio',
+        '-password',
       )
       .populate(
         'freelancerId',
-        'firstName lastName email profilePicture phoneNumber companyName rating reviewsCount skills location bio',
+        '-password',
       )
       .populate(
         'proposalId',
@@ -594,8 +594,8 @@ console.log("milestoneId:", contract.milestones)
   ): Promise<Buffer> {
     const contract = await this.contractModel
       .findById(contractId)
-      .populate('clientId', 'name email profilePicture')
-      .populate('freelancerId', 'name email profilePicture')
+      .populate('clientId', '-password')
+      .populate('freelancerId', '-password')
       .populate('projectId', 'title description budget deadline category skills')
       .populate('proposalId', 'proposedBudget proposedDuration coverLetter');
 

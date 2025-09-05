@@ -23,6 +23,14 @@ export class ClientsService {
       1000,
     );
 
+    // Get latest submitted proposals for the client
+    const submittedProposals = await this.proposalsService.getClientProposals(
+      clientId,
+      1,
+      10,
+      'submitted',
+    );
+
     // Calculate dashboard stats
     const totalProjects = allProjects.pagination.total;
     const projectsByStatus = {
@@ -49,6 +57,7 @@ export class ClientsService {
       projectsByStatus,
       totalProposals,
       recentProjects,
+      latestProposals: submittedProposals.proposals,
     };
   }
 }
