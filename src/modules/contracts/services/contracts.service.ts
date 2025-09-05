@@ -592,7 +592,12 @@ console.log("milestoneId:", contract.milestones)
     contractId: string,
     userId: string,
   ): Promise<Buffer> {
-    const contract = await this.contractModel.findById(contractId);
+    const contract = await this.contractModel
+      .findById(contractId)
+      .populate('clientId', 'name email profilePicture')
+      .populate('freelancerId', 'name email profilePicture')
+      .populate('projectId', 'title description budget deadline category skills')
+      .populate('proposalId', 'proposedBudget proposedDuration coverLetter');
 
     if (!contract) {
       throw new NotFoundException('Contract not found');
@@ -600,18 +605,20 @@ console.log("milestoneId:", contract.milestones)
 
     // Check if user has permission
     if (
-      contract.clientId.toString() !== userId &&
-      contract.freelancerId.toString() !== userId
+      contract.clientId._id.toString() !== userId &&
+      contract.freelancerId._id.toString() !== userId
     ) {
       throw new ForbiddenException(
         'You do not have permission to download this contract',
       );
     }
 
-  
+    // Fetch client and freelancer profiles
+    const clientProfile = await this.clientProfileModel.findOne({ userId: contract.clientId._id });
+    const freelancerProfile = await this.freelancerProfileModel.findOne({ userId: contract.freelancerId._id });
 
     // Generate PDF with enriched data
-    const pdfBuffer = await this.pdfService.generateContractPDF(contract);
+    const pdfBuffer = await this.pdfService.generateContractPDF(contract, clientProfile, freelancerProfile);
     return pdfBuffer;
   }
 
