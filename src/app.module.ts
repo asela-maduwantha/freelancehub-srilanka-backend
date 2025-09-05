@@ -40,8 +40,6 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         uri: configService.get('database.uri'),
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
       }),
       inject: [ConfigService],
     }),
