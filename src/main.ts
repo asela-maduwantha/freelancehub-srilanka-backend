@@ -106,6 +106,9 @@ async function bootstrap() {
   app.use(
     require('express').json({
       limit: configService.get('app.maxRequestSize') || '10mb',
+      verify: (req: any, res: any, buf: Buffer) => {
+        req.rawBody = buf;
+      },
     }),
   );
   app.use(

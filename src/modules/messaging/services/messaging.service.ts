@@ -15,6 +15,7 @@ import {
   ConversationKey,
   KeyPair,
 } from './encryption.service';
+import { NotificationService } from '../../notifications/services/notification.service';
 import {
   NotFoundException,
   ForbiddenException,
@@ -52,6 +53,7 @@ export class MessagingService {
     @InjectModel(EncryptionKey.name)
     private encryptionKeyModel: Model<EncryptionKeyDocument>,
     private encryptionService: EncryptionService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -206,7 +208,21 @@ export class MessagingService {
       },
     );
 
-    return savedMessage;
+        // Send notification to recipient
+        try {
+          await this.notificationService.createNotification({
+            userId: recipientId,
+            type: 'message',
+            title: 'New Message',
+            content: `You have received a new message`,
+            relatedEntity: {
+              entityType: 'message',
+              entityId: (savedMessage._id as any).toString(),
+            },
+          });
+        } catch (error) {
+          console.error('Failed to create message notification:', error);
+        }    return savedMessage;
   }
 
   /**

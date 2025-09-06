@@ -19,6 +19,7 @@ import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import { EmailService } from '../../../common/services/email.service';
 import { ContractsService } from '../../contracts/services/contracts.service';
 import { CreateContractDto } from '../../contracts/dto/create-contract.dto';
+import { NotificationService } from '../../notifications/services/notification.service';
 
 @Injectable()
 export class ProposalsService {
@@ -29,6 +30,7 @@ export class ProposalsService {
     private emailService: EmailService,
     @Inject(forwardRef(() => ContractsService))
     private contractsService: ContractsService,
+    private notificationService: NotificationService,
   ) {}
 
   async submitProposal(
@@ -130,6 +132,22 @@ export class ProposalsService {
         user.name, // Using name instead of firstName/lastName
         user.email,
       );
+
+      // Send push notification to client
+      try {
+        await this.notificationService.createNotification({
+          userId: project.clientId.toString(),
+          type: 'proposal',
+          title: 'New Proposal Received',
+          content: `${user.name} has submitted a proposal for your project "${project.title}"`,
+          relatedEntity: {
+            entityType: 'proposal',
+            entityId: (savedProposal._id as any).toString(),
+          },
+        });
+      } catch (error) {
+        console.error('Failed to create proposal notification:', error);
+      }
     }
 
     return savedProposal.populate([

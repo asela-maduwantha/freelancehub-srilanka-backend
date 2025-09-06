@@ -541,4 +541,47 @@ export class EmailService {
 
     await this.transporter.sendMail(mailOptions);
   }
+
+  async sendPaymentReleasedNotification(
+    to: string,
+    amount: number,
+    paymentId: string,
+  ): Promise<void> {
+    const content = `
+      <p style="font-size: 18px; margin-bottom: 20px;">Great news! 💰</p>
+      
+      <div class="highlight-box">
+        <h2 style="margin: 0 0 15px 0; color: #16a34a;">✅ Payment Released!</h2>
+        <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 20px;">$${amount} has been released to your account</h3>
+        <p style="margin: 0; font-size: 16px;">Payment ID: ${paymentId}</p>
+      </div>
+      
+      <p>The funds have been transferred to your connected Stripe account and should be available according to your payout schedule.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="#" class="cta-button">View Payment Details</a>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: this.fromEmail,
+      to,
+      subject: `💰 Payment Released - $${amount}`,
+      text: `Your payment of $${amount} has been released. Payment ID: ${paymentId}`,
+      html: this.getBaseTemplate('Payment Released', content),
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendNotificationEmail(to: string, subject: string, content: string): Promise<void> {
+    const mailOptions = {
+      from: this.fromEmail,
+      to,
+      subject,
+      html: this.getBaseTemplate('Notification', content, "You're receiving this notification from FreelanceHub."),
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
 }

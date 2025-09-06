@@ -22,6 +22,7 @@ import {
 import { PaymentsService } from '../services/payments.service';
 import { StripeConnectService } from '../services/stripe-connect.service';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
+import { CreateWithdrawalDto } from '../dto/create-withdrawal.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('payments')
@@ -36,7 +37,7 @@ export class PaymentsController {
 
   @Post('create')
   @ApiOperation({
-    summary: 'Create payment for milestone release (PayHere escrow model)',
+    summary: 'Create payment for milestone release (Stripe escrow model)',
   })
   @ApiBody({ type: CreatePaymentDto })
   @ApiResponse({
@@ -47,6 +48,15 @@ export class PaymentsController {
       properties: {
         paymentId: { type: 'string', description: 'Internal payment ID' },
         message: { type: 'string', description: 'Payment creation status' },
+        stripePaymentIntent: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Stripe payment intent ID' },
+            clientSecret: { type: 'string', description: 'Stripe client secret for frontend' },
+            amount: { type: 'number', description: 'Amount in cents' },
+            currency: { type: 'string', description: 'Currency code' },
+          },
+        },
       },
     },
   })
@@ -59,7 +69,7 @@ export class PaymentsController {
     @Request() req,
     @Body() createPaymentDto: CreatePaymentDto,
   ) {
-    return this.paymentsService.createPayment(req.user.id, createPaymentDto);
+    return this.paymentsService.createPayment(req.user.userId, createPaymentDto);
   }
 
   @Post(':id/confirm')
@@ -96,10 +106,14 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Payment release failed' })
+  @ApiResponse({ status: 400, description: 'Payment confirmation failed' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  async releasePayment(@Param('id') paymentId: string, @Request() req) {
-    return this.paymentsService.releasePayment(paymentId, req.user.userId);
+  async confirmPayment(
+    @Param('id') paymentId: string,
+    @Body('paymentIntentId') paymentIntentId: string,
+    @Request() req,
+  ) {
+    return this.paymentsService.confirmPayment(paymentId, paymentIntentId, req.user.userId);
   }
 
   @Get()
@@ -108,6 +122,11 @@ export class PaymentsController {
     name: 'status',
     required: false,
     description: 'Filter by payment status',
+  })
+  @ApiQuery({
+    name: 'escrowStatus',
+    required: false,
+    description: 'Filter by escrow status (held, released, refunded)',
   })
   @ApiQuery({
     name: 'limit',
@@ -166,9 +185,9 @@ export class PaymentsController {
         },
         completedPayments: {
           type: 'number',
-          description: 'Number of completed payments',
-        },
-        currency: { type: 'string', example: 'usd' },
+          description: 'Number of completed payments' },
+        escrowHeld: { type: 'number', description: 'Total amount held in escrow' },
+        escrowReleased: { type: 'number', description: 'Total amount released from escrow' },
       },
     },
   })
@@ -217,6 +236,9 @@ export class PaymentsController {
         },
         createdAt: { type: 'string', format: 'date-time' },
         completedAt: { type: 'string', format: 'date-time' },
+        autoRelease: { type: 'boolean', description: 'Whether auto-release is enabled' },
+        autoReleaseDays: { type: 'number', description: 'Number of days for auto-release' },
+        autoReleaseDate: { type: 'string', format: 'date-time', description: 'Date when payment will auto-release' },
       },
     },
   })
@@ -353,18 +375,67 @@ export class PaymentsController {
     return this.stripeConnectService.getAccountOnboardingLink(accountId);
   }
 
-  // Stripe webhook endpoint (no auth required)
-  @Post('stripe/webhook')
-  @ApiOperation({ summary: 'Handle Stripe webhook events' })
+  @Post('withdraw')
+  @ApiOperation({ summary: 'Process manual withdrawal for freelancer' })
+  @ApiBody({ type: CreateWithdrawalDto })
   @ApiResponse({
     status: 200,
-    description: 'Webhook processed successfully',
+    description: 'Withdrawal processed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        payoutId: { type: 'string', description: 'Stripe payout ID' },
+        amount: { type: 'number', description: 'Withdrawal amount' },
+        status: { type: 'string', description: 'Payout status' },
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'Invalid webhook signature' })
-  async handleStripeWebhook(
-    @Headers('stripe-signature') signature: string,
-    @Body() rawBody: Buffer,
+  @ApiResponse({ status: 400, description: 'Withdrawal failed' })
+  async processWithdrawal(
+    @Request() req,
+    @Body() withdrawalDto: CreateWithdrawalDto,
   ) {
-    return this.stripeConnectService.handleStripeWebhook(signature, rawBody);
+    const { amount, currency = 'usd' } = withdrawalDto;
+    return this.stripeConnectService.processManualWithdrawal(
+      req.user.userId,
+      amount,
+      currency,
+    );
   }
+
+  @Post('process-auto-releases')
+  @ApiOperation({ summary: 'Process pending auto-releases (manual trigger for testing)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Auto-releases processed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        processed: { type: 'number', description: 'Number of payments processed' },
+        errors: { type: 'array', items: { type: 'string' }, description: 'Any errors encountered' },
+      },
+    },
+  })
+  async processAutoReleases() {
+    return this.paymentsService.processAutoReleases();
+  }
+
+  @Post('cleanup-stuck-payments')
+  @ApiOperation({ summary: 'Clean up payments stuck in pending status (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Stuck payments cleaned up successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        cleaned: { type: 'number', description: 'Number of payments cleaned up' },
+        errors: { type: 'array', items: { type: 'string' }, description: 'Any errors encountered' },
+      },
+    },
+  })
+  async cleanupStuckPayments() {
+    return this.paymentsService.cleanupStuckPayments();
+  }
+
+  // Stripe webhook endpoint moved to separate controller for proper auth handling
 }

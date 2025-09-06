@@ -31,14 +31,23 @@ export class Payment {
   paymentMethod: string;
 
   @Prop()
-  payhereTransactionId: string;
+  stripePaymentIntentId: string;
 
-  @Prop({ default: 'held', enum: ['held', 'released', 'refunded'] })
+  @Prop()
+  stripeChargeId: string;
+
+  @Prop()
+  stripeTransferId: string;
+
+  @Prop()
+  stripeRefundId: string;
+
+  @Prop({ default: 'held', enum: ['held', 'released', 'refunded', 'cancelled'] })
   escrowStatus: string;
 
   @Prop({
     default: 'pending',
-    enum: ['pending', 'completed', 'failed', 'refunded'],
+    enum: ['pending', 'processing', 'completed', 'failed', 'refunded', 'cancelled'],
   })
   status: string;
 
@@ -48,8 +57,17 @@ export class Payment {
   @Prop()
   releasedAt: Date;
 
-  createdAt?: Date;
-  updatedAt?: Date;
+  @Prop()
+  cancelledAt: Date;
+
+  @Prop({ default: false })
+  autoRelease: boolean;
+
+  @Prop()
+  autoReleaseDays: number;
+
+  @Prop()
+  autoReleaseDate: Date;
 }
 
 export type PaymentDocument = Payment & Document;

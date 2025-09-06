@@ -26,12 +26,38 @@ export class User {
   @Prop()
   lastLoginAt: Date;
 
-  @Prop({ default: true })
-  isActive: boolean;
+  @Prop()
+  stripeAccountId: string;
 
-  // Automatic timestamps (explicitly declared for TypeScript)
-  createdAt?: Date;
-  updatedAt?: Date;
+  @Prop({ default: 'pending', enum: ['pending', 'complete', 'incomplete', 'error'] })
+  stripeAccountStatus: string;
+
+  @Prop()
+  fcmToken: string;
+
+  @Prop({
+    type: {
+      emailNotifications: { type: Boolean, default: true },
+      pushNotifications: { type: Boolean, default: true },
+      messageNotifications: { type: Boolean, default: true },
+      proposalNotifications: { type: Boolean, default: true },
+      paymentNotifications: { type: Boolean, default: true },
+    },
+    default: {
+      emailNotifications: true,
+      pushNotifications: true,
+      messageNotifications: true,
+      proposalNotifications: true,
+      paymentNotifications: true,
+    },
+  })
+  notificationPreferences: {
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    messageNotifications: boolean;
+    proposalNotifications: boolean;
+    paymentNotifications: boolean;
+  };
 }
 
 export type UserDocument = User & Document;

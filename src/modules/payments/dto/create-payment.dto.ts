@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   Min,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreatePaymentDto {
@@ -40,4 +41,13 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsString()
   milestoneId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  autoRelease?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001) // Allow fractional days for testing (e.g., 0.0035 = 5 minutes)
+  autoReleaseDays?: number;
 }

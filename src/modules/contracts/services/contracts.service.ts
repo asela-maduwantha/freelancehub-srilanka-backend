@@ -28,6 +28,8 @@ import {
 } from '../../../schemas/client-profile.schema';
 import { PdfService } from '../../../common/services/pdf.service';
 import { EmailService } from '../../../common/services/email.service';
+import { PaymentsService } from '../../payments/services/payments.service';
+import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
 
 // Interface for enriched contract data
 interface EnrichedContractData {
@@ -54,8 +56,10 @@ export class ContractsService {
     private freelancerProfileModel: Model<FreelancerProfileDocument>,
     @InjectModel(ClientProfile.name)
     private clientProfileModel: Model<ClientProfileDocument>,
+    @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     private pdfService: PdfService,
     private emailService: EmailService,
+    private paymentsService: PaymentsService,
   ) {}
 
   async createContract(
@@ -460,6 +464,26 @@ console.log("milestoneId:", contract.milestones)
 
     milestone.status = 'approved';
     // Note: totalPaid property was removed from clean Contract schema
+
+    // Automatically release payment for the approved milestone
+    try {
+      const payment: PaymentDocument | null = await this.paymentModel.findOne({
+        milestoneId: new Types.ObjectId(milestoneId),
+        escrowStatus: 'held',
+      });
+
+      if (payment) {
+        await this.paymentsService.releasePayment((payment._id as Types.ObjectId).toString(), userId);
+        this.logger.log(`Payment released for milestone ${milestoneId}`);
+      } else {
+        this.logger.warn(`No held payment found for milestone ${milestoneId}`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to release payment for milestone ${milestoneId}: ${error.message}`,
+      );
+      // Don't fail milestone approval if payment release fails
+    }
 
     // Note: milestone submissions were removed from clean schema
     // Feedback would be handled differently in the new architecture

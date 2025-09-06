@@ -8,6 +8,7 @@ import { Project, ProjectSchema } from '../../schemas/project.schema';
 import { UsersModule } from '../users/users.module';
 import { CommonModule } from '../../common/common.module';
 import { ContractsModule } from '../contracts/contracts.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ContractsModule } from '../contracts/contracts.module';
     UsersModule,
     CommonModule,
     forwardRef(() => ContractsModule),
+    NotificationsModule,
   ],
   controllers: [ProposalsController],
   providers: [ProposalsService],

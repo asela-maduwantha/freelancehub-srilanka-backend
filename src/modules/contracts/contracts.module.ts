@@ -17,8 +17,10 @@ import {
 import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ProposalsModule } from '../proposals/proposals.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { PdfService } from '../../common/services/pdf.service';
 import { EmailService } from '../../common/services/email.service';
+import { Payment, PaymentSchema } from '../../schemas/payment.schema';
 
 @Module({
   imports: [
@@ -29,10 +31,12 @@ import { EmailService } from '../../common/services/email.service';
       { name: Proposal.name, schema: ProposalSchema },
       { name: FreelancerProfile.name, schema: FreelancerProfileSchema },
       { name: ClientProfile.name, schema: ClientProfileSchema },
+      { name: Payment.name, schema: PaymentSchema },
     ]),
     UsersModule,
     forwardRef(() => ProjectsModule),
     forwardRef(() => ProposalsModule),
+    PaymentsModule,
   ],
   controllers: [ContractsController],
   providers: [ContractsService, PdfService, EmailService],

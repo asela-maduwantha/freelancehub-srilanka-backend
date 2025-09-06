@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import databaseConfig from './config/database.config';
@@ -48,6 +49,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
       ttl: 300, // 5 minutes default
       max: 1000, // maximum number of items in cache (increased for better performance)
     }),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     ProjectsModule,
