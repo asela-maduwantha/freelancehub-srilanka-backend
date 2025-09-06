@@ -10,6 +10,8 @@ import { EmailService } from '../../../common/services/email.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import {
   UnauthorizedException,
   BadRequestException,
@@ -192,7 +194,77 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+    const { email } = forgotPasswordDto;
+
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return { message: 'If the email exists, a password reset link has been sent' };
+    }
+
+    // Generate reset token
+    const resetToken = this.generateResetToken();
+    const resetTokenExpiry = new Date(
+      Date.now() + 30 * 60 * 1000, // 30 minutes
+    );
+
+    // Create OTP record for password reset
+    const otp = new this.otpModel({
+      email,
+      otp: resetToken,
+      otpType: 'password_reset',
+      expiresAt: resetTokenExpiry,
+    });
+
+    await otp.save();
+
+    // Send password reset email
+    await this.emailService.sendPasswordResetEmail(email, resetToken);
+
+    return { message: 'Password reset email sent successfully' };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    const { token, newPassword } = resetPasswordDto;
+
+    // Find the OTP record
+    const otpRecord = await this.otpModel.findOne({
+      otp: token,
+      otpType: 'password_reset',
+      isUsed: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Find the user
+    const user = await this.userModel.findOne({ email: otpRecord.email });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password
+    user.password = hashedPassword;
+    await user.save();
+
+    // Mark OTP as used
+    otpRecord.isUsed = true;
+    await otpRecord.save();
+
+    return { message: 'Password reset successfully' };
+  }
+
   private generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  private generateResetToken(): string {
+    return require('crypto').randomBytes(32).toString('hex');
   }
 }

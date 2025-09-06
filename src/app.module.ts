@@ -28,6 +28,7 @@ import { MessagingModule } from './modules/messaging/messaging.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SavedProjectsModule } from './modules/saved-projects/saved-projects.module';
+import { SkillsModule } from './modules/skills/skills.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 
@@ -67,6 +68,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
     CategoriesModule,
     NotificationsModule,
     SavedProjectsModule,
+    SkillsModule,
   ],
   controllers: [AppController],
   providers: [

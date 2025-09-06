@@ -151,6 +151,17 @@ export class MessagingService {
   }
 
   /**
+   * Get conversation by ID
+   */
+  async getConversationById(conversationId: string): Promise<ConversationDocument> {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    return conversation;
+  }
+
+  /**
    * Send an encrypted message
    */
   async sendMessage(
@@ -208,21 +219,23 @@ export class MessagingService {
       },
     );
 
-        // Send notification to recipient
-        try {
-          await this.notificationService.createNotification({
-            userId: recipientId,
-            type: 'message',
-            title: 'New Message',
-            content: `You have received a new message`,
-            relatedEntity: {
-              entityType: 'message',
-              entityId: (savedMessage._id as any).toString(),
-            },
-          });
-        } catch (error) {
-          console.error('Failed to create message notification:', error);
-        }    return savedMessage;
+    // Send notification to recipient
+    try {
+      await this.notificationService.createNotification({
+        userId: recipientId,
+        type: 'message',
+        title: 'New Message',
+        content: `You have received a new message`,
+        relatedEntity: {
+          entityType: 'message',
+          entityId: (savedMessage._id as any).toString(),
+        },
+      });
+    } catch (error) {
+      console.error('Failed to create message notification:', error);
+    }
+
+    return savedMessage;
   }
 
   /**

@@ -579,7 +579,47 @@ export class EmailService {
       from: this.fromEmail,
       to,
       subject,
-      html: this.getBaseTemplate('Notification', content, "You're receiving this notification from FreelanceHub."),
+      text: content,
+      html: this.getBaseTemplate(subject, content),
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendPasswordResetEmail(to: string, resetToken: string): Promise<void> {
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+    const content = `
+      <p style="font-size: 18px; margin-bottom: 20px;">We received a request to reset your password for your FreelanceHub account.</p>
+
+      <div class="highlight-box">
+        <h2 style="margin: 0 0 15px 0; color: #16a34a;">🔐 Reset Your Password</h2>
+        <p style="margin: 0; font-size: 16px;">Click the button below to reset your password. This link will expire in 30 minutes.</p>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${resetUrl}" class="cta-button">Reset Password</a>
+      </div>
+
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6b7280;">
+        <h4 style="margin: 0 0 10px 0; color: #374151;">🔗 Alternative: Copy the Link</h4>
+        <p style="margin: 0; color: #6b7280; font-size: 14px; word-break: break-all;">${resetUrl}</p>
+      </div>
+
+      <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <h4 style="margin: 0 0 10px 0; color: #92400e;">⚠️ Security Notice</h4>
+        <p style="margin: 0; color: #92400e;">If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
+      </div>
+
+      <p>If the button above doesn't work, copy and paste the URL above into your browser.</p>
+    `;
+
+    const mailOptions = {
+      from: this.fromEmail,
+      to,
+      subject: '🔐 Reset Your Password - FreelanceHub',
+      text: `We received a request to reset your password. Click this link to reset it: ${resetUrl}. This link will expire in 30 minutes.`,
+      html: this.getBaseTemplate('Reset Your Password', content, "You're receiving this because you requested a password reset for your FreelanceHub account."),
     };
 
     await this.transporter.sendMail(mailOptions);
