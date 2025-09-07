@@ -263,6 +263,15 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserById(@Param('id') id: string, @Request() req) {
+    // Handle search functionality
+    if (id === 'search') {
+      const query = req.query.q;
+      if (!query) {
+        return { message: 'Search query is required', data: [] };
+      }
+      return this.usersService.searchUsers(query);
+    }
+
     return this.usersService.getUserById(id);
   }
 

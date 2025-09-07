@@ -268,4 +268,30 @@ export class UsersService {
       recentProjects,
     };
   }
+
+  async searchUsers(query: string): Promise<any[]> {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    const searchRegex = new RegExp(query.trim(), 'i');
+
+    const users = await this.userModel
+      .find({
+        $or: [
+          { name: searchRegex },
+          { email: searchRegex },
+        ],
+      })
+      .select('name email role _id')
+      .limit(20)
+      .sort({ name: 1 });
+
+    return users.map(user => ({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    }));
+  }
 }

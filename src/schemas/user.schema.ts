@@ -33,6 +33,28 @@ export class User {
   stripeAccountStatus: string;
 
   @Prop()
+  stripeCustomerId: string;
+
+  @Prop([{
+    id: String,
+    type: String, // 'card', 'bank_account'
+    last4: String,
+    brand: String,
+    expiryMonth: Number,
+    expiryYear: Number,
+    isDefault: { type: Boolean, default: false }
+  }])
+  savedPaymentMethods: Array<{
+    id: string;
+    type: string;
+    last4: string;
+    brand: string;
+    expiryMonth: number;
+    expiryYear: number;
+    isDefault: boolean;
+  }>;
+
+  @Prop()
   fcmToken: string;
 
   @Prop({

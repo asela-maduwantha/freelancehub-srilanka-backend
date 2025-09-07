@@ -29,7 +29,10 @@ import {
 import { PdfService } from '../../../common/services/pdf.service';
 import { EmailService } from '../../../common/services/email.service';
 import { PaymentsService } from '../../payments/services/payments.service';
+import { PaymentMethodsService } from '../../payments/services/payment-methods.service';
 import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 
 // Interface for enriched contract data
 interface EnrichedContractData {
@@ -45,6 +48,7 @@ interface EnrichedContractData {
 @Injectable()
 export class ContractsService {
   private readonly logger = new Logger(ContractsService.name);
+  private stripe: Stripe;
 
   constructor(
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
@@ -60,7 +64,16 @@ export class ContractsService {
     private pdfService: PdfService,
     private emailService: EmailService,
     private paymentsService: PaymentsService,
-  ) {}
+    private paymentMethodsService: PaymentMethodsService,
+    private configService: ConfigService,
+  ) {
+    this.stripe = new Stripe(
+      this.configService.get<string>('stripe.secretKey') || '',
+      {
+        apiVersion: '2025-08-27.basil',
+      },
+    );
+  }
 
   async createContract(
     createContractDto: CreateContractDto,
@@ -463,30 +476,54 @@ console.log("milestoneId:", contract.milestones)
     }
 
     milestone.status = 'approved';
-    // Note: totalPaid property was removed from clean Contract schema
 
-    // Automatically release payment for the approved milestone
-    try {
-      const payment: PaymentDocument | null = await this.paymentModel.findOne({
-        milestoneId: new Types.ObjectId(milestoneId),
-        escrowStatus: 'held',
-      });
+    // Process payment if requested (default: true)
+    if (approveMilestoneDto.processPayment !== false) {
+      try {
+        // Find existing payment for this milestone
+        const existingPayment = await this.paymentModel.findOne({
+          milestoneId: new Types.ObjectId(milestoneId),
+          status: 'pending',
+        });
 
-      if (payment) {
-        await this.paymentsService.releasePayment((payment._id as Types.ObjectId).toString(), userId);
-        this.logger.log(`Payment released for milestone ${milestoneId}`);
-      } else {
-        this.logger.warn(`No held payment found for milestone ${milestoneId}`);
+        if (existingPayment) {
+          // Process the existing payment
+          if (approveMilestoneDto.paymentMethodId) {
+            await this.paymentsService.processMilestonePayment(
+              (existingPayment._id as Types.ObjectId).toString(),
+              approveMilestoneDto.paymentMethodId,
+            );
+            this.logger.log(`Payment processed for milestone ${milestoneId}`);
+          } else {
+            throw new BadRequestException('Payment method ID is required to process payment');
+          }
+        } else {
+          // Create new payment and process it
+          const newPayment = await this.paymentsService.createMilestonePayment(
+            contractId,
+            milestoneId,
+            milestone.amount,
+            milestone.title,
+          );
+
+          if (approveMilestoneDto.paymentMethodId) {
+            await this.paymentsService.processMilestonePayment(
+              (newPayment._id as Types.ObjectId).toString(),
+              approveMilestoneDto.paymentMethodId,
+            );
+            this.logger.log(`New payment created and processed for milestone ${milestoneId}`);
+          } else {
+            throw new BadRequestException('Payment method ID is required to process payment');
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to process payment for milestone ${milestoneId}: ${error.message}`,
+        );
+        // For now, we'll still approve the milestone but log the payment failure
+        // In production, you might want to handle this differently
       }
-    } catch (error) {
-      this.logger.error(
-        `Failed to release payment for milestone ${milestoneId}: ${error.message}`,
-      );
-      // Don't fail milestone approval if payment release fails
     }
-
-    // Note: milestone submissions were removed from clean schema
-    // Feedback would be handled differently in the new architecture
 
     // Check if all milestones are completed
     const allCompleted = contract.milestones.every(
@@ -494,7 +531,6 @@ console.log("milestoneId:", contract.milestones)
     );
     if (allCompleted) {
       contract.status = 'completed';
-      // Note: completedAt property was removed from clean Contract schema
     }
 
     return contract.save();

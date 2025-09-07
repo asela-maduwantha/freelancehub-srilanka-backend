@@ -42,9 +42,6 @@ export class Payment {
   @Prop()
   stripeRefundId: string;
 
-  @Prop({ default: 'held', enum: ['held', 'released', 'refunded', 'cancelled'] })
-  escrowStatus: string;
-
   @Prop({
     default: 'pending',
     enum: ['pending', 'processing', 'completed', 'failed', 'refunded', 'cancelled'],
@@ -59,15 +56,6 @@ export class Payment {
 
   @Prop()
   cancelledAt: Date;
-
-  @Prop({ default: false })
-  autoRelease: boolean;
-
-  @Prop()
-  autoReleaseDays: number;
-
-  @Prop()
-  autoReleaseDate: Date;
 }
 
 export type PaymentDocument = Payment & Document;
@@ -79,5 +67,4 @@ PaymentSchema.index({ milestoneId: 1 });
 PaymentSchema.index({ payerId: 1 });
 PaymentSchema.index({ payeeId: 1 });
 PaymentSchema.index({ status: 1 });
-PaymentSchema.index({ escrowStatus: 1 });
 PaymentSchema.index({ createdAt: -1 });

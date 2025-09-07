@@ -38,6 +38,12 @@ export class RolesGuard implements CanActivate {
     // Check for 'self' access (user accessing their own resources)
     if (requiredRoles.includes('self')) {
       const resourceUserId = request.params.id || request.params.userId;
+
+      // Allow search requests for authenticated users
+      if (resourceUserId === 'search') {
+        return true;
+      }
+
       if (resourceUserId && user.userId === resourceUserId) {
         return true;
       }

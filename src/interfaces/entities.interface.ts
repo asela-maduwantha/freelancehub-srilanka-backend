@@ -22,7 +22,6 @@ import {
   ContractType,
   ContractStatus,
   PaymentStatus,
-  EscrowStatus,
   UnreadCount,
   LastMessage,
   MessageType,
@@ -147,7 +146,6 @@ export interface IPayment extends BaseEntity {
   currency: Currency;
   paymentMethod: string;
   payhereTransactionId?: string;
-  escrowStatus: EscrowStatus;
   status: PaymentStatus;
   paidAt?: Date;
   releasedAt?: Date;

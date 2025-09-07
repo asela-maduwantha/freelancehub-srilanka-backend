@@ -26,13 +26,17 @@ import { ApproveMilestoneDto } from '../dto/approve-milestone.dto';
 import { RejectMilestoneDto } from '../dto/reject-milestone.dto';
 import { CancelContractDto } from '../dto/cancel-contract.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { PaymentMethodsService } from '../../payments/services/payment-methods.service';
 
 @ApiTags('contracts')
 @ApiBearerAuth('JWT-auth')
 @Controller('contracts')
 @UseGuards(JwtAuthGuard)
 export class ContractsController {
-  constructor(private readonly contractsService: ContractsService) {}
+  constructor(
+    private readonly contractsService: ContractsService,
+    private readonly paymentMethodsService: PaymentMethodsService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new contract' })
@@ -718,6 +722,18 @@ export class ContractsController {
       req.user.userId,
       rejectMilestoneDto,
     );
+  }
+
+  @Get('payment-methods/default')
+  @ApiOperation({ summary: 'Get user default payment method' })
+  @ApiResponse({
+    status: 200,
+    description: 'Default payment method retrieved successfully',
+  })
+  async getDefaultPaymentMethod(@Request() req) {
+    const paymentMethods = await this.paymentMethodsService.getSavedPaymentMethods(req.user.userId);
+    const defaultMethod = paymentMethods.find(pm => pm.isDefault);
+    return { defaultPaymentMethod: defaultMethod || null };
   }
 
   @Post(':id/complete')

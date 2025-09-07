@@ -126,21 +126,21 @@ export class PaymentErrorHandler {
 
     // Validate payment state for specific actions
     switch (action) {
-      case 'release':
-        if (payment.escrowStatus !== 'held') {
+      case 'complete':
+        if (payment.status !== 'processing') {
           throw new BadRequestException(
-            `Payment cannot be released. Current status: ${payment.escrowStatus}`,
+            `Payment cannot be completed. Current status: ${payment.status}`,
           );
         }
         if (payment.payerId.toString() !== userId) {
-          throw new BadRequestException('Only the client can release payment');
+          throw new BadRequestException('Only the client can complete payment');
         }
         break;
 
       case 'refund':
-        if (payment.escrowStatus !== 'held') {
+        if (!['pending', 'processing', 'completed'].includes(payment.status)) {
           throw new BadRequestException(
-            `Payment cannot be refunded. Current status: ${payment.escrowStatus}`,
+            `Payment cannot be refunded. Current status: ${payment.status}`,
           );
         }
         if (payment.payerId.toString() !== userId) {
@@ -149,9 +149,9 @@ export class PaymentErrorHandler {
         break;
 
       case 'withdraw':
-        if (payment.escrowStatus !== 'released') {
+        if (payment.status !== 'completed') {
           throw new BadRequestException(
-            `Payment not available for withdrawal. Current status: ${payment.escrowStatus}`,
+            `Payment not available for withdrawal. Current status: ${payment.status}`,
           );
         }
         if (payment.payeeId.toString() !== userId) {

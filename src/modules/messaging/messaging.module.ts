@@ -17,8 +17,7 @@ import {
 import { Notification, NotificationSchema } from '../../schemas/notification.schema';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { EmailService } from '../../common/services/email.service';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -29,8 +28,7 @@ import { ConfigModule } from '@nestjs/config';
       { name: Notification.name, schema: NotificationSchema },
       { name: User.name, schema: UserSchema },
     ]),
-    JwtModule.register({}),
-    ConfigModule,
+    AuthModule,
   ],
   controllers: [MessagingController],
   providers: [

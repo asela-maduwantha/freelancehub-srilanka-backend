@@ -42,7 +42,6 @@ export type MilestoneStatus =
   | 'rejected';
 
 // Payment Types
-export type EscrowStatus = 'held' | 'released' | 'refunded';
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 
 // Message Types

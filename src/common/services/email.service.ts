@@ -542,7 +542,7 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendPaymentReleasedNotification(
+  async sendPaymentCompletedNotification(
     to: string,
     amount: number,
     paymentId: string,
@@ -551,8 +551,8 @@ export class EmailService {
       <p style="font-size: 18px; margin-bottom: 20px;">Great news! 💰</p>
       
       <div class="highlight-box">
-        <h2 style="margin: 0 0 15px 0; color: #16a34a;">✅ Payment Released!</h2>
-        <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 20px;">$${amount} has been released to your account</h3>
+        <h2 style="margin: 0 0 15px 0; color: #16a34a;">✅ Payment Completed!</h2>
+        <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 20px;">$${amount} has been completed and transferred to your account</h3>
         <p style="margin: 0; font-size: 16px;">Payment ID: ${paymentId}</p>
       </div>
       

@@ -260,7 +260,6 @@ export class StripeConnectService {
     const payment = await this.paymentModel.findOne({ stripeChargeId: charge.id });
     if (payment) {
       payment.status = 'refunded';
-      payment.escrowStatus = 'refunded';
       await payment.save();
       console.log('Payment refunded via webhook:', payment._id);
     }
@@ -270,7 +269,6 @@ export class StripeConnectService {
     const payment = await this.paymentModel.findOne({ stripeChargeId: dispute.charge });
     if (payment) {
       payment.status = 'disputed';
-      payment.escrowStatus = 'frozen';
       await payment.save();
       console.log('Payment disputed:', payment._id);
       // Notify admin and users

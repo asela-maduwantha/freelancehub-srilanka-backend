@@ -46,16 +46,20 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   async handleConnection(client: AuthenticatedSocket, ...args: any[]) {
     try {
-      const token = client.handshake.auth.token || client.handshake.query.token;
+      const token = (client.handshake.auth.token || client.handshake.query.token || '').replace(/^Bearer\s+/i, '');
 
       if (!token) {
         client.disconnect();
         return;
       }
 
-      const payload = this.jwtService.verify(token, {
-        secret: this.configService.get('JWT_SECRET'),
-      });
+      let payload: any;
+      try {
+        payload = this.jwtService.verify(token);
+      } catch (verifyError) {
+        this.logger.error(`Token verification failed: ${verifyError.message}`);
+        throw verifyError; 
+      }
 
       client.userId = payload.sub;
       client.user = payload;
