@@ -4,6 +4,7 @@ import { ClientsController } from './controllers/clients.controller';
 import { ClientsService } from './services/clients.service';
 import { ProposalsModule } from '../proposals/proposals.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { ContractsModule } from '../contracts/contracts.module';
 import { User, UserSchema } from '../../schemas/user.schema';
 import {
   ClientProfile,
@@ -22,6 +23,7 @@ import { Contract, ContractSchema } from '../../schemas/contract.schema';
     ]),
     ProposalsModule,
     ProjectsModule,
+    ContractsModule,
   ],
   controllers: [ClientsController],
   providers: [ClientsService],

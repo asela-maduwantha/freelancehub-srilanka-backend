@@ -731,8 +731,9 @@ export class ContractsController {
     description: 'Default payment method retrieved successfully',
   })
   async getDefaultPaymentMethod(@Request() req) {
-    const paymentMethods = await this.paymentMethodsService.getSavedPaymentMethods(req.user.userId);
-    const defaultMethod = paymentMethods.find(pm => pm.isDefault);
+    const paymentMethods =
+      await this.paymentMethodsService.getSavedPaymentMethods(req.user.userId);
+    const defaultMethod = paymentMethods.find((pm) => pm.isDefault);
     return { defaultPaymentMethod: defaultMethod || null };
   }
 
@@ -885,7 +886,10 @@ export class ContractsController {
   @ApiResponse({ status: 403, description: 'Forbidden - only client can sign' })
   @ApiResponse({ status: 404, description: 'Contract not found' })
   async signContractByClient(@Param('id') contractId: string, @Request() req) {
-    return this.contractsService.signContractByClient(contractId, req.user.userId);
+    return this.contractsService.signContractByClient(
+      contractId,
+      req.user.userId,
+    );
   }
 
   @Post(':id/sign/freelancer')

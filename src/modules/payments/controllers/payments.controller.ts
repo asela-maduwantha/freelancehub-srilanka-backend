@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentsService } from '../services/payments.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -23,10 +30,7 @@ export class PaymentsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get payment by ID' })
   @ApiResponse({ status: 200, description: 'Returns payment details' })
-  async getPaymentById(
-    @Param('id') paymentId: string,
-    @Request() req,
-  ) {
+  async getPaymentById(@Param('id') paymentId: string, @Request() req) {
     return this.paymentsService.getPaymentById(paymentId, req.user.userId);
   }
 }

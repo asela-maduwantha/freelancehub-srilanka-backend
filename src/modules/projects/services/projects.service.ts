@@ -285,7 +285,7 @@ export class ProjectsService {
 
     const project = await this.projectModel
       .findOne({ _id: projectId, clientId })
-      .populate('clientId', 'firstName lastName profilePicture clientProfile')
+      .populate('clientId', 'firstName lastName profilePicture clientProfile');
 
     if (!project) {
       throw new NotFoundException('Project not found or access denied');

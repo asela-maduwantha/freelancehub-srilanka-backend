@@ -20,6 +20,7 @@ import { LoginDto } from '../dto/login.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RateLimit } from '../../../common/guards/rate-limit.guard';
 
@@ -122,6 +123,7 @@ export class AuthController {
 
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token' })
+  @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
     status: 200,
     description: 'Token refreshed successfully',
@@ -129,13 +131,12 @@ export class AuthController {
       type: 'object',
       properties: {
         access_token: { type: 'string' },
-        refresh_token: { type: 'string' },
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshToken(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshToken(refreshToken);
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
   @Post('logout')
@@ -163,7 +164,10 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Password reset email sent successfully' },
+        message: {
+          type: 'string',
+          example: 'Password reset email sent successfully',
+        },
       },
     },
   })

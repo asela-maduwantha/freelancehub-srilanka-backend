@@ -9,17 +9,30 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { PaymentMethodsService } from '../services/payment-methods.service';
-import { SetupPaymentMethodDto, CreatePaymentIntentDto, ConfirmPaymentDto } from '../dto/payment-methods.dto';
+import {
+  SetupPaymentMethodDto,
+  CreatePaymentIntentDto,
+  ConfirmPaymentDto,
+} from '../dto/payment-methods.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { StripeConnectService } from '../services/stripe-connect.service';
 
 @ApiTags('payment-methods')
 @ApiBearerAuth('JWT-auth')
 @Controller('payment-methods')
 @UseGuards(JwtAuthGuard)
 export class PaymentMethodsController {
-  constructor(private readonly paymentMethodsService: PaymentMethodsService) {}
+  constructor(
+    private readonly paymentMethodsService: PaymentMethodsService,
+    private readonly stripeConnectService: StripeConnectService,
+  ) {}
 
   @Post('setup-customer')
   @ApiOperation({ summary: 'Setup Stripe customer for user' })
@@ -35,6 +48,79 @@ export class PaymentMethodsController {
   })
   async setupCustomer(@Request() req) {
     return this.paymentMethodsService.setupStripeCustomer(req.user.userId);
+  }
+
+  @Post('create-connected-account')
+  @ApiOperation({ summary: 'Create Stripe connected account for freelancer' })
+  @ApiResponse({
+    status: 201,
+    description: 'Stripe connected account created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        accountId: { type: 'string', description: 'Stripe account ID' },
+        onboardingUrl: {
+          type: 'string',
+          description: 'URL for Stripe onboarding',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Bad request - user is not a freelancer or account creation failed',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async createConnectedAccount(@Request() req) {
+    return this.stripeConnectService.createStripeAccount(req.user.userId);
+  }
+
+  @Get('connected-account-status/:accountId')
+  @ApiOperation({ summary: 'Get Stripe connected account status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account status retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        accountId: { type: 'string' },
+        status: { type: 'string', enum: ['pending', 'complete', 'error'] },
+        details: {
+          type: 'object',
+          properties: {
+            detailsSubmitted: { type: 'boolean' },
+            chargesEnabled: { type: 'boolean' },
+            payoutsEnabled: { type: 'boolean' },
+            requirements: { type: 'object' },
+          },
+        },
+      },
+    },
+  })
+  async getConnectedAccountStatus(@Param('accountId') accountId: string) {
+    return this.stripeConnectService.getStripeAccountStatus(accountId);
+  }
+
+  @Post('connected-account-onboarding/:accountId')
+  @ApiOperation({
+    summary: 'Create onboarding link for Stripe connected account',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Onboarding link created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Stripe onboarding URL' },
+      },
+    },
+  })
+  async createAccountOnboardingLink(@Param('accountId') accountId: string) {
+    return this.stripeConnectService.getAccountOnboardingLink(accountId);
   }
 
   @Post('add')

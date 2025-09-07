@@ -94,16 +94,19 @@ export class ProposalsService {
         estimatedDuration: submitProposalDto.timeline.deliveryTime,
         proposedDeadline: new Date(submitProposalDto.timeline.startDate),
       },
-      milestones: submitProposalDto.timeline.milestones.map((milestone, index) => ({
-        title: milestone.title,
-        description: milestone.description,
-        amount: milestone.amount,
-        durationDays: Math.ceil(
-          (new Date(milestone.deliveryDate).getTime() - new Date(submitProposalDto.timeline.startDate).getTime()) /
-          (1000 * 60 * 60 * 24)
-        ),
-        deliveryDate: new Date(milestone.deliveryDate),
-      })),
+      milestones: submitProposalDto.timeline.milestones.map(
+        (milestone, index) => ({
+          title: milestone.title,
+          description: milestone.description,
+          amount: milestone.amount,
+          durationDays: Math.ceil(
+            (new Date(milestone.deliveryDate).getTime() -
+              new Date(submitProposalDto.timeline.startDate).getTime()) /
+              (1000 * 60 * 60 * 24),
+          ),
+          deliveryDate: new Date(milestone.deliveryDate),
+        }),
+      ),
       attachments:
         submitProposalDto.attachments?.map((att) => ({
           filename: att.url.split('/').pop() || 'attachment',
@@ -152,7 +155,10 @@ export class ProposalsService {
 
     return savedProposal.populate([
       { path: 'freelancerId', select: '-password' },
-      { path: 'projectId', populate: { path: 'clientId', select: '-password' } }
+      {
+        path: 'projectId',
+        populate: { path: 'clientId', select: '-password' },
+      },
     ]);
   }
 
@@ -180,10 +186,7 @@ export class ProposalsService {
             select: '-password',
           },
         })
-        .populate(
-          'freelancerId',
-          '-password',
-        )
+        .populate('freelancerId', '-password')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -198,7 +201,8 @@ export class ProposalsService {
     };
   }
   async getProposalById(proposalId: string, userId: string): Promise<Proposal> {
-    const proposal = await this.proposalModel.findById(proposalId)
+    const proposal = await this.proposalModel
+      .findById(proposalId)
       .populate({
         path: 'projectId',
         select:
@@ -208,10 +212,7 @@ export class ProposalsService {
           select: '-password',
         },
       })
-      .populate(
-        'freelancerId',
-        '-password',
-      );
+      .populate('freelancerId', '-password');
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -316,8 +317,8 @@ export class ProposalsService {
         path: 'projectId',
         populate: {
           path: 'clientId',
-          select: '-password'
-        }
+          select: '-password',
+        },
       })
       .populate('freelancerId', '-password')
       .sort({ createdAt: -1 });
@@ -329,15 +330,13 @@ export class ProposalsService {
     acceptProposalDto: AcceptProposalDto,
     projectId?: string,
   ): Promise<{ message: string; contract: any }> {
-    const proposal = await this.proposalModel
-      .findById(proposalId)
-      .populate({
-        path: 'projectId',
-        populate: {
-          path: 'clientId',
-          select: '-password'
-        }
-      });
+    const proposal = await this.proposalModel.findById(proposalId).populate({
+      path: 'projectId',
+      populate: {
+        path: 'clientId',
+        select: '-password',
+      },
+    });
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -349,7 +348,9 @@ export class ProposalsService {
     }
 
     if (projectId && project._id.toString() !== projectId) {
-      throw new BadRequestException('Proposal does not belong to the specified project');
+      throw new BadRequestException(
+        'Proposal does not belong to the specified project',
+      );
     }
 
     if (project.clientId._id.toString() !== clientId) {
@@ -371,10 +372,13 @@ export class ProposalsService {
     await proposal.save();
 
     // Update project status and selected proposal
-    const updateResult = await this.projectModel.findByIdAndUpdate(project._id, {
-      status: 'in-progress',
-      selectedProposal: proposalId,
-    });
+    const updateResult = await this.projectModel.findByIdAndUpdate(
+      project._id,
+      {
+        status: 'in-progress',
+        selectedProposal: proposalId,
+      },
+    );
     console.log('Update result:', updateResult ? updateResult._id : 'null');
 
     // Reject all other proposals for this project
@@ -426,7 +430,10 @@ export class ProposalsService {
         })) || [],
     };
 
-    const contract = await this.contractsService.createContract(contractDto, project);
+    const contract = await this.contractsService.createContract(
+      contractDto,
+      project,
+    );
 
     // Send notification to freelancer
     const freelancer = await this.userModel.findById(proposal.freelancerId);
@@ -452,15 +459,13 @@ export class ProposalsService {
     clientId: string,
     rejectProposalDto: RejectProposalDto,
   ): Promise<{ message: string }> {
-    const proposal = await this.proposalModel
-      .findById(proposalId)
-      .populate({
-        path: 'projectId',
-        populate: {
-          path: 'clientId',
-          select: '-password'
-        }
-      });
+    const proposal = await this.proposalModel.findById(proposalId).populate({
+      path: 'projectId',
+      populate: {
+        path: 'clientId',
+        select: '-password',
+      },
+    });
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -501,34 +506,45 @@ export class ProposalsService {
     return { message: 'Proposal rejected successfully' };
   }
 
-async getClientProposals(clientId: string, page: number = 1, limit: number = 10, status?: string) {
-  const skip = (page - 1) * limit;
-  
-  const clientProjects = await this.projectModel.find({ clientId }).select('_id');
-  const projectIds = clientProjects.map(p => p._id);
-  
-  const filter: any = { projectId: { $in: projectIds.map(id => (id as Types.ObjectId).toString()) } };
-  if (status) {
-    filter.status = status;
-  }
-  
-  const [proposals, total] = await Promise.all([
-    this.proposalModel
-      .find(filter)
-      .populate({
-        path: 'projectId',
-        populate: {
-          path: 'clientId',
-          select: '-password'
-        }
-      })
-      .populate('freelancerId', '-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-    this.proposalModel.countDocuments(filter)
-  ]);
+  async getClientProposals(
+    clientId: string,
+    page: number = 1,
+    limit: number = 10,
+    status?: string,
+  ) {
+    const skip = (page - 1) * limit;
 
-  return { proposals, total, page, limit };
-}
+    const clientProjects = await this.projectModel
+      .find({ clientId })
+      .select('_id');
+    const projectIds = clientProjects.map((p) => p._id);
+
+    const filter: any = {
+      projectId: {
+        $in: projectIds.map((id) => (id as Types.ObjectId).toString()),
+      },
+    };
+    if (status) {
+      filter.status = status;
+    }
+
+    const [proposals, total] = await Promise.all([
+      this.proposalModel
+        .find(filter)
+        .populate({
+          path: 'projectId',
+          populate: {
+            path: 'clientId',
+            select: '-password',
+          },
+        })
+        .populate('freelancerId', '-password')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.proposalModel.countDocuments(filter),
+    ]);
+
+    return { proposals, total, page, limit };
+  }
 }

@@ -5,19 +5,13 @@ import {
   Request,
   RawBodyRequest,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { StripeConnectService } from '../services/stripe-connect.service';
 
 @ApiTags('webhooks')
 @Controller('payments/stripe')
 export class StripeWebhookController {
-  constructor(
-    private readonly stripeConnectService: StripeConnectService,
-  ) {}
+  constructor(private readonly stripeConnectService: StripeConnectService) {}
 
   @Post('webhook')
   @ApiOperation({ summary: 'Handle Stripe webhook events' })

@@ -49,7 +49,10 @@ export class MessagingController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @RateLimit({ requests: 10, windowMs: 60000 }) // 10 conversations per minute
-  @ApiOperation({ summary: 'Create a new conversation (authenticated user + specified participant)' })
+  @ApiOperation({
+    summary:
+      'Create a new conversation (authenticated user + specified participant)',
+  })
   @ApiBody({ type: CreateConversationDto })
   @ApiResponse({
     status: 201,
@@ -78,11 +81,10 @@ export class MessagingController {
       throw new BadRequestException('Cannot create conversation with yourself');
     }
 
-    const conversation =
-      await this.messagingService.createConversation({
-        participant1Id,
-        participant2Id,
-      });
+    const conversation = await this.messagingService.createConversation({
+      participant1Id,
+      participant2Id,
+    });
     return {
       conversationId: conversation.conversationId,
       participants: conversation.participants,

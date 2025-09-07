@@ -166,7 +166,9 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+  async refreshToken(
+    refreshToken: string,
+  ): Promise<{ access_token: string; refresh_token: string }> {
     try {
       const payload = this.jwtService.verify(refreshToken);
       const user = await this.userModel.findById(payload.sub);
@@ -180,8 +182,11 @@ export class AuthService {
         role: user.role,
       };
       const accessToken = this.jwtService.sign(newPayload);
+      const newRefreshToken = this.jwtService.sign(newPayload, {
+        expiresIn: this.configService.get<string>('app.refreshTokenExpiresIn'),
+      });
 
-      return { accessToken };
+      return { access_token: accessToken, refresh_token: newRefreshToken };
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -194,13 +199,17 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
     const { email } = forgotPasswordDto;
 
     const user = await this.userModel.findOne({ email });
     if (!user) {
       // Don't reveal if user exists or not for security
-      return { message: 'If the email exists, a password reset link has been sent' };
+      return {
+        message: 'If the email exists, a password reset link has been sent',
+      };
     }
 
     // Generate reset token
@@ -225,7 +234,9 @@ export class AuthService {
     return { message: 'Password reset email sent successfully' };
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
     const { token, newPassword } = resetPasswordDto;
 
     // Find the OTP record

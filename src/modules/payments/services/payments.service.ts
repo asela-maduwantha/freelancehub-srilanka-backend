@@ -55,7 +55,9 @@ export class PaymentsService {
     }
 
     if (!freelancer.stripeAccountId) {
-      throw new BadRequestException('Freelancer does not have a Stripe account set up');
+      throw new BadRequestException(
+        'Freelancer does not have a Stripe account set up',
+      );
     }
 
     // Calculate platform fee (5%)
@@ -102,7 +104,9 @@ export class PaymentsService {
     }
 
     if (!client.stripeCustomerId) {
-      throw new BadRequestException('Client does not have a Stripe customer set up');
+      throw new BadRequestException(
+        'Client does not have a Stripe customer set up',
+      );
     }
 
     // Get freelancer details
@@ -135,7 +139,8 @@ export class PaymentsService {
       // Update payment record
       payment.stripePaymentIntentId = paymentIntent.id;
       payment.stripeChargeId = paymentIntent.latest_charge as string;
-      payment.status = paymentIntent.status === 'succeeded' ? 'completed' : 'failed';
+      payment.status =
+        paymentIntent.status === 'succeeded' ? 'completed' : 'failed';
       if (paymentIntent.status === 'succeeded') {
         payment.paidAt = new Date();
       }
@@ -151,14 +156,19 @@ export class PaymentsService {
     } catch (error) {
       payment.status = 'failed';
       await payment.save();
-      throw new BadRequestException(`Payment processing failed: ${error.message}`);
+      throw new BadRequestException(
+        `Payment processing failed: ${error.message}`,
+      );
     }
   }
 
   /**
    * Get payment by ID
    */
-  async getPaymentById(paymentId: string, userId: string): Promise<PaymentDocument> {
+  async getPaymentById(
+    paymentId: string,
+    userId: string,
+  ): Promise<PaymentDocument> {
     const payment = await this.paymentModel
       .findOne({
         _id: paymentId,
@@ -178,7 +188,11 @@ export class PaymentsService {
   /**
    * Get payments for a user
    */
-  async getUserPayments(userId: string, page = 1, limit = 10): Promise<{
+  async getUserPayments(
+    userId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<{
     payments: PaymentDocument[];
     total: number;
     page: number;
@@ -210,7 +224,9 @@ export class PaymentsService {
   /**
    * Send payment completion notification
    */
-  private async sendPaymentNotification(payment: PaymentDocument): Promise<void> {
+  private async sendPaymentNotification(
+    payment: PaymentDocument,
+  ): Promise<void> {
     try {
       const freelancer = await this.userModel.findById(payment.payeeId);
       if (freelancer) {

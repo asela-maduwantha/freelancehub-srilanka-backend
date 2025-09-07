@@ -1,10 +1,16 @@
-import { IsString, IsEnum, IsOptional, IsBoolean, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsBoolean,
+  IsObject,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateNotificationDto {
   @ApiProperty({
     description: 'User ID to send notification to',
-    example: '507f1f77bcf86cd799439011'
+    example: '507f1f77bcf86cd799439011',
   })
   @IsString()
   userId: string;
@@ -12,21 +18,21 @@ export class CreateNotificationDto {
   @ApiProperty({
     description: 'Notification type',
     enum: ['message', 'proposal', 'payment', 'milestone', 'review'],
-    example: 'message'
+    example: 'message',
   })
   @IsEnum(['message', 'proposal', 'payment', 'milestone', 'review'])
   type: string;
 
   @ApiProperty({
     description: 'Notification title',
-    example: 'New Message Received'
+    example: 'New Message Received',
   })
   @IsString()
   title: string;
 
   @ApiProperty({
     description: 'Notification content',
-    example: 'You have received a new message from John Doe'
+    example: 'You have received a new message from John Doe',
   })
   @IsString()
   content: string;
@@ -34,7 +40,7 @@ export class CreateNotificationDto {
   @ApiPropertyOptional({
     description: 'Related entity information',
     type: Object,
-    example: { entityType: 'message', entityId: '507f1f77bcf86cd799439012' }
+    example: { entityType: 'message', entityId: '507f1f77bcf86cd799439012' },
   })
   @IsOptional()
   @IsObject()
@@ -46,7 +52,7 @@ export class CreateNotificationDto {
   @ApiPropertyOptional({
     description: 'Notification priority',
     enum: ['low', 'medium', 'high', 'urgent'],
-    example: 'medium'
+    example: 'medium',
   })
   @IsOptional()
   @IsEnum(['low', 'medium', 'high', 'urgent'])
@@ -56,7 +62,7 @@ export class CreateNotificationDto {
 export class UpdateNotificationDto {
   @ApiPropertyOptional({
     description: 'Mark notification as read',
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -66,36 +72,36 @@ export class UpdateNotificationDto {
 export class NotificationResponseDto {
   @ApiProperty({
     description: 'Notification ID',
-    example: '507f1f77bcf86cd799439011'
+    example: '507f1f77bcf86cd799439011',
   })
   id: string;
 
   @ApiProperty({
     description: 'User ID',
-    example: '507f1f77bcf86cd799439011'
+    example: '507f1f77bcf86cd799439011',
   })
   userId: string;
 
   @ApiProperty({
     description: 'Notification type',
-    example: 'message'
+    example: 'message',
   })
   type: string;
 
   @ApiProperty({
     description: 'Notification title',
-    example: 'New Message Received'
+    example: 'New Message Received',
   })
   title: string;
 
   @ApiProperty({
     description: 'Notification content',
-    example: 'You have received a new message from John Doe'
+    example: 'You have received a new message from John Doe',
   })
   content: string;
 
   @ApiPropertyOptional({
-    description: 'Related entity information'
+    description: 'Related entity information',
   })
   relatedEntity?: {
     entityType: string;
@@ -104,23 +110,23 @@ export class NotificationResponseDto {
 
   @ApiProperty({
     description: 'Notification priority',
-    example: 'medium'
+    example: 'medium',
   })
   priority: string;
 
   @ApiProperty({
     description: 'Read status',
-    example: false
+    example: false,
   })
   isRead: boolean;
 
   @ApiPropertyOptional({
-    description: 'Read timestamp'
+    description: 'Read timestamp',
   })
   readAt?: Date;
 
   @ApiProperty({
-    description: 'Creation timestamp'
+    description: 'Creation timestamp',
   })
   createdAt?: Date;
 }
@@ -128,7 +134,7 @@ export class NotificationResponseDto {
 export class NotificationPreferencesDto {
   @ApiPropertyOptional({
     description: 'Enable email notifications',
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -136,7 +142,7 @@ export class NotificationPreferencesDto {
 
   @ApiPropertyOptional({
     description: 'Enable push notifications',
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -144,7 +150,7 @@ export class NotificationPreferencesDto {
 
   @ApiPropertyOptional({
     description: 'Enable message notifications',
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -152,7 +158,7 @@ export class NotificationPreferencesDto {
 
   @ApiPropertyOptional({
     description: 'Enable proposal notifications',
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -160,7 +166,7 @@ export class NotificationPreferencesDto {
 
   @ApiPropertyOptional({
     description: 'Enable payment notifications',
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { SavedProject, SavedProjectDocument } from '../../../schemas/saved-project.schema';
+import {
+  SavedProject,
+  SavedProjectDocument,
+} from '../../../schemas/saved-project.schema';
 import { ProjectsService } from '../../projects/services/projects.service';
 import {
   NotFoundException,
@@ -121,7 +124,7 @@ export class SavedProjectsService {
       .select('projectId')
       .exec();
 
-    return savedProjects.map(sp => sp.projectId.toString());
+    return savedProjects.map((sp) => sp.projectId.toString());
   }
 
   async removeAllSavedProjectsForProject(projectId: string): Promise<void> {

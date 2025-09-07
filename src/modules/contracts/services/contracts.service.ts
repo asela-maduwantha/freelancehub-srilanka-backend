@@ -54,7 +54,8 @@ export class ContractsService {
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(ClientProfile.name)
-    @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
+    @InjectModel(Project.name)
+    private projectModel: Model<ProjectDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
     @InjectModel(FreelancerProfile.name)
     private freelancerProfileModel: Model<FreelancerProfileDocument>,
@@ -138,14 +139,8 @@ export class ContractsService {
         'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
-      .populate(
-        'clientId',
-        '-password',
-      )
-      .populate(
-        'freelancerId',
-        '-password',
-      )
+      .populate('clientId', '-password')
+      .populate('freelancerId', '-password')
       .populate(
         'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
@@ -238,14 +233,8 @@ export class ContractsService {
         'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
-      .populate(
-        'clientId',
-        '-password',
-      )
-      .populate(
-        'freelancerId',
-        '-password',
-      )
+      .populate('clientId', '-password')
+      .populate('freelancerId', '-password')
       .populate(
         'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
@@ -261,14 +250,8 @@ export class ContractsService {
         'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
-      .populate(
-        'clientId',
-        '-password',
-      )
-      .populate(
-        'freelancerId',
-        '-password',
-      )
+      .populate('clientId', '-password')
+      .populate('freelancerId', '-password')
       .populate(
         'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
@@ -300,14 +283,8 @@ export class ContractsService {
         'projectId',
         'title description status budget deadline category skills client freelancer createdAt',
       )
-      .populate(
-        'clientId',
-        '-password',
-      )
-      .populate(
-        'freelancerId',
-        '-password',
-      )
+      .populate('clientId', '-password')
+      .populate('freelancerId', '-password')
       .populate(
         'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt',
@@ -322,14 +299,8 @@ export class ContractsService {
         'projectId',
         'title description status budget deadline category skills client freelancer createdAt updatedAt',
       )
-      .populate(
-        'clientId',
-        '-password',
-      )
-      .populate(
-        'freelancerId',
-        '-password',
-      )
+      .populate('clientId', '-password')
+      .populate('freelancerId', '-password')
       .populate(
         'proposalId',
         'proposedBudget proposedDuration coverLetter milestones attachments status createdAt updatedAt',
@@ -417,7 +388,7 @@ export class ContractsService {
         'Cannot submit work for inactive contracts',
       );
     }
-console.log("milestoneId:", contract.milestones)
+    console.log('milestoneId:', contract.milestones);
 
     const milestone = contract.milestones.find(
       (m) => m._id.toString() === milestoneId,
@@ -495,7 +466,9 @@ console.log("milestoneId:", contract.milestones)
             );
             this.logger.log(`Payment processed for milestone ${milestoneId}`);
           } else {
-            throw new BadRequestException('Payment method ID is required to process payment');
+            throw new BadRequestException(
+              'Payment method ID is required to process payment',
+            );
           }
         } else {
           // Create new payment and process it
@@ -511,9 +484,13 @@ console.log("milestoneId:", contract.milestones)
               (newPayment._id as Types.ObjectId).toString(),
               approveMilestoneDto.paymentMethodId,
             );
-            this.logger.log(`New payment created and processed for milestone ${milestoneId}`);
+            this.logger.log(
+              `New payment created and processed for milestone ${milestoneId}`,
+            );
           } else {
-            throw new BadRequestException('Payment method ID is required to process payment');
+            throw new BadRequestException(
+              'Payment method ID is required to process payment',
+            );
           }
         }
       } catch (error) {
@@ -647,7 +624,6 @@ console.log("milestoneId:", contract.milestones)
     return { message: 'Contract cancelled successfully' };
   }
 
-
   async downloadContractPDF(
     contractId: string,
     userId: string,
@@ -656,7 +632,10 @@ console.log("milestoneId:", contract.milestones)
       .findById(contractId)
       .populate('clientId', '-password')
       .populate('freelancerId', '-password')
-      .populate('projectId', 'title description budget deadline category skills')
+      .populate(
+        'projectId',
+        'title description budget deadline category skills',
+      )
       .populate('proposalId', 'proposedBudget proposedDuration coverLetter');
 
     if (!contract) {
@@ -674,11 +653,19 @@ console.log("milestoneId:", contract.milestones)
     }
 
     // Fetch client and freelancer profiles
-    const clientProfile = await this.clientProfileModel.findOne({ userId: contract.clientId._id });
-    const freelancerProfile = await this.freelancerProfileModel.findOne({ userId: contract.freelancerId._id });
+    const clientProfile = await this.clientProfileModel.findOne({
+      userId: contract.clientId._id,
+    });
+    const freelancerProfile = await this.freelancerProfileModel.findOne({
+      userId: contract.freelancerId._id,
+    });
 
     // Generate PDF with enriched data
-    const pdfBuffer = await this.pdfService.generateContractPDF(contract, clientProfile, freelancerProfile);
+    const pdfBuffer = await this.pdfService.generateContractPDF(
+      contract,
+      clientProfile,
+      freelancerProfile,
+    );
     return pdfBuffer;
   }
 
@@ -708,7 +695,9 @@ console.log("milestoneId:", contract.milestones)
     }
 
     if (contract.freelancerId.toString() !== userId) {
-      throw new ForbiddenException('Only the freelancer can sign this contract');
+      throw new ForbiddenException(
+        'Only the freelancer can sign this contract',
+      );
     }
 
     await this.contractModel.findByIdAndUpdate(contractId, {

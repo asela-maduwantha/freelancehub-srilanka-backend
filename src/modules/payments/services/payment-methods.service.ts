@@ -8,7 +8,11 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from '../../../schemas/user.schema';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
-import { SetupPaymentMethodDto, CreatePaymentIntentDto, ConfirmPaymentDto } from '../dto/payment-methods.dto';
+import {
+  SetupPaymentMethodDto,
+  CreatePaymentIntentDto,
+  ConfirmPaymentDto,
+} from '../dto/payment-methods.dto';
 
 @Injectable()
 export class PaymentMethodsService {
@@ -75,9 +79,12 @@ export class PaymentMethodsService {
 
     try {
       // Attach payment method to customer
-      await this.stripe.paymentMethods.attach(setupPaymentMethodDto.paymentMethodId, {
-        customer: user.stripeCustomerId,
-      });
+      await this.stripe.paymentMethods.attach(
+        setupPaymentMethodDto.paymentMethodId,
+        {
+          customer: user.stripeCustomerId,
+        },
+      );
 
       // Get payment method details
       const paymentMethod = await this.stripe.paymentMethods.retrieve(
@@ -92,7 +99,9 @@ export class PaymentMethodsService {
         brand: paymentMethod.card?.brand || '',
         expiryMonth: paymentMethod.card?.exp_month || 0,
         expiryYear: paymentMethod.card?.exp_year || 0,
-        isDefault: setupPaymentMethodDto.setAsDefault || user.savedPaymentMethods?.length === 0,
+        isDefault:
+          setupPaymentMethodDto.setAsDefault ||
+          user.savedPaymentMethods?.length === 0,
       };
 
       // If setting as default, unset other defaults
@@ -121,7 +130,10 @@ export class PaymentMethodsService {
     return user.savedPaymentMethods || [];
   }
 
-  async removePaymentMethod(userId: string, paymentMethodId: string): Promise<void> {
+  async removePaymentMethod(
+    userId: string,
+    paymentMethodId: string,
+  ): Promise<void> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -140,7 +152,10 @@ export class PaymentMethodsService {
     }
   }
 
-  async setDefaultPaymentMethod(userId: string, paymentMethodId: string): Promise<void> {
+  async setDefaultPaymentMethod(
+    userId: string,
+    paymentMethodId: string,
+  ): Promise<void> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -155,12 +170,16 @@ export class PaymentMethodsService {
     }
 
     // Update all payment methods to not be default, then set this one as default
-    await this.userModel.findByIdAndUpdate(userId, {
-      $unset: { 'savedPaymentMethods.$[].isDefault': false },
-      $set: { 'savedPaymentMethods.$[elem].isDefault': true },
-    }, {
-      arrayFilters: [{ 'elem.id': paymentMethodId }],
-    });
+    await this.userModel.findByIdAndUpdate(
+      userId,
+      {
+        $unset: { 'savedPaymentMethods.$[].isDefault': false },
+        $set: { 'savedPaymentMethods.$[elem].isDefault': true },
+      },
+      {
+        arrayFilters: [{ 'elem.id': paymentMethodId }],
+      },
+    );
   }
 
   async createPaymentIntent(
@@ -186,10 +205,12 @@ export class PaymentMethodsService {
       };
 
       if (createPaymentIntentDto.paymentMethodId) {
-        paymentIntentData.payment_method = createPaymentIntentDto.paymentMethodId;
+        paymentIntentData.payment_method =
+          createPaymentIntentDto.paymentMethodId;
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentData);
+      const paymentIntent =
+        await this.stripe.paymentIntents.create(paymentIntentData);
 
       return {
         clientSecret: paymentIntent.client_secret!,

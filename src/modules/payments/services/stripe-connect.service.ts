@@ -43,11 +43,10 @@ export class StripeConnectService {
       );
     }
 
-    // For clean architecture, we'll create a simple account without storing Stripe-specific fields in User schema
     try {
       const account = await this.stripe.accounts.create({
         type: 'express',
-        country: 'US', // Default to US since location is not in clean User schema
+        country: 'US',
         email: user.email,
         capabilities: {
           card_payments: { requested: true },
@@ -68,6 +67,11 @@ export class StripeConnectService {
         return_url: `${this.configService.get('app.frontendUrl')}/freelancer/payments`,
         type: 'account_onboarding',
       });
+
+      // Update user with Stripe account information
+      user.stripeAccountId = account.id;
+      user.stripeAccountStatus = 'pending';
+      await user.save();
 
       return {
         accountId: account.id,
@@ -98,6 +102,13 @@ export class StripeConnectService {
         account.requirements.errors.length > 0
       ) {
         status = 'error';
+      }
+
+      // Update user status in database
+      const user = await this.userModel.findOne({ stripeAccountId: accountId });
+      if (user) {
+        user.stripeAccountStatus = status;
+        await user.save();
       }
 
       return {
@@ -161,28 +172,28 @@ export class StripeConnectService {
     // Handle the event
     switch (event.type) {
       case 'account.updated':
-        await this.handleAccountUpdated(event.data.object as Stripe.Account);
+        await this.handleAccountUpdated(event.data.object);
         break;
       case 'payment_intent.succeeded':
-        await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentSucceeded(event.data.object);
         break;
       case 'payment_intent.payment_failed':
-        await this.handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentFailed(event.data.object);
         break;
       case 'transfer.created':
         console.log('Transfer created:', event.data.object);
         break;
       case 'payout.paid':
-        await this.handlePayoutPaid(event.data.object as Stripe.Payout);
+        await this.handlePayoutPaid(event.data.object);
         break;
       case 'payout.failed':
-        await this.handlePayoutFailed(event.data.object as Stripe.Payout);
+        await this.handlePayoutFailed(event.data.object);
         break;
       case 'charge.refunded':
-        await this.handleChargeRefunded(event.data.object as Stripe.Charge);
+        await this.handleChargeRefunded(event.data.object);
         break;
       case 'charge.dispute.created':
-        await this.handleDisputeCreated(event.data.object as Stripe.Dispute);
+        await this.handleDisputeCreated(event.data.object);
         break;
       default:
         console.log(`Unhandled event type ${event.type}`);
@@ -191,7 +202,9 @@ export class StripeConnectService {
     return { received: true };
   }
 
-  private async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  private async handlePaymentIntentSucceeded(
+    paymentIntent: Stripe.PaymentIntent,
+  ) {
     const payment = await this.paymentModel.findOne({
       stripePaymentIntentId: paymentIntent.id,
     });
@@ -203,7 +216,10 @@ export class StripeConnectService {
         payment.paidAt = new Date();
         await payment.save();
         console.log('Payment updated to processing:', payment._id);
-      } else if (payment.status === 'processing' && paymentIntent.status === 'succeeded') {
+      } else if (
+        payment.status === 'processing' &&
+        paymentIntent.status === 'succeeded'
+      ) {
         // If webhook fires again after capture, update to completed
         payment.status = 'completed';
         payment.stripeChargeId = paymentIntent.latest_charge as string;
@@ -228,15 +244,24 @@ export class StripeConnectService {
   private async handleAccountUpdated(account: Stripe.Account) {
     const user = await this.userModel.findOne({ stripeAccountId: account.id });
     if (user) {
-      if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
+      if (
+        account.details_submitted &&
+        account.charges_enabled &&
+        account.payouts_enabled
+      ) {
         user.stripeAccountStatus = 'complete';
-      } else if (account.requirements?.errors && account.requirements.errors.length > 0) {
+      } else if (
+        account.requirements?.errors &&
+        account.requirements.errors.length > 0
+      ) {
         user.stripeAccountStatus = 'error';
       } else {
         user.stripeAccountStatus = 'incomplete';
       }
       await user.save();
-      console.log(`Account status updated for user ${user._id}: ${user.stripeAccountStatus}`);
+      console.log(
+        `Account status updated for user ${user._id}: ${user.stripeAccountStatus}`,
+      );
     }
   }
 
@@ -257,7 +282,9 @@ export class StripeConnectService {
   }
 
   private async handleChargeRefunded(charge: Stripe.Charge) {
-    const payment = await this.paymentModel.findOne({ stripeChargeId: charge.id });
+    const payment = await this.paymentModel.findOne({
+      stripeChargeId: charge.id,
+    });
     if (payment) {
       payment.status = 'refunded';
       await payment.save();
@@ -266,7 +293,9 @@ export class StripeConnectService {
   }
 
   private async handleDisputeCreated(dispute: Stripe.Dispute) {
-    const payment = await this.paymentModel.findOne({ stripeChargeId: dispute.charge });
+    const payment = await this.paymentModel.findOne({
+      stripeChargeId: dispute.charge,
+    });
     if (payment) {
       payment.status = 'disputed';
       await payment.save();

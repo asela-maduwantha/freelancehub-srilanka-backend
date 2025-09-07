@@ -8,6 +8,12 @@ import {
   Post,
   Body,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ProposalsService } from '../../proposals/services/proposals.service';
 import { ProjectsService } from '../../projects/services/projects.service';
 import { ClientsService } from '../services/clients.service';
@@ -19,6 +25,8 @@ import { AuthenticatedRequest } from '../../../common/interfaces/pagination.inte
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@ApiTags('clients')
+@ApiBearerAuth('JWT-auth')
 export class ClientsController {
   constructor(
     private readonly proposalsService: ProposalsService,
@@ -124,5 +132,51 @@ export class ClientsController {
   async getClientDashboard(@Request() req: AuthenticatedRequest) {
     const clientId = req.user.userId;
     return this.clientsService.getClientDashboard(clientId);
+  }
+
+  @Get('submitted-milestones')
+  @Roles('client')
+  @ApiOperation({
+    summary: 'Get submitted milestones grouped by projects for the client',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Submitted milestones retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string' },
+          projectTitle: { type: 'string' },
+          submittedMilestones: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                amount: { type: 'number' },
+                deadline: { type: 'string', format: 'date-time' },
+                status: { type: 'string', enum: ['submitted'] },
+                deliverables: { type: 'array', items: { type: 'object' } },
+                feedback: { type: 'string' },
+                completedAt: { type: 'string', format: 'date-time' },
+                createdAt: { type: 'string', format: 'date-time' },
+                contractId: { type: 'string' },
+                contractTitle: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async getClientSubmittedMilestones(@Request() req: AuthenticatedRequest) {
+    const clientId = req.user.userId;
+    return this.clientsService.getClientSubmittedMilestonesGroupedByProjects(
+      clientId,
+    );
   }
 }

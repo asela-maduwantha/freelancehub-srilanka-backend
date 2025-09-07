@@ -3,10 +3,16 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
-import { Notification, NotificationDocument } from '../../../schemas/notification.schema';
+import {
+  Notification,
+  NotificationDocument,
+} from '../../../schemas/notification.schema';
 import { User, UserDocument } from '../../../schemas/user.schema';
 import { EmailService } from '../../../common/services/email.service';
-import { CreateNotificationDto, NotificationResponseDto } from '../dto/notification.dto';
+import {
+  CreateNotificationDto,
+  NotificationResponseDto,
+} from '../dto/notification.dto';
 
 @Injectable()
 export class NotificationService {
@@ -29,14 +35,21 @@ export class NotificationService {
       const serviceAccount = {
         type: 'service_account',
         project_id: this.configService.get<string>('FIREBASE_PROJECT_ID'),
-        private_key_id: this.configService.get<string>('FIREBASE_PRIVATE_KEY_ID'),
-        private_key: this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n'),
+        private_key_id: this.configService.get<string>(
+          'FIREBASE_PRIVATE_KEY_ID',
+        ),
+        private_key: this.configService
+          .get<string>('FIREBASE_PRIVATE_KEY')
+          ?.replace(/\\n/g, '\n'),
         client_email: this.configService.get<string>('FIREBASE_CLIENT_EMAIL'),
         client_id: this.configService.get<string>('FIREBASE_CLIENT_ID'),
         auth_uri: 'https://accounts.google.com/o/oauth2/auth',
         token_uri: 'https://oauth2.googleapis.com/token',
-        auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-        client_x509_cert_url: this.configService.get<string>('FIREBASE_CLIENT_X509_CERT_URL'),
+        auth_provider_x509_cert_url:
+          'https://www.googleapis.com/oauth2/v1/certs',
+        client_x509_cert_url: this.configService.get<string>(
+          'FIREBASE_CLIENT_X509_CERT_URL',
+        ),
       };
 
       this.firebaseApp = admin.initializeApp({
@@ -53,16 +66,20 @@ export class NotificationService {
   /**
    * Create and send a notification
    */
-  async createNotification(createDto: CreateNotificationDto): Promise<NotificationDocument> {
+  async createNotification(
+    createDto: CreateNotificationDto,
+  ): Promise<NotificationDocument> {
     const notification = new this.notificationModel({
       userId: new Types.ObjectId(createDto.userId),
       type: createDto.type,
       title: createDto.title,
       content: createDto.content,
-      relatedEntity: createDto.relatedEntity ? {
-        entityType: createDto.relatedEntity.entityType,
-        entityId: new Types.ObjectId(createDto.relatedEntity.entityId),
-      } : undefined,
+      relatedEntity: createDto.relatedEntity
+        ? {
+            entityType: createDto.relatedEntity.entityType,
+            entityId: new Types.ObjectId(createDto.relatedEntity.entityId),
+          }
+        : undefined,
       priority: createDto.priority || 'medium',
     });
 
@@ -80,15 +97,21 @@ export class NotificationService {
   /**
    * Send push notification via Firebase
    */
-  private async sendPushNotification(notification: NotificationDocument): Promise<void> {
+  private async sendPushNotification(
+    notification: NotificationDocument,
+  ): Promise<void> {
     try {
       if (!this.firebaseApp) {
-        this.logger.warn('Firebase not initialized, skipping push notification');
+        this.logger.warn(
+          'Firebase not initialized, skipping push notification',
+        );
         return;
       }
 
       // Get user's FCM token (you'll need to store this in user profile)
-      const fcmToken = await this.getUserFCMToken(notification.userId.toString());
+      const fcmToken = await this.getUserFCMToken(
+        notification.userId.toString(),
+      );
 
       if (!fcmToken) {
         this.logger.debug(`No FCM token found for user ${notification.userId}`);
@@ -104,7 +127,9 @@ export class NotificationService {
         data: {
           type: notification.type,
           notificationId: (notification._id as any).toString(),
-          relatedEntity: notification.relatedEntity ? JSON.stringify(notification.relatedEntity) : '',
+          relatedEntity: notification.relatedEntity
+            ? JSON.stringify(notification.relatedEntity)
+            : '',
         },
         android: {
           priority: this.getAndroidPriority(notification.priority) as any,
@@ -137,10 +162,14 @@ export class NotificationService {
   /**
    * Send email notification
    */
-  private async sendEmailNotification(notification: NotificationDocument): Promise<void> {
+  private async sendEmailNotification(
+    notification: NotificationDocument,
+  ): Promise<void> {
     try {
       // Get user's email and notification preferences
-      const user = await this.getUserWithPreferences(notification.userId.toString());
+      const user = await this.getUserWithPreferences(
+        notification.userId.toString(),
+      );
 
       if (!user || !user.emailNotifications) {
         return;
@@ -155,7 +184,11 @@ export class NotificationService {
       const emailContent = this.generateEmailContent(notification);
       const subject = this.generateEmailSubject(notification);
 
-      await this.emailService.sendNotificationEmail(user.email, subject, emailContent);
+      await this.emailService.sendNotificationEmail(
+        user.email,
+        subject,
+        emailContent,
+      );
     } catch (error) {
       this.logger.error('Failed to send email notification:', error);
     }
@@ -169,7 +202,11 @@ export class NotificationService {
     page: number = 1,
     limit: number = 20,
     isRead?: boolean,
-  ): Promise<{ notifications: NotificationResponseDto[]; total: number; unreadCount: number }> {
+  ): Promise<{
+    notifications: NotificationResponseDto[];
+    total: number;
+    unreadCount: number;
+  }> {
     const query: any = { userId: new Types.ObjectId(userId) };
 
     if (isRead !== undefined) {
@@ -189,21 +226,25 @@ export class NotificationService {
       .limit(limit)
       .lean();
 
-    const notificationDtos: NotificationResponseDto[] = notifications.map(notification => ({
-      id: notification._id.toString(),
-      userId: notification.userId.toString(),
-      type: notification.type,
-      title: notification.title,
-      content: notification.content,
-      relatedEntity: notification.relatedEntity ? {
-        entityType: notification.relatedEntity.entityType,
-        entityId: notification.relatedEntity.entityId.toString(),
-      } : undefined,
-      priority: notification.priority,
-      isRead: notification.isRead,
-      readAt: notification.readAt,
-      createdAt: notification.createdAt,
-    }));
+    const notificationDtos: NotificationResponseDto[] = notifications.map(
+      (notification) => ({
+        id: notification._id.toString(),
+        userId: notification.userId.toString(),
+        type: notification.type,
+        title: notification.title,
+        content: notification.content,
+        relatedEntity: notification.relatedEntity
+          ? {
+              entityType: notification.relatedEntity.entityType,
+              entityId: notification.relatedEntity.entityId.toString(),
+            }
+          : undefined,
+        priority: notification.priority,
+        isRead: notification.isRead,
+        readAt: notification.readAt,
+        createdAt: notification.createdAt,
+      }),
+    );
 
     return { notifications: notificationDtos, total, unreadCount };
   }
@@ -247,7 +288,10 @@ export class NotificationService {
   /**
    * Delete notification
    */
-  async deleteNotification(notificationId: string, userId: string): Promise<void> {
+  async deleteNotification(
+    notificationId: string,
+    userId: string,
+  ): Promise<void> {
     await this.notificationModel.deleteOne({
       _id: new Types.ObjectId(notificationId),
       userId: new Types.ObjectId(userId),
@@ -259,7 +303,10 @@ export class NotificationService {
    */
   private async getUserFCMToken(userId: string): Promise<string | null> {
     try {
-      const user = await this.userModel.findById(userId).select('fcmToken').lean();
+      const user = await this.userModel
+        .findById(userId)
+        .select('fcmToken')
+        .lean();
       return user?.fcmToken || null;
     } catch (error) {
       this.logger.error(`Failed to get FCM token for user ${userId}:`, error);
@@ -281,11 +328,16 @@ export class NotificationService {
 
       return {
         email: user.email,
-        emailNotifications: user.notificationPreferences?.emailNotifications ?? true,
-        pushNotifications: user.notificationPreferences?.pushNotifications ?? true,
-        messageNotifications: user.notificationPreferences?.messageNotifications ?? true,
-        proposalNotifications: user.notificationPreferences?.proposalNotifications ?? true,
-        paymentNotifications: user.notificationPreferences?.paymentNotifications ?? true,
+        emailNotifications:
+          user.notificationPreferences?.emailNotifications ?? true,
+        pushNotifications:
+          user.notificationPreferences?.pushNotifications ?? true,
+        messageNotifications:
+          user.notificationPreferences?.messageNotifications ?? true,
+        proposalNotifications:
+          user.notificationPreferences?.proposalNotifications ?? true,
+        paymentNotifications:
+          user.notificationPreferences?.paymentNotifications ?? true,
       };
     } catch (error) {
       this.logger.error(`Failed to get user preferences for ${userId}:`, error);
@@ -322,11 +374,15 @@ export class NotificationService {
       <div class="highlight-box">
         <h2 style="margin: 0 0 15px 0; color: #16a34a;">${notification.title}</h2>
         <p style="margin: 0; line-height: 1.6;">${notification.content}</p>
-        ${notification.relatedEntity ? `
+        ${
+          notification.relatedEntity
+            ? `
           <p style="margin: 15px 0 0 0; font-size: 14px; color: #6b7280;">
             Related: ${notification.relatedEntity.entityType}
           </p>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
 
       <div style="text-align: center; margin: 30px 0;">

@@ -24,7 +24,11 @@ export class EmailService {
     });
   }
 
-  private getBaseTemplate(title: string, content: string, footerText?: string): string {
+  private getBaseTemplate(
+    title: string,
+    content: string,
+    footerText?: string,
+  ): string {
     return `
       <!DOCTYPE html>
       <html lang="en">
@@ -92,7 +96,11 @@ export class EmailService {
       to,
       subject: '🔐 Verify Your Email - FreelanceHub',
       text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`,
-      html: this.getBaseTemplate('Verify Your Email', content, "You're receiving this because you signed up for FreelanceHub."),
+      html: this.getBaseTemplate(
+        'Verify Your Email',
+        content,
+        "You're receiving this because you signed up for FreelanceHub.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -165,7 +173,11 @@ export class EmailService {
       to,
       subject: `📋 New Project Opportunity: ${projectTitle}`,
       text: `Hello! ${clientName} has posted a new project: ${projectTitle}. Check it out on FreelanceHub!`,
-      html: this.getBaseTemplate('New Project Opportunity', content, "You're receiving this because you have relevant skills for this project type."),
+      html: this.getBaseTemplate(
+        'New Project Opportunity',
+        content,
+        "You're receiving this because you have relevant skills for this project type.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -201,7 +213,11 @@ export class EmailService {
       to,
       subject: '🎉 Congratulations! Your Proposal Was Accepted',
       text: `Great news! Your proposal for "${projectTitle}" has been accepted. You can now start working on the project.`,
-      html: this.getBaseTemplate('Congratulations!', content, "You're receiving this because you submitted a proposal that was accepted."),
+      html: this.getBaseTemplate(
+        'Congratulations!',
+        content,
+        "You're receiving this because you submitted a proposal that was accepted.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -246,7 +262,11 @@ export class EmailService {
       to,
       subject: '💰 Payment Processed Successfully - FreelanceHub',
       text: `Your payment of $${amount} for "${projectTitle}" has been processed successfully.`,
-      html: this.getBaseTemplate('Payment Processed', content, "You're receiving this because a payment was processed for your account."),
+      html: this.getBaseTemplate(
+        'Payment Processed',
+        content,
+        "You're receiving this because a payment was processed for your account.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -292,7 +312,11 @@ export class EmailService {
       to,
       subject: `📄 Contract Signed: ${projectTitle}`,
       text: `Congratulations! The contract for "${projectTitle}" has been signed by both parties. Please find the contract PDF attached.`,
-      html: this.getBaseTemplate('Contract Signed', content, "You're receiving this because you are a party to this contract."),
+      html: this.getBaseTemplate(
+        'Contract Signed',
+        content,
+        "You're receiving this because you are a party to this contract.",
+      ),
       attachments: [
         {
           filename: `contract-${contractId}.pdf`,
@@ -350,7 +374,11 @@ export class EmailService {
       to,
       subject: `📝 Contract Ready for Your Approval: ${projectTitle}`,
       text: `The contract for "${projectTitle}" is ready for your ${action}. Please log in to FreelanceHub to ${action} the contract.`,
-      html: this.getBaseTemplate(title, content, `You're receiving this because you are the ${role} for this project.`),
+      html: this.getBaseTemplate(
+        title,
+        content,
+        `You're receiving this because you are the ${role} for this project.`,
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -392,7 +420,11 @@ export class EmailService {
       to,
       subject: `🎉 New Proposal Received: ${projectTitle}`,
       text: `Great news! ${freelancerName} has submitted a proposal for your project "${projectTitle}". Log in to review their proposal and connect with them.`,
-      html: this.getBaseTemplate('New Proposal Received', content, "You're receiving this because you posted a project on FreelanceHub."),
+      html: this.getBaseTemplate(
+        'New Proposal Received',
+        content,
+        "You're receiving this because you posted a project on FreelanceHub.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -413,12 +445,16 @@ export class EmailService {
         <p style="margin: 0; font-size: 16px;">Great news! Your proposal has been accepted and you're ready to start working.</p>
       </div>
       
-      ${message ? `
+      ${
+        message
+          ? `
       <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
         <h4 style="margin: 0 0 10px 0; color: #92400e;">📝 Message from Client:</h4>
         <p style="margin: 0; color: #92400e; font-style: italic;">"${message}"</p>
       </div>
-      ` : ''}
+      `
+          : ''
+      }
       
       <h3 style="color: #16a34a; margin: 30px 0 15px 0;">🚀 What's Next:</h3>
       <ul>
@@ -438,7 +474,11 @@ export class EmailService {
       to,
       subject: `🎉 Congratulations! Your Proposal Was Accepted`,
       text: `Congratulations ${freelancerName}! Your proposal for "${projectTitle}" has been accepted. You can now start working on the project.`,
-      html: this.getBaseTemplate('Congratulations!', content, "You're receiving this because you submitted a proposal that was accepted."),
+      html: this.getBaseTemplate(
+        'Congratulations!',
+        content,
+        "You're receiving this because you submitted a proposal that was accepted.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -460,19 +500,27 @@ export class EmailService {
         <p style="margin: 0; color: #92400e; font-size: 16px;">Thank you for your interest in this project. Unfortunately, your proposal was not selected at this time.</p>
       </div>
       
-      ${reason ? `
+      ${
+        reason
+          ? `
       <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h4 style="margin: 0 0 10px 0; color: #16a34a;">Reason:</h4>
         <p style="margin: 0; color: #374151;">${reason}</p>
       </div>
-      ` : ''}
+      `
+          : ''
+      }
       
-      ${message ? `
+      ${
+        message
+          ? `
       <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h4 style="margin: 0 0 10px 0; color: #16a34a;">Message from Client:</h4>
         <p style="margin: 0; color: #374151; font-style: italic;">"${message}"</p>
       </div>
-      ` : ''}
+      `
+          : ''
+      }
       
       <h3 style="color: #16a34a; margin: 30px 0 15px 0;">💡 Keep Exploring:</h3>
       <ul>
@@ -492,7 +540,11 @@ export class EmailService {
       to,
       subject: `📝 Proposal Update: ${projectTitle}`,
       text: `Hi ${freelancerName}, we wanted to let you know that your proposal for "${projectTitle}" was not selected this time. ${message || ''}`,
-      html: this.getBaseTemplate('Proposal Update', content, "You're receiving this because you submitted a proposal on FreelanceHub."),
+      html: this.getBaseTemplate(
+        'Proposal Update',
+        content,
+        "You're receiving this because you submitted a proposal on FreelanceHub.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -536,7 +588,11 @@ export class EmailService {
       to,
       subject: `💳 Complete Your Stripe Account Setup - FreelanceHub`,
       text: `Hi ${userName}, to receive payments from clients, you need to complete your Stripe account setup. Click here to get started: ${onboardingUrl}`,
-      html: this.getBaseTemplate('Complete Your Payment Setup', content, "You're receiving this because you're a freelancer on FreelanceHub."),
+      html: this.getBaseTemplate(
+        'Complete Your Payment Setup',
+        content,
+        "You're receiving this because you're a freelancer on FreelanceHub.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);
@@ -574,7 +630,11 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendNotificationEmail(to: string, subject: string, content: string): Promise<void> {
+  async sendNotificationEmail(
+    to: string,
+    subject: string,
+    content: string,
+  ): Promise<void> {
     const mailOptions = {
       from: this.fromEmail,
       to,
@@ -619,7 +679,11 @@ export class EmailService {
       to,
       subject: '🔐 Reset Your Password - FreelanceHub',
       text: `We received a request to reset your password. Click this link to reset it: ${resetUrl}. This link will expire in 30 minutes.`,
-      html: this.getBaseTemplate('Reset Your Password', content, "You're receiving this because you requested a password reset for your FreelanceHub account."),
+      html: this.getBaseTemplate(
+        'Reset Your Password',
+        content,
+        "You're receiving this because you requested a password reset for your FreelanceHub account.",
+      ),
     };
 
     await this.transporter.sendMail(mailOptions);

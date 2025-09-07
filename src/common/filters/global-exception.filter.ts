@@ -64,10 +64,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Include validation errors if present
     if (exception instanceof HttpException) {
       const exceptionResponse = exception.getResponse();
-      if (
-        typeof exceptionResponse === 'object' &&
-        exceptionResponse !== null
-      ) {
+      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as any;
         if (responseObj.errors) {
           errorResponse.errors = responseObj.errors;

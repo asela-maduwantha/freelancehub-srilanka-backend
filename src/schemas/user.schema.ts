@@ -29,21 +29,26 @@ export class User {
   @Prop()
   stripeAccountId: string;
 
-  @Prop({ default: 'pending', enum: ['pending', 'complete', 'incomplete', 'error'] })
+  @Prop({
+    default: 'pending',
+    enum: ['pending', 'complete', 'incomplete', 'error'],
+  })
   stripeAccountStatus: string;
 
   @Prop()
   stripeCustomerId: string;
 
-  @Prop([{
-    id: String,
-    type: String, // 'card', 'bank_account'
-    last4: String,
-    brand: String,
-    expiryMonth: Number,
-    expiryYear: Number,
-    isDefault: { type: Boolean, default: false }
-  }])
+  @Prop([
+    {
+      id: String,
+      type: String, // 'card', 'bank_account'
+      last4: String,
+      brand: String,
+      expiryMonth: Number,
+      expiryYear: Number,
+      isDefault: { type: Boolean, default: false },
+    },
+  ])
   savedPaymentMethods: Array<{
     id: string;
     type: string;

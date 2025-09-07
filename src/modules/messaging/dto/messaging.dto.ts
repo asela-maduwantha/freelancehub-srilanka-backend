@@ -3,7 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateConversationDto {
   @ApiProperty({
-    description: 'ID of the second participant (first participant will be the authenticated user)',
+    description:
+      'ID of the second participant (first participant will be the authenticated user)',
     example: '60f1b2b3c4d5e6f7g8h9i0j2',
   })
   @IsString()

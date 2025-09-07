@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ProposalsService } from '../../proposals/services/proposals.service';
 import { ProjectsService } from '../../projects/services/projects.service';
+import { ContractsService } from '../../contracts/services/contracts.service';
 
 @Injectable()
 export class ClientsService {
   constructor(
     private readonly proposalsService: ProposalsService,
     private readonly projectsService: ProjectsService,
+    private readonly contractsService: ContractsService,
   ) {}
 
   async getClientDashboard(clientId: string) {
@@ -59,5 +61,53 @@ export class ClientsService {
       recentProjects,
       latestProposals: submittedProposals.proposals,
     };
+  }
+
+  async getClientSubmittedMilestonesGroupedByProjects(clientId: string) {
+    // Get all contracts for the client
+    const contracts = await this.contractsService.getUserContracts(clientId);
+
+    // Filter contracts where the user is the client
+    const clientContracts = contracts.filter(
+      (contract: any) => contract.clientId._id.toString() === clientId,
+    );
+
+    // Group milestones by project
+    const projectsWithSubmittedMilestones = {};
+
+    clientContracts.forEach((contract: any) => {
+      const projectId = contract.projectId._id.toString();
+      const projectTitle = contract.projectId.title;
+
+      if (!projectsWithSubmittedMilestones[projectId]) {
+        projectsWithSubmittedMilestones[projectId] = {
+          projectId,
+          projectTitle,
+          submittedMilestones: [],
+        };
+      }
+
+      // Filter submitted milestones
+      const submittedMilestones = contract.milestones.filter(
+        (milestone: any) => milestone.status === 'submitted',
+      );
+
+      if (submittedMilestones.length > 0) {
+        projectsWithSubmittedMilestones[projectId].submittedMilestones.push(
+          ...submittedMilestones.map((milestone: any) => ({
+            ...milestone.toObject(),
+            contractId: contract._id,
+            contractTitle: contract.title,
+          })),
+        );
+      }
+    });
+
+    // Convert to array and filter out projects with no submitted milestones
+    const result = Object.values(projectsWithSubmittedMilestones).filter(
+      (project: any) => project.submittedMilestones.length > 0,
+    );
+
+    return result;
   }
 }

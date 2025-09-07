@@ -278,16 +278,13 @@ export class UsersService {
 
     const users = await this.userModel
       .find({
-        $or: [
-          { name: searchRegex },
-          { email: searchRegex },
-        ],
+        $or: [{ name: searchRegex }, { email: searchRegex }],
       })
       .select('name email role _id')
       .limit(20)
       .sort({ name: 1 });
 
-    return users.map(user => ({
+    return users.map((user) => ({
       id: user._id,
       name: user.name,
       email: user.email,

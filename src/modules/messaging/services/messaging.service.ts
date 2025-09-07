@@ -153,7 +153,9 @@ export class MessagingService {
   /**
    * Get conversation by ID
    */
-  async getConversationById(conversationId: string): Promise<ConversationDocument> {
+  async getConversationById(
+    conversationId: string,
+  ): Promise<ConversationDocument> {
     const conversation = await this.conversationModel.findById(conversationId);
     if (!conversation) {
       throw new NotFoundException('Conversation not found');

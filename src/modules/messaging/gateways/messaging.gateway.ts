@@ -28,7 +28,9 @@ interface AuthenticatedSocket extends Socket {
   },
   namespace: '/messaging',
 })
-export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class MessagingGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -46,7 +48,11 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   async handleConnection(client: AuthenticatedSocket, ...args: any[]) {
     try {
-      const token = (client.handshake.auth.token || client.handshake.query.token || '').replace(/^Bearer\s+/i, '');
+      const token = (
+        client.handshake.auth.token ||
+        client.handshake.query.token ||
+        ''
+      ).replace(/^Bearer\s+/i, '');
 
       if (!token) {
         client.disconnect();
@@ -58,7 +64,7 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
         payload = this.jwtService.verify(token);
       } catch (verifyError) {
         this.logger.error(`Token verification failed: ${verifyError.message}`);
-        throw verifyError; 
+        throw verifyError;
       }
 
       client.userId = payload.sub;
@@ -67,7 +73,9 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
       // Join user-specific room for notifications
       client.join(`user_${client.userId}`);
 
-      this.logger.log(`Client connected: ${client.id} (User: ${client.userId})`);
+      this.logger.log(
+        `Client connected: ${client.id} (User: ${client.userId})`,
+      );
     } catch (error) {
       this.logger.error(`Connection failed: ${error.message}`);
       client.disconnect();
@@ -88,16 +96,25 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
       const { conversationId } = data;
 
       // Verify user has access to this conversation
-      const conversation = await this.messagingService.getConversationById(conversationId);
-      if (!conversation || !client.userId || !conversation.participants.includes(new Types.ObjectId(client.userId))) {
-        client.emit('error', { message: 'Unauthorized access to conversation' });
+      const conversation =
+        await this.messagingService.getConversationById(conversationId);
+      if (
+        !conversation ||
+        !client.userId ||
+        !conversation.participants.includes(new Types.ObjectId(client.userId))
+      ) {
+        client.emit('error', {
+          message: 'Unauthorized access to conversation',
+        });
         return;
       }
 
       client.join(`conversation_${conversationId}`);
       client.emit('joined_conversation', { conversationId });
 
-      this.logger.log(`User ${client.userId} joined conversation ${conversationId}`);
+      this.logger.log(
+        `User ${client.userId} joined conversation ${conversationId}`,
+      );
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -113,40 +130,54 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
     client.leave(`conversation_${conversationId}`);
     client.emit('left_conversation', { conversationId });
 
-    this.logger.log(`User ${client.userId} left conversation ${conversationId}`);
+    this.logger.log(
+      `User ${client.userId} left conversation ${conversationId}`,
+    );
   }
 
   @UseGuards(WsJwtGuard)
   @SubscribeMessage('send_message')
   async handleSendMessage(
-    @MessageBody() data: { conversationId: string; content: string; messageType?: string },
+    @MessageBody()
+    data: { conversationId: string; content: string; messageType?: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     try {
       const { conversationId, content, messageType = 'text' } = data;
 
       // Get conversation to find recipient
-      const conversation = await this.messagingService.getConversationById(conversationId);
-      const recipientId = conversation.participants.find(p => p.toString() !== client.userId);
+      const conversation =
+        await this.messagingService.getConversationById(conversationId);
+      const recipientId = conversation.participants.find(
+        (p) => p.toString() !== client.userId,
+      );
 
       if (!client.userId || !recipientId) {
         client.emit('error', { message: 'Invalid user or recipient' });
         return;
       }
 
-      const message = await this.messagingService.sendMessage({
-        conversationId,
-        content,
-        recipientId: recipientId.toString(),
-      }, client.userId, ''); // Note: For now using empty key, should be updated with proper encryption
+      const message = await this.messagingService.sendMessage(
+        {
+          conversationId,
+          content,
+          recipientId: recipientId.toString(),
+        },
+        client.userId,
+        '',
+      ); // Note: For now using empty key, should be updated with proper encryption
 
       // Emit to all participants in the conversation
-      this.server.to(`conversation_${conversationId}`).emit('new_message', message);
+      this.server
+        .to(`conversation_${conversationId}`)
+        .emit('new_message', message);
 
       // Also emit to sender's room for consistency
       this.server.to(`user_${client.userId}`).emit('message_sent', message);
 
-      this.logger.log(`Message sent in conversation ${conversationId} by user ${client.userId}`);
+      this.logger.log(
+        `Message sent in conversation ${conversationId} by user ${client.userId}`,
+      );
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -166,7 +197,10 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
         return;
       }
 
-      await this.messagingService.markMessagesAsRead(conversationId, client.userId);
+      await this.messagingService.markMessagesAsRead(
+        conversationId,
+        client.userId,
+      );
 
       // Notify other participants
       this.server.to(`conversation_${conversationId}`).emit('messages_read', {
@@ -175,7 +209,9 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
         messageIds,
       });
 
-      this.logger.log(`Messages marked as read in conversation ${conversationId}`);
+      this.logger.log(
+        `Messages marked as read in conversation ${conversationId}`,
+      );
     } catch (error) {
       client.emit('error', { message: error.message });
     }

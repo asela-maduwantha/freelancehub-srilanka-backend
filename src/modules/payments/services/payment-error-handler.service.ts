@@ -39,10 +39,7 @@ export class PaymentErrorHandler {
     this.logger.error(`Stripe error in ${context}:`, error);
 
     if (error.type === 'StripeCardError') {
-      throw new StripeError(
-        `Card error: ${error.message}`,
-        error,
-      );
+      throw new StripeError(`Card error: ${error.message}`, error);
     }
 
     if (error.type === 'StripeRateLimitError') {
@@ -53,17 +50,11 @@ export class PaymentErrorHandler {
     }
 
     if (error.type === 'StripeInvalidRequestError') {
-      throw new StripeError(
-        `Invalid request: ${error.message}`,
-        error,
-      );
+      throw new StripeError(`Invalid request: ${error.message}`, error);
     }
 
     if (error.type === 'StripeAPIError') {
-      throw new StripeError(
-        'Stripe API error. Please try again.',
-        error,
-      );
+      throw new StripeError('Stripe API error. Please try again.', error);
     }
 
     if (error.type === 'StripeConnectionError') {
@@ -79,10 +70,7 @@ export class PaymentErrorHandler {
       );
     }
 
-    throw new StripeError(
-      `Unexpected Stripe error: ${error.message}`,
-      error,
-    );
+    throw new StripeError(`Unexpected Stripe error: ${error.message}`, error);
   }
 
   handleDatabaseError(error: any, context: string): never {
@@ -90,7 +78,9 @@ export class PaymentErrorHandler {
 
     if (error.name === 'ValidationError') {
       throw new BadRequestException(
-        `Invalid data: ${Object.values(error.errors).map((e: any) => e.message).join(', ')}`,
+        `Invalid data: ${Object.values(error.errors)
+          .map((e: any) => e.message)
+          .join(', ')}`,
       );
     }
 
@@ -155,7 +145,9 @@ export class PaymentErrorHandler {
           );
         }
         if (payment.payeeId.toString() !== userId) {
-          throw new BadRequestException('Only the freelancer can withdraw payment');
+          throw new BadRequestException(
+            'Only the freelancer can withdraw payment',
+          );
         }
         break;
     }

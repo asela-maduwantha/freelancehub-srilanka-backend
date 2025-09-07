@@ -24,8 +24,18 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ConfigModule,
     NotificationsModule,
   ],
-  controllers: [PaymentsController, StripeWebhookController, PaymentMethodsController],
-  providers: [PaymentsService, StripeConnectService, PaymentMethodsService, EmailService, PaymentErrorHandler],
+  controllers: [
+    PaymentsController,
+    StripeWebhookController,
+    PaymentMethodsController,
+  ],
+  providers: [
+    PaymentsService,
+    StripeConnectService,
+    PaymentMethodsService,
+    EmailService,
+    PaymentErrorHandler,
+  ],
   exports: [PaymentsService, StripeConnectService, PaymentMethodsService],
 })
 export class PaymentsModule {}

@@ -14,7 +14,10 @@ import {
   EncryptionKey,
   EncryptionKeySchema,
 } from '../../schemas/encryption-key.schema';
-import { Notification, NotificationSchema } from '../../schemas/notification.schema';
+import {
+  Notification,
+  NotificationSchema,
+} from '../../schemas/notification.schema';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { EmailService } from '../../common/services/email.service';
 import { AuthModule } from '../auth/auth.module';

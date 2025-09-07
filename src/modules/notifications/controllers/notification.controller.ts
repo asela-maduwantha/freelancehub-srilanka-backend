@@ -56,7 +56,8 @@ export class NotificationController {
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createNotification(@Body() createDto: CreateNotificationDto) {
-    const notification = await this.notificationService.createNotification(createDto);
+    const notification =
+      await this.notificationService.createNotification(createDto);
     return this.mapToResponseDto(notification);
   }
 
@@ -147,8 +148,14 @@ export class NotificationController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
-  async deleteNotification(@Param('id') notificationId: string, @Request() req) {
-    await this.notificationService.deleteNotification(notificationId, req.user.userId);
+  async deleteNotification(
+    @Param('id') notificationId: string,
+    @Request() req,
+  ) {
+    await this.notificationService.deleteNotification(
+      notificationId,
+      req.user.userId,
+    );
     return { message: 'Notification deleted successfully' };
   }
 
@@ -185,7 +192,10 @@ export class NotificationController {
     schema: {
       type: 'object',
       properties: {
-        fcmToken: { type: 'string', description: 'Firebase Cloud Messaging token' },
+        fcmToken: {
+          type: 'string',
+          description: 'Firebase Cloud Messaging token',
+        },
       },
     },
   })
@@ -194,10 +204,7 @@ export class NotificationController {
     description: 'FCM token updated successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async updateFCMToken(
-    @Request() req,
-    @Body() body: { fcmToken: string },
-  ) {
+  async updateFCMToken(@Request() req, @Body() body: { fcmToken: string }) {
     await this.userModel.findByIdAndUpdate(req.user.userId, {
       fcmToken: body.fcmToken,
     });
@@ -241,13 +248,15 @@ export class NotificationController {
       .select('notificationPreferences')
       .lean();
 
-    return user?.notificationPreferences || {
-      emailNotifications: true,
-      pushNotifications: true,
-      messageNotifications: true,
-      proposalNotifications: true,
-      paymentNotifications: true,
-    };
+    return (
+      user?.notificationPreferences || {
+        emailNotifications: true,
+        pushNotifications: true,
+        messageNotifications: true,
+        proposalNotifications: true,
+        paymentNotifications: true,
+      }
+    );
   }
 
   private mapToResponseDto(notification: any): NotificationResponseDto {
@@ -257,10 +266,12 @@ export class NotificationController {
       type: notification.type,
       title: notification.title,
       content: notification.content,
-      relatedEntity: notification.relatedEntity ? {
-        entityType: notification.relatedEntity.entityType,
-        entityId: notification.relatedEntity.entityId.toString(),
-      } : undefined,
+      relatedEntity: notification.relatedEntity
+        ? {
+            entityType: notification.relatedEntity.entityType,
+            entityId: notification.relatedEntity.entityId.toString(),
+          }
+        : undefined,
       priority: notification.priority,
       isRead: notification.isRead,
       readAt: notification.readAt,

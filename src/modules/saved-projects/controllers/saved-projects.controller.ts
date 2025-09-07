@@ -33,7 +33,7 @@ export class SavedProjectsController {
   @RateLimit({ requests: 20, windowMs: 3600000 }) // 20 saves per hour
   @ApiOperation({
     summary: 'Save a project',
-    description: 'Save a project to the user\'s saved projects list',
+    description: "Save a project to the user's saved projects list",
   })
   @ApiParam({
     name: 'projectId',
@@ -63,16 +63,13 @@ export class SavedProjectsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   @ApiResponse({ status: 409, description: 'Project already saved' })
-  async saveProject(
-    @Param('projectId') projectId: string,
-    @Request() req,
-  ) {
+  async saveProject(@Param('projectId') projectId: string, @Request() req) {
     return this.savedProjectsService.saveProject(req.user.userId, projectId);
   }
 
   @Get()
   @ApiOperation({
-    summary: 'Get user\'s saved projects',
+    summary: "Get user's saved projects",
     description: 'Retrieve all projects saved by the authenticated user',
   })
   @ApiQuery({
@@ -137,7 +134,8 @@ export class SavedProjectsController {
   @Get('check/:projectId')
   @ApiOperation({
     summary: 'Check if project is saved',
-    description: 'Check if a specific project is saved by the authenticated user',
+    description:
+      'Check if a specific project is saved by the authenticated user',
   })
   @ApiParam({
     name: 'projectId',
@@ -155,10 +153,7 @@ export class SavedProjectsController {
       },
     },
   })
-  async checkIfSaved(
-    @Param('projectId') projectId: string,
-    @Request() req,
-  ) {
+  async checkIfSaved(@Param('projectId') projectId: string, @Request() req) {
     return this.savedProjectsService.checkIfSaved(req.user.userId, projectId);
   }
 
@@ -166,7 +161,7 @@ export class SavedProjectsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Unsave a project',
-    description: 'Remove a project from the user\'s saved projects list',
+    description: "Remove a project from the user's saved projects list",
   })
   @ApiParam({
     name: 'projectId',
@@ -185,10 +180,7 @@ export class SavedProjectsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Saved project not found' })
-  async unsaveProject(
-    @Param('projectId') projectId: string,
-    @Request() req,
-  ) {
+  async unsaveProject(@Param('projectId') projectId: string, @Request() req) {
     return this.savedProjectsService.unsaveProject(req.user.userId, projectId);
   }
 
