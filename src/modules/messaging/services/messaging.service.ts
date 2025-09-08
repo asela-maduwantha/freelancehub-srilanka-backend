@@ -271,7 +271,7 @@ export class MessagingService {
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('senderId', 'firstName lastName profilePicture')
-      .populate('recipientId', 'firstName lastName profilePicture');
+      .populate('receiverId', 'firstName lastName profilePicture');
 
     // Decrypt messages
     const decryptedMessages: MessageResponse[] = [];
