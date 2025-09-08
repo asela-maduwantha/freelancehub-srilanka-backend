@@ -18,6 +18,7 @@ import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ProposalsModule } from '../proposals/proposals.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PdfService } from '../../common/services/pdf.service';
 import { EmailService } from '../../common/services/email.service';
 import { Payment, PaymentSchema } from '../../schemas/payment.schema';
@@ -37,6 +38,7 @@ import { Payment, PaymentSchema } from '../../schemas/payment.schema';
     forwardRef(() => ProjectsModule),
     forwardRef(() => ProposalsModule),
     PaymentsModule,
+    NotificationsModule,
   ],
   controllers: [ContractsController],
   providers: [ContractsService, PdfService, EmailService],

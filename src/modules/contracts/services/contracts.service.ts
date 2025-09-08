@@ -33,6 +33,7 @@ import { PaymentMethodsService } from '../../payments/services/payment-methods.s
 import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+import { NotificationService } from '../../notifications/services/notification.service';
 
 // Interface for enriched contract data
 interface EnrichedContractData {
@@ -67,6 +68,7 @@ export class ContractsService {
     private paymentsService: PaymentsService,
     private paymentMethodsService: PaymentMethodsService,
     private configService: ConfigService,
+    private notificationService: NotificationService,
   ) {
     this.stripe = new Stripe(
       this.configService.get<string>('stripe.secretKey') || '',
@@ -407,7 +409,22 @@ export class ContractsService {
     // Note: In clean schema, milestone submissions are handled differently
     milestone.status = 'submitted';
 
-    return contract.save();
+    const savedContract = await contract.save();
+
+    // Send notification to client
+    await this.notificationService.createNotification({
+      userId: contract.clientId.toString(),
+      type: 'milestone',
+      title: 'Milestone Submitted',
+      content: `Freelancer has submitted work for milestone "${milestone.title}"`,
+      relatedEntity: {
+        entityType: 'milestone',
+        entityId: milestoneId,
+      },
+      priority: 'medium',
+    });
+
+    return savedContract;
   }
 
   async approveMilestone(
@@ -510,7 +527,22 @@ export class ContractsService {
       contract.status = 'completed';
     }
 
-    return contract.save();
+    const savedContract = await contract.save();
+
+    // Send notification to freelancer
+    await this.notificationService.createNotification({
+      userId: contract.freelancerId.toString(),
+      type: 'milestone',
+      title: 'Milestone Approved',
+      content: `Your milestone "${milestone.title}" has been approved and payment has been processed`,
+      relatedEntity: {
+        entityType: 'milestone',
+        entityId: milestoneId,
+      },
+      priority: 'high',
+    });
+
+    return savedContract;
   }
 
   async rejectMilestone(
@@ -553,7 +585,22 @@ export class ContractsService {
 
     // Note: milestone submissions and feedback were removed from clean schema
 
-    return contract.save();
+    const savedContract = await contract.save();
+
+    // Send notification to freelancer
+    await this.notificationService.createNotification({
+      userId: contract.freelancerId.toString(),
+      type: 'milestone',
+      title: 'Milestone Rejected',
+      content: `Your milestone "${milestone.title}" has been rejected. Please review the feedback and resubmit.`,
+      relatedEntity: {
+        entityType: 'milestone',
+        entityId: milestoneId,
+      },
+      priority: 'medium',
+    });
+
+    return savedContract;
   }
 
   async completeContract(

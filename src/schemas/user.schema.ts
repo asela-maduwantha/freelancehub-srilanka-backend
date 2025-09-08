@@ -20,6 +20,9 @@ export class User {
   @Prop({ required: true, enum: ['freelancer', 'client'] })
   role: string;
 
+  @Prop({ default: true })
+  isActive: boolean;
+
   @Prop({ default: false })
   emailVerified: boolean;
 

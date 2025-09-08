@@ -147,19 +147,17 @@ export class UsersService {
       filter['availability.status'] = availability;
     }
 
-    const freelancers = await this.freelancerProfileModel
-      .find(filter)
-      .populate('userId', '-password')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ hourlyRate: -1, createdAt: -1 });
+  const freelancers = await this.freelancerProfileModel
+    .find(filter)
+    .populate('userId', '-password')
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .sort({ hourlyRate: -1, createdAt: -1 });
 
-    // Filter out inactive users
-    const activeFreelancers = freelancers.filter(
-      (freelancer) => freelancer.userId && (freelancer.userId as any).isActive,
-    );
-
-    const total = await this.freelancerProfileModel.countDocuments(filter);
+  // Filter out inactive users
+  const activeFreelancers = freelancers.filter(
+    (freelancer) => freelancer.userId && (freelancer.userId as any).isActive !== false,
+  );    const total = await this.freelancerProfileModel.countDocuments(filter);
 
     return {
       data: activeFreelancers,
@@ -194,7 +192,7 @@ export class UsersService {
 
     // Filter out inactive users
     const activeClients = clients.filter(
-      (client) => client.userId && (client.userId as any).isActive,
+      (client) => client.userId && (client.userId as any).isActive !== false,
     );
 
     const total = await this.clientProfileModel.countDocuments(filter);

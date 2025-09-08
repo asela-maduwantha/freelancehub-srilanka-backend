@@ -445,6 +445,19 @@ export class ProposalsService {
         acceptProposalDto.message ||
           'Congratulations! Your proposal has been accepted.',
       );
+
+      // Send in-app notification to freelancer
+      await this.notificationService.createNotification({
+        userId: proposal.freelancerId.toString(),
+        type: 'proposal',
+        title: 'Proposal Accepted',
+        content: `Congratulations! Your proposal for "${project.title}" has been accepted. A contract has been created.`,
+        relatedEntity: {
+          entityType: 'proposal',
+          entityId: proposalId,
+        },
+        priority: 'high',
+      });
     }
 
     return {
@@ -501,6 +514,19 @@ export class ProposalsService {
           'Your proposal was not selected for this project.',
         rejectProposalDto.message || '',
       );
+
+      // Send in-app notification to freelancer
+      await this.notificationService.createNotification({
+        userId: proposal.freelancerId.toString(),
+        type: 'proposal',
+        title: 'Proposal Rejected',
+        content: `Your proposal for "${project.title}" was not selected. ${rejectProposalDto.reason || 'Please try other projects.'}`,
+        relatedEntity: {
+          entityType: 'proposal',
+          entityId: proposalId,
+        },
+        priority: 'medium',
+      });
     }
 
     return { message: 'Proposal rejected successfully' };

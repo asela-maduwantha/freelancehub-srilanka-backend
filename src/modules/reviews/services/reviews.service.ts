@@ -8,11 +8,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Review, ReviewDocument } from '../../../schemas/review.schema';
 import { CreateReviewDto } from '../dto/create-review.dto';
+import { NotificationService } from '../../notifications/services/notification.service';
 
 @Injectable()
 export class ReviewsService {
   constructor(
     @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
+    private notificationService: NotificationService,
   ) {}
 
   async createReview(
@@ -39,7 +41,22 @@ export class ReviewsService {
       status: 'published', // Auto-publish for now
     });
 
-    return newReview.save();
+    const savedReview = await newReview.save();
+
+    // Send notification to the reviewee
+    await this.notificationService.createNotification({
+      userId: revieweeId,
+      type: 'review',
+      title: 'New Review Received',
+      content: `You have received a new ${rating}-star review`,
+      relatedEntity: {
+        entityType: 'review',
+        entityId: (savedReview._id as any).toString(),
+      },
+      priority: 'medium',
+    });
+
+    return savedReview;
   }
 
   async getReviewsForUser(userId: string, query: any) {
