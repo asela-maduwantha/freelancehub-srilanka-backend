@@ -141,7 +141,7 @@ export class MessagingService {
       { conversationId },
       {
         $set: {
-          [`metadata.participant${conversation.participant1.toString() === userId ? '1' : '2'}PublicKey`]:
+          [`metadata.participant${conversation.participants[0].toString() === userId ? '1' : '2'}PublicKey`]:
             userPublicKey,
         },
       },
@@ -197,7 +197,7 @@ export class MessagingService {
     const message = new this.messageModel({
       conversationId: conversation._id,
       senderId,
-      recipientId,
+      receiverId: recipientId,
       encryptedContent: encryptedMessage.encryptedContent,
       iv: encryptedMessage.iv,
       messageHash: encryptedMessage.messageHash,
@@ -290,7 +290,7 @@ export class MessagingService {
           id: (message._id as any).toString(),
           conversationId: message.conversationId.toString(),
           senderId: message.senderId.toString(),
-          recipientId: message.recipientId.toString(),
+          recipientId: message.receiverId.toString(),
           content: decryptedContent,
           status: message.status,
           createdAt: message.createdAt || new Date(),
