@@ -155,3 +155,11 @@ FreelancerProfileSchema.index({ categories: 1 });
 FreelancerProfileSchema.index({ experienceLevel: 1 });
 FreelancerProfileSchema.index({ hourlyRate: 1 });
 FreelancerProfileSchema.index({ 'availability.status': 1 });
+
+// Compound indexes for common query patterns
+FreelancerProfileSchema.index({ skills: 1, 'availability.status': 1 });
+FreelancerProfileSchema.index({ categories: 1, hourlyRate: 1 });
+FreelancerProfileSchema.index({ experienceLevel: 1, hourlyRate: 1 });
+FreelancerProfileSchema.index({ 'availability.status': 1, hourlyRate: 1 });
+FreelancerProfileSchema.index({ categories: 1, experienceLevel: 1 });
+FreelancerProfileSchema.index({ skills: 1, experienceLevel: 1 });

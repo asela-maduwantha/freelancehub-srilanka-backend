@@ -65,7 +65,10 @@ export class Payment {
   cancelledAt: Date;
 }
 
-export type PaymentDocument = Payment & Document;
+export type PaymentDocument = Payment & Document & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 export const PaymentSchema = SchemaFactory.createForClass(Payment);
 
 // Indexes
@@ -75,3 +78,11 @@ PaymentSchema.index({ payerId: 1 });
 PaymentSchema.index({ payeeId: 1 });
 PaymentSchema.index({ status: 1 });
 PaymentSchema.index({ createdAt: -1 });
+
+// Compound indexes for common query patterns
+PaymentSchema.index({ contractId: 1, status: 1 });
+PaymentSchema.index({ payerId: 1, status: 1 });
+PaymentSchema.index({ payeeId: 1, status: 1 });
+PaymentSchema.index({ status: 1, createdAt: -1 });
+PaymentSchema.index({ payerId: 1, createdAt: -1 });
+PaymentSchema.index({ payeeId: 1, createdAt: -1 });

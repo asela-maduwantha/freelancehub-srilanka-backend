@@ -5,6 +5,7 @@ import {
   IsIn,
   MinLength,
   Matches,
+  IsArray,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -48,12 +49,14 @@ export class RegisterDto {
   })
   password: string;
 
-  @ApiProperty({
-    description: 'User role',
-    example: 'freelancer',
+    @ApiProperty({
+    description: 'User role(s)',
+    example: ['freelancer'],
+    type: [String],
     enum: ['freelancer', 'client'],
   })
-  @IsString()
-  @IsIn(['freelancer', 'client'])
-  role: string;
+  @IsArray()
+  @IsString({ each: true })
+  @IsIn(['freelancer', 'client'], { each: true })
+  role: string[];
 }

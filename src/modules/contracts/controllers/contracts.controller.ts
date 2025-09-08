@@ -666,7 +666,7 @@ export class ContractsController {
     );
   }
 
-  @Post(':id/milestones/:milestoneId/approve')
+  @Put(':id/milestones/:milestoneId/approve')
   @ApiOperation({ summary: 'Approve milestone work' })
   @ApiParam({ name: 'id', description: 'Contract ID' })
   @ApiParam({ name: 'milestoneId', description: 'Milestone ID' })
@@ -693,6 +693,80 @@ export class ContractsController {
       req.user.userId,
       approveMilestoneDto,
     );
+  }
+
+  @Get(':id/milestones/:milestoneId/setup-payment')
+  @ApiOperation({ summary: 'Setup payment for milestone approval' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiParam({ name: 'milestoneId', description: 'Milestone ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment setup information',
+    schema: {
+      type: 'object',
+      properties: {
+        hasSavedCards: { type: 'boolean' },
+        paymentMethods: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              type: { type: 'string' },
+              last4: { type: 'string' },
+              brand: { type: 'string' },
+              isDefault: { type: 'boolean' }
+            }
+          }
+        },
+        setupIntent: {
+          type: 'object',
+          properties: {
+            clientSecret: { type: 'string' },
+            id: { type: 'string' }
+          }
+        },
+        requiresSetup: { type: 'boolean' }
+      },
+    },
+  })
+  async setupMilestonePayment(
+    @Param('id') contractId: string,
+    @Param('milestoneId') milestoneId: string,
+    @Request() req,
+  ) {
+    console.log('🔍 Checking payment setup for:', { contractId, milestoneId, userId: req.user.userId });
+
+    // Check if user has saved cards
+    const { hasSavedCards } = await this.contractsService.checkUserHasSavedCards(req.user.userId);
+    console.log('💳 User payment method status:', { hasSavedCards });
+
+    if (hasSavedCards) {
+      // Return saved payment methods
+      const paymentMethods = await this.paymentMethodsService.getSavedPaymentMethods(req.user.userId);
+      console.log('💳 Returning saved payment methods:', paymentMethods.length);
+
+      return {
+        hasSavedCards: true,
+        paymentMethods,
+        requiresSetup: false
+      };
+    } else {
+      // Initiate payment method setup
+      console.log('🔧 Creating setup intent for new payment method');
+
+      const setupIntent = await this.paymentMethodsService.createSetupIntent(req.user.userId);
+      console.log('✅ Setup intent created:', setupIntent.id);
+
+      return {
+        hasSavedCards: false,
+        setupIntent: {
+          clientSecret: setupIntent.client_secret,
+          id: setupIntent.id
+        },
+        requiresSetup: true
+      };
+    }
   }
 
   @Post(':id/milestones/:milestoneId/reject')

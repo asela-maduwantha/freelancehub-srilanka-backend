@@ -1,6 +1,7 @@
 // User and Profile schemas
 export { User, UserDocument, UserSchema } from './user.schema';
 export { Otp, OtpDocument, OtpSchema } from './otp.schema';
+export { TokenBlacklist, TokenBlacklistDocument, TokenBlacklistSchema } from './token-blacklist.schema';
 export {
   ClientProfile,
   ClientProfileDocument,

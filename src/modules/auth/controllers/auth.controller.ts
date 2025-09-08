@@ -140,6 +140,8 @@ export class AuthController {
   }
 
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({
     status: 200,
@@ -151,8 +153,12 @@ export class AuthController {
       },
     },
   })
-  async logout() {
-    return this.authService.logout();
+  async logout(@Request() req) {
+    // Extract token from authorization header
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    
+    return this.authService.logout(token, req.user.userId);
   }
 
   @Post('forgot-password')

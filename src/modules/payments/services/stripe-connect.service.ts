@@ -55,8 +55,8 @@ export class StripeConnectService {
         business_type: 'individual',
         individual: {
           email: user.email,
-          first_name: user.name.split(' ')[0] || user.name,
-          last_name: user.name.split(' ').slice(1).join(' ') || '',
+          first_name: user.firstName,
+          last_name: user.lastName,
         },
       });
 

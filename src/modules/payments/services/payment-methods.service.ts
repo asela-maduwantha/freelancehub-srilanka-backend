@@ -43,7 +43,7 @@ export class PaymentMethodsService {
     try {
       const customer = await this.stripe.customers.create({
         email: user.email,
-        name: user.name,
+        name: `${user.firstName} ${user.lastName}`,
         metadata: {
           userId: userId,
         },
@@ -241,6 +241,117 @@ export class PaymentMethodsService {
       return { status: paymentIntent.status };
     } catch (error) {
       throw new BadRequestException('Failed to confirm payment');
+    }
+  }
+
+  async createSetupIntent(userId: string): Promise<Stripe.SetupIntent> {
+    console.log('🔧 Creating setup intent for user:', userId);
+
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.stripeCustomerId) {
+      console.log('👤 Setting up Stripe customer for user...');
+      await this.setupStripeCustomer(userId);
+      // Re-fetch user after customer creation
+      const updatedUser = await this.userModel.findById(userId);
+      if (!updatedUser?.stripeCustomerId) {
+        console.error('❌ Failed to setup Stripe customer');
+        throw new BadRequestException('Failed to setup Stripe customer');
+      }
+    }
+
+    console.log('💳 Creating Stripe setup intent...');
+
+    try {
+      const setupIntent = await this.stripe.setupIntents.create({
+        customer: user.stripeCustomerId,
+        payment_method_types: ['card'],
+        usage: 'off_session', // Allow future payments
+      });
+
+      console.log('✅ Setup intent created:', {
+        id: setupIntent.id,
+        clientSecret: setupIntent.client_secret?.substring(0, 20) + '...',
+        status: setupIntent.status
+      });
+
+      return setupIntent;
+    } catch (error) {
+      console.error('❌ Setup intent creation failed:', error);
+      throw new BadRequestException('Failed to create setup intent');
+    }
+  }
+
+  async confirmSetupIntent(
+    userId: string,
+    setupIntentId: string,
+  ): Promise<{ paymentMethodId: string }> {
+    console.log('🔧 Confirming setup intent:', { userId, setupIntentId });
+
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      throw new NotFoundException('User not found');
+    }
+
+    try {
+      console.log('🔍 Retrieving setup intent from Stripe...');
+
+      // Retrieve the setup intent
+      const setupIntent = await this.stripe.setupIntents.retrieve(setupIntentId);
+      console.log('📋 Setup intent status:', setupIntent.status);
+
+      if (setupIntent.status !== 'succeeded') {
+        console.error('❌ Setup intent not succeeded:', setupIntent.status);
+        throw new BadRequestException('Setup intent has not been completed successfully');
+      }
+
+      if (!setupIntent.payment_method) {
+        console.error('❌ No payment method in setup intent');
+        throw new BadRequestException('No payment method found in setup intent');
+      }
+
+      console.log('💳 Retrieving payment method details...');
+
+      // Get payment method details
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(
+        setupIntent.payment_method as string,
+      );
+
+      console.log('💳 Payment method retrieved:', {
+        id: paymentMethod.id,
+        type: paymentMethod.type,
+        last4: paymentMethod.card?.last4,
+        brand: paymentMethod.card?.brand
+      });
+
+      // Add the payment method to user's saved methods
+      const savedMethod = {
+        id: paymentMethod.id,
+        type: paymentMethod.type,
+        last4: paymentMethod.card?.last4 || '',
+        brand: paymentMethod.card?.brand || '',
+        expiryMonth: paymentMethod.card?.exp_month || 0,
+        expiryYear: paymentMethod.card?.exp_year || 0,
+        isDefault: !user.savedPaymentMethods || user.savedPaymentMethods.length === 0,
+      };
+
+      console.log('💾 Saving payment method to user...');
+
+      await this.userModel.findByIdAndUpdate(userId, {
+        $push: { savedPaymentMethods: savedMethod },
+      });
+
+      console.log('✅ Payment method saved successfully:', savedMethod.id);
+
+      return { paymentMethodId: paymentMethod.id };
+    } catch (error) {
+      console.error('❌ Setup intent confirmation failed:', error);
+      throw new BadRequestException('Failed to confirm setup intent');
     }
   }
 }

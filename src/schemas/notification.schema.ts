@@ -51,3 +51,11 @@ NotificationSchema.index({ type: 1 });
 NotificationSchema.index({ isRead: 1 });
 NotificationSchema.index({ priority: 1 });
 NotificationSchema.index({ createdAt: -1 });
+
+// Compound indexes for common query patterns
+NotificationSchema.index({ userId: 1, isRead: 1 });
+NotificationSchema.index({ userId: 1, type: 1 });
+NotificationSchema.index({ userId: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, priority: 1 });
+NotificationSchema.index({ isRead: 1, createdAt: -1 });
+NotificationSchema.index({ type: 1, createdAt: -1 });

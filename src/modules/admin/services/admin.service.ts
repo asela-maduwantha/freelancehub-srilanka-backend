@@ -87,7 +87,7 @@ export class AdminService {
       user: {
         _id: user._id,
         email: user.email,
-        username: user.name, // Using name instead of firstName/lastName
+        username: `${user.firstName} ${user.lastName}`, // Using firstName and lastName
         // Note: firstName, lastName, status properties removed from clean User schema
       },
     };

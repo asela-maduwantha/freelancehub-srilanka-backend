@@ -74,7 +74,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.role !== 'freelancer') {
+    if (!user.role.includes('freelancer')) {
       throw new BadRequestException('User is not a freelancer');
     }
 
@@ -103,7 +103,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.role !== 'client') {
+    if (!user.role.includes('client')) {
       throw new BadRequestException('User is not a client');
     }
 
@@ -284,7 +284,9 @@ export class UsersService {
 
     return users.map((user) => ({
       id: user._id,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: `${user.firstName} ${user.lastName}`,
       email: user.email,
       role: user.role,
     }));

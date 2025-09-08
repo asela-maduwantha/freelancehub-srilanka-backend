@@ -28,6 +28,7 @@ import {
 } from '../../../schemas/client-profile.schema';
 import { PdfService } from '../../../common/services/pdf.service';
 import { EmailService } from '../../../common/services/email.service';
+import { UsersService } from '../../users/services/users.service';
 import { PaymentsService } from '../../payments/services/payments.service';
 import { PaymentMethodsService } from '../../payments/services/payment-methods.service';
 import { Payment, PaymentDocument } from '../../../schemas/payment.schema';
@@ -69,6 +70,7 @@ export class ContractsService {
     private paymentMethodsService: PaymentMethodsService,
     private configService: ConfigService,
     private notificationService: NotificationService,
+    private usersService: UsersService,
   ) {
     this.stripe = new Stripe(
       this.configService.get<string>('stripe.secretKey') || '',
@@ -433,6 +435,8 @@ export class ContractsService {
     userId: string,
     approveMilestoneDto: ApproveMilestoneDto,
   ): Promise<Contract> {
+    console.log('🎯 Starting milestone approval:', { contractId, milestoneId, userId, approveMilestoneDto });
+
     const contract = await this.contractModel.findById(contractId);
 
     if (!contract) {
@@ -464,59 +468,58 @@ export class ContractsService {
     }
 
     milestone.status = 'approved';
+    console.log('✅ Milestone status updated to approved');
 
     // Process payment if requested (default: true)
     if (approveMilestoneDto.processPayment !== false) {
-      try {
-        // Find existing payment for this milestone
-        const existingPayment = await this.paymentModel.findOne({
-          milestoneId: new Types.ObjectId(milestoneId),
-          status: 'pending',
-        });
+      console.log('💰 Processing payment...');
 
-        if (existingPayment) {
-          // Process the existing payment
-          if (approveMilestoneDto.paymentMethodId) {
-            await this.paymentsService.processMilestonePayment(
-              (existingPayment._id as Types.ObjectId).toString(),
-              approveMilestoneDto.paymentMethodId,
-            );
-            this.logger.log(`Payment processed for milestone ${milestoneId}`);
+      try {
+        // Check if client has saved payment methods
+        const { hasSavedCards, cardCount } = await this.checkUserHasSavedCards(userId);
+        console.log('💳 Payment method check:', { hasSavedCards, cardCount });
+
+        if (hasSavedCards && approveMilestoneDto.paymentMethodId) {
+          // Scenario 1: Client has saved cards and provided paymentMethodId
+          console.log('🎯 Scenario 1: Using saved payment method');
+          await this.processPaymentWithSavedCard(contractId, milestoneId, milestone, approveMilestoneDto.paymentMethodId);
+        } else if (!hasSavedCards) {
+          // Scenario 2: Client has no saved cards
+          console.log('🎯 Scenario 2: No saved cards, checking setup intent');
+
+          if (approveMilestoneDto.setupIntentId) {
+            // New card setup provided
+            console.log('🔧 Processing with new card setup');
+            await this.processPaymentWithNewCardSetup(contractId, milestoneId, milestone, approveMilestoneDto);
           } else {
-            throw new BadRequestException(
-              'Payment method ID is required to process payment',
-            );
+            // No payment method available - create pending payment
+            console.log('⏳ Creating pending payment - no payment method available');
+            await this.createPendingPayment(contractId, milestoneId, milestone);
+            // Return response indicating payment setup needed
+            throw new BadRequestException({
+              code: 'PAYMENT_METHOD_REQUIRED',
+              message: 'No saved payment methods found. Please add a payment method to process payment.',
+              requiresPaymentSetup: true
+            });
           }
         } else {
-          // Create new payment and process it
-          const newPayment = await this.paymentsService.createMilestonePayment(
-            contractId,
-            milestoneId,
-            milestone.amount,
-            milestone.title,
-          );
-
-          if (approveMilestoneDto.paymentMethodId) {
-            await this.paymentsService.processMilestonePayment(
-              (newPayment._id as Types.ObjectId).toString(),
-              approveMilestoneDto.paymentMethodId,
-            );
-            this.logger.log(
-              `New payment created and processed for milestone ${milestoneId}`,
-            );
-          } else {
-            throw new BadRequestException(
-              'Payment method ID is required to process payment',
-            );
-          }
+          // Has saved cards but no paymentMethodId provided
+          console.log('❌ Has saved cards but no paymentMethodId provided');
+          throw new BadRequestException('Payment method ID is required to process payment');
         }
       } catch (error) {
+        if (error.code === 'PAYMENT_METHOD_REQUIRED') {
+          throw error; // Re-throw our custom error
+        }
+        console.error('❌ Payment processing failed:', error);
         this.logger.error(
           `Failed to process payment for milestone ${milestoneId}: ${error.message}`,
         );
-        // For now, we'll still approve the milestone but log the payment failure
-        // In production, you might want to handle this differently
+        // For payment failures, we'll still approve the milestone but mark payment as failed
+        await this.handlePaymentFailure(contractId, milestoneId, error.message);
       }
+    } else {
+      console.log('⏭️ Payment processing skipped (processPayment = false)');
     }
 
     // Check if all milestones are completed
@@ -528,13 +531,14 @@ export class ContractsService {
     }
 
     const savedContract = await contract.save();
+    console.log('💾 Contract saved:', { id: savedContract._id, status: savedContract.status });
 
     // Send notification to freelancer
     await this.notificationService.createNotification({
       userId: contract.freelancerId.toString(),
       type: 'milestone',
       title: 'Milestone Approved',
-      content: `Your milestone "${milestone.title}" has been approved and payment has been processed`,
+      content: `Your milestone "${milestone.title}" has been approved${approveMilestoneDto.processPayment !== false ? ' and payment has been processed' : ''}`,
       relatedEntity: {
         entityType: 'milestone',
         entityId: milestoneId,
@@ -542,7 +546,100 @@ export class ContractsService {
       priority: 'high',
     });
 
+    console.log('✅ Milestone approval completed successfully');
     return savedContract;
+  }
+
+  async checkUserHasSavedCards(userId: string): Promise<{ hasSavedCards: boolean; cardCount: number }> {
+    return await this.usersService.checkUserHasSavedCards(userId);
+  }
+
+  private async processPaymentWithSavedCard(
+    contractId: string,
+    milestoneId: string,
+    milestone: any,
+    paymentMethodId: string,
+  ) {
+    // Find existing payment for this milestone
+    const existingPayment = await this.paymentModel.findOne({
+      milestoneId: new Types.ObjectId(milestoneId),
+      status: 'pending',
+    });
+
+    if (existingPayment) {
+      // Process the existing payment
+      await this.paymentsService.processMilestonePayment(
+        (existingPayment._id as Types.ObjectId).toString(),
+        paymentMethodId,
+      );
+      this.logger.log(`Payment processed for milestone ${milestoneId}`);
+    } else {
+      // Create new payment and process it
+      const newPayment = await this.paymentsService.createMilestonePayment(
+        contractId,
+        milestoneId,
+        milestone.amount,
+        milestone.title,
+      );
+
+      await this.paymentsService.processMilestonePayment(
+        (newPayment._id as Types.ObjectId).toString(),
+        paymentMethodId,
+      );
+      this.logger.log(
+        `New payment created and processed for milestone ${milestoneId}`,
+      );
+    }
+  }
+
+  private async processPaymentWithNewCardSetup(
+    contractId: string,
+    milestoneId: string,
+    milestone: any,
+    approveMilestoneDto: ApproveMilestoneDto,
+  ) {
+    // Get the contract to find the client ID
+    const contract = await this.contractModel.findById(contractId);
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    // Confirm the setup intent and get the payment method
+    const { paymentMethodId } = await this.paymentMethodsService.confirmSetupIntent(
+      contract.clientId.toString(),
+      approveMilestoneDto.setupIntentId!,
+    );
+
+    // Now process the payment with the new payment method
+    await this.processPaymentWithSavedCard(contractId, milestoneId, milestone, paymentMethodId);
+
+    this.logger.log(`Payment processed for milestone ${milestoneId} with new card setup`);
+  }
+
+  private async createPendingPayment(
+    contractId: string,
+    milestoneId: string,
+    milestone: any,
+  ) {
+    // Create payment record but don't process it yet
+    await this.paymentsService.createMilestonePayment(
+      contractId,
+      milestoneId,
+      milestone.amount,
+      milestone.title,
+    );
+  }
+
+  private async handlePaymentFailure(
+    contractId: string,
+    milestoneId: string,
+    errorMessage: string,
+  ) {
+    // Log payment failure and potentially notify admin
+    this.logger.error(`Payment failed for milestone ${milestoneId}: ${errorMessage}`);
+
+    // You could also create a notification for the client about payment failure
+    // For now, we'll just log it
   }
 
   async rejectMilestone(

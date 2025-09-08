@@ -114,3 +114,11 @@ ContractSchema.index({ clientId: 1 });
 ContractSchema.index({ freelancerId: 1 });
 ContractSchema.index({ status: 1 });
 ContractSchema.index({ createdAt: -1 });
+
+// Compound indexes for common query patterns
+ContractSchema.index({ clientId: 1, status: 1 });
+ContractSchema.index({ freelancerId: 1, status: 1 });
+ContractSchema.index({ projectId: 1, status: 1 });
+ContractSchema.index({ status: 1, createdAt: -1 });
+ContractSchema.index({ clientId: 1, createdAt: -1 });
+ContractSchema.index({ freelancerId: 1, createdAt: -1 });

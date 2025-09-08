@@ -93,3 +93,13 @@ ProjectSchema.index({ budget: 1 });
 ProjectSchema.index({ deadline: 1 });
 ProjectSchema.index({ createdAt: -1 });
 ProjectSchema.index({ publishedAt: -1 });
+
+// Compound indexes for common query patterns
+ProjectSchema.index({ status: 1, category: 1 });
+ProjectSchema.index({ clientId: 1, status: 1 });
+ProjectSchema.index({ status: 1, budgetType: 1 });
+ProjectSchema.index({ category: 1, status: 1 });
+ProjectSchema.index({ 'requiredSkills.skill': 1, status: 1 });
+ProjectSchema.index({ status: 1, publishedAt: -1 });
+ProjectSchema.index({ budget: 1, budgetType: 1 });
+ProjectSchema.index({ status: 1, deadline: 1 });

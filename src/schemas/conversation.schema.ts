@@ -30,12 +30,6 @@ export class Conversation {
   @Prop({ type: [Types.ObjectId], ref: 'User', required: true })
   participants: Types.ObjectId[];
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  participant1: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  participant2: Types.ObjectId;
-
   @Prop({ type: Types.ObjectId, ref: 'Project' })
   projectId: Types.ObjectId;
 
@@ -73,3 +67,9 @@ ConversationSchema.index({ projectId: 1 });
 ConversationSchema.index({ contractId: 1 });
 ConversationSchema.index({ isActive: 1 });
 ConversationSchema.index({ updatedAt: -1 });
+
+// Compound indexes for common query patterns
+ConversationSchema.index({ participants: 1, isActive: 1 });
+ConversationSchema.index({ participants: 1, updatedAt: -1 });
+ConversationSchema.index({ projectId: 1, isActive: 1 });
+ConversationSchema.index({ isActive: 1, updatedAt: -1 });

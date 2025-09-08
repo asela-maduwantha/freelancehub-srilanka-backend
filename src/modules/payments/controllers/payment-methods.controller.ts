@@ -23,6 +23,9 @@ import {
 } from '../dto/payment-methods.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { StripeConnectService } from '../services/stripe-connect.service';
+import { User, UserDocument } from '../../../schemas/user.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 @ApiTags('payment-methods')
 @ApiBearerAuth('JWT-auth')
@@ -32,6 +35,7 @@ export class PaymentMethodsController {
   constructor(
     private readonly paymentMethodsService: PaymentMethodsService,
     private readonly stripeConnectService: StripeConnectService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   @Post('setup-customer')
@@ -199,19 +203,29 @@ export class PaymentMethodsController {
     );
   }
 
-  @Post('confirm-payment')
-  @ApiOperation({ summary: 'Confirm payment' })
+  @Get('debug-stripe')
+  @ApiOperation({ summary: 'Debug Stripe configuration' })
   @ApiResponse({
     status: 200,
-    description: 'Payment confirmed successfully',
+    description: 'Stripe configuration status',
   })
-  async confirmPayment(
-    @Request() req,
-    @Body() confirmPaymentDto: ConfirmPaymentDto,
-  ) {
-    return this.paymentMethodsService.confirmPayment(
-      req.user.userId,
-      confirmPaymentDto,
-    );
+  async debugStripe(@Request() req) {
+    const user = await this.userModel.findById(req.user.userId);
+    
+    return {
+      userId: req.user.userId,
+      hasStripeCustomer: !!user?.stripeCustomerId,
+      stripeCustomerId: user?.stripeCustomerId,
+      savedPaymentMethodsCount: user?.savedPaymentMethods?.length || 0,
+      savedPaymentMethods: user?.savedPaymentMethods?.map(pm => ({
+        id: pm.id,
+        type: pm.type,
+        last4: pm.last4,
+        brand: pm.brand,
+        isDefault: pm.isDefault
+      })) || [],
+      stripeSecretConfigured: !!process.env.STRIPE_SECRET_KEY,
+      stripeSecretPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 10) + '...',
+    };
   }
 }

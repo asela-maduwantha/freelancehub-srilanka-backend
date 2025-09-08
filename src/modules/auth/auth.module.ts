@@ -5,9 +5,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
+import { TokenBlacklistService } from './services/token-blacklist.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { Otp, OtpSchema } from '../../schemas/otp.schema';
+import { TokenBlacklist, TokenBlacklistSchema } from '../../schemas/token-blacklist.schema';
 import { UsersModule } from '../users/users.module';
 import { CommonModule } from '../../common/common.module';
 
@@ -29,12 +31,13 @@ import { CommonModule } from '../../common/common.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Otp.name, schema: OtpSchema },
+      { name: TokenBlacklist.name, schema: TokenBlacklistSchema },
     ]),
     UsersModule, // Import UsersModule instead of providing UsersService directly
     CommonModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule],
+  providers: [AuthService, TokenBlacklistService, JwtStrategy],
+  exports: [AuthService, TokenBlacklistService, JwtModule],
 })
 export class AuthModule {}

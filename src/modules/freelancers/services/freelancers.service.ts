@@ -99,7 +99,7 @@ export class FreelancersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.role !== 'freelancer') {
+    if (!user.role.includes('freelancer')) {
       throw new BadRequestException('User is not a freelancer');
     }
 
@@ -186,7 +186,7 @@ export class FreelancersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.role !== 'freelancer') {
+    if (!user.role.includes('freelancer')) {
       throw new BadRequestException('User is not a freelancer');
     }
 

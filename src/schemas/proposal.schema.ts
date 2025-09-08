@@ -117,3 +117,11 @@ ProposalSchema.index({ projectId: 1 });
 ProposalSchema.index({ freelancerId: 1 });
 ProposalSchema.index({ status: 1 });
 ProposalSchema.index({ submittedAt: -1 });
+
+// Compound indexes for common query patterns
+ProposalSchema.index({ projectId: 1, status: 1 });
+ProposalSchema.index({ freelancerId: 1, status: 1 });
+ProposalSchema.index({ projectId: 1, submittedAt: -1 });
+ProposalSchema.index({ status: 1, submittedAt: -1 });
+ProposalSchema.index({ freelancerId: 1, submittedAt: -1 });
+ProposalSchema.index({ projectId: 1, clientViewed: 1 });

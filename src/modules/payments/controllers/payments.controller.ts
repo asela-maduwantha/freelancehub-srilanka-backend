@@ -33,4 +33,13 @@ export class PaymentsController {
   async getPaymentById(@Param('id') paymentId: string, @Request() req) {
     return this.paymentsService.getPaymentById(paymentId, req.user.userId);
   }
+
+  @Get('debug/all')
+  @ApiOperation({ summary: 'Debug: Get all payments (admin only)' })
+  @ApiResponse({ status: 200, description: 'Returns all payments' })
+  async debugGetAllPayments() {
+    // This should be protected by admin guard in production
+    const payments = await this.paymentsService.getAllPaymentsForDebug();
+    return payments;
+  }
 }

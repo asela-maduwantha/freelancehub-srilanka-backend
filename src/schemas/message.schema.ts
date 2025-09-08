@@ -27,9 +27,6 @@ export class Message {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   receiverId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  recipientId: Types.ObjectId;
-
   @Prop({ required: true })
   content: string;
 
@@ -73,3 +70,9 @@ MessageSchema.index({ senderId: 1 });
 MessageSchema.index({ receiverId: 1 });
 MessageSchema.index({ isRead: 1 });
 MessageSchema.index({ createdAt: -1 });
+
+// Compound indexes for common query patterns
+MessageSchema.index({ conversationId: 1, createdAt: -1 });
+MessageSchema.index({ receiverId: 1, isRead: 1 });
+MessageSchema.index({ senderId: 1, createdAt: -1 });
+MessageSchema.index({ conversationId: 1, isRead: 1 });

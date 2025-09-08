@@ -132,7 +132,7 @@ export class ProposalsService {
       await this.emailService.sendNewProposalNotification(
         client.email,
         project.title,
-        user.name, // Using name instead of firstName/lastName
+        `${user.firstName} ${user.lastName}`, // Using firstName and lastName
         user.email,
       );
 
@@ -142,7 +142,7 @@ export class ProposalsService {
           userId: project.clientId.toString(),
           type: 'proposal',
           title: 'New Proposal Received',
-          content: `${user.name} has submitted a proposal for your project "${project.title}"`,
+          content: `${user.firstName} ${user.lastName} has submitted a proposal for your project "${project.title}"`,
           relatedEntity: {
             entityType: 'proposal',
             entityId: (savedProposal._id as any).toString(),
@@ -440,7 +440,7 @@ export class ProposalsService {
     if (freelancer) {
       await this.emailService.sendProposalAcceptedNotification(
         freelancer.email,
-        freelancer.name, // Using name instead of firstName/lastName
+        `${freelancer.firstName} ${freelancer.lastName}`, // Using firstName and lastName
         project.title,
         acceptProposalDto.message ||
           'Congratulations! Your proposal has been accepted.',
@@ -508,7 +508,7 @@ export class ProposalsService {
     if (freelancer) {
       await this.emailService.sendProposalRejectedNotification(
         freelancer.email,
-        freelancer.name, // Using name instead of firstName/lastName
+        `${freelancer.firstName} ${freelancer.lastName}`, // Using firstName and lastName
         project.title,
         rejectProposalDto.reason ||
           'Your proposal was not selected for this project.',
