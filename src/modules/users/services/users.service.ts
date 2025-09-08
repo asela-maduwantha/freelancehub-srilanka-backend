@@ -289,4 +289,19 @@ export class UsersService {
       role: user.role,
     }));
   }
+
+  async checkUserHasSavedCards(userId: string): Promise<{ hasSavedCards: boolean; cardCount: number }> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const savedCards = user.savedPaymentMethods?.filter(method => method.type === 'card') || [];
+    const hasSavedCards = savedCards.length > 0;
+
+    return {
+      hasSavedCards,
+      cardCount: savedCards.length,
+    };
+  }
 }

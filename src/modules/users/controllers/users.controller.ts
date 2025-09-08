@@ -320,6 +320,29 @@ export class UsersController {
     return this.usersService.getClientProfile(id);
   }
 
+  @Get(':id/has-saved-cards')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('self', 'admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Check if user has saved payment cards' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Card status retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        hasSavedCards: { type: 'boolean', example: true },
+        cardCount: { type: 'number', example: 2 },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async checkUserHasSavedCards(@Param('id') id: string, @Request() req) {
+    return this.usersService.checkUserHasSavedCards(id);
+  }
+
   // Note: Follow/unfollow functionality removed due to clean User schema
   // The following endpoints have been commented out as followers/following were removed
 
