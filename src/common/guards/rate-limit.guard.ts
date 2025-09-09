@@ -7,6 +7,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
 interface RateLimitEntry {
@@ -30,12 +31,21 @@ export class RateLimitGuard implements CanActivate {
   private readonly defaultWindowMs = 15 * 60 * 1000; // 15 minutes
   private readonly defaultMaxRequests = 100; // requests per window
 
-  constructor(private reflector: Reflector) {
+  constructor(
+    private reflector: Reflector,
+    private configService: ConfigService,
+  ) {
     // Clean up expired entries every 5 minutes
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
 
   canActivate(context: ExecutionContext): boolean {
+    // Skip rate limiting in development environment
+    const nodeEnv = this.configService.get<string>('NODE_ENV')|| 'development';
+    if (nodeEnv === 'development') {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const rateLimitOptions =
       this.reflector.get<RateLimitOptions>(

@@ -60,7 +60,7 @@ export class ProposalsService {
 
     // Check if user is a freelancer
     const user = await this.userModel.findById(userId);
-    if (!user || !user.role.includes('freelancer')) {
+    if (!user || user.role !== 'freelancer') {
       throw new ForbiddenException('Only freelancers can submit proposals');
     }
 

@@ -30,6 +30,7 @@ import { RateLimit } from '../../../common/guards/rate-limit.guard';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateFreelancerProfileDto } from '../dto/update-freelancer-profile.dto';
 import { UpdateClientProfileDto } from '../dto/update-client-profile.dto';
+import { CreateClientProfileDto } from '../../../dto/client-profile.dto';
 import { ForbiddenException } from '../../../common/exceptions';
 
 @ApiTags('users')
@@ -106,6 +107,42 @@ export class UsersController {
     );
   }
 
+  @Post('client-profile')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit({ requests: 5, windowMs: 3600000 }) // 5 profile creations per hour
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create client profile' })
+  @ApiResponse({
+    status: 201,
+    description: 'Client profile created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { type: 'object' },
+        message: { type: 'string', example: 'Client profile created successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error or profile already exists' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - user is not a client' })
+  async createClientProfile(
+    @Request() req,
+    @Body() createClientProfileDto: CreateClientProfileDto,
+  ) {
+    const profile = await this.usersService.createClientProfile(
+      req.user.userId,
+      createClientProfileDto,
+    );
+
+    return {
+      success: true,
+      data: profile,
+      message: 'Client profile created successfully',
+    };
+  }
+
   @Put('client-profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -134,6 +171,35 @@ export class UsersController {
       req.user.userId,
       updateClientProfileDto,
     );
+  }
+
+  @Get('client-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get authenticated user\'s client profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Client profile retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { type: 'object' },
+        message: { type: 'string', example: 'Client profile retrieved successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - user is not a client' })
+  @ApiResponse({ status: 404, description: 'Client profile not found' })
+  async getClientProfile(@Request() req) {
+    const profile = await this.usersService.getClientProfile(req.user.userId);
+
+    return {
+      success: true,
+      data: profile,
+      message: 'Client profile retrieved successfully',
+    };
   }
 
   @Get('freelancers')

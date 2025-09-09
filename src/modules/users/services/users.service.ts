@@ -74,7 +74,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.role.includes('freelancer')) {
+    if (user.role !== 'freelancer') {
       throw new BadRequestException('User is not a freelancer');
     }
 
@@ -103,7 +103,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.role.includes('client')) {
+    if (user.role !== 'client') {
       throw new BadRequestException('User is not a client');
     }
 
@@ -114,6 +114,30 @@ export class UsersService {
     );
 
     return profile;
+  }
+
+  async createClientProfile(userId: string, createData: any) {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== 'client') {
+      throw new BadRequestException('User is not a client');
+    }
+
+    // Check if profile already exists
+    const existingProfile = await this.clientProfileModel.findOne({ userId });
+    if (existingProfile) {
+      throw new BadRequestException('Client profile already exists');
+    }
+
+    const profile = new this.clientProfileModel({
+      ...createData,
+      userId,
+    });
+
+    return await profile.save();
   }
 
   async getFreelancers(query: any): Promise<PaginatedResponse<any>> {

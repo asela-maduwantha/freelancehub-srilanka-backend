@@ -31,8 +31,8 @@ export class User {
   @Prop()
   profilePicture: string;
 
-  @Prop({ required: true, type: [String], enum: ['freelancer', 'client'] })
-  role: string[];
+  @Prop({ required: true, enum: ['freelancer', 'client'] })
+  role: string;
 
   @Prop({ default: true })
   isActive: boolean;
@@ -115,7 +115,7 @@ export class User {
 
   // Check if user has specific role
   hasRole(role: string): boolean {
-    return this.role.includes(role);
+    return this.role === role;
   }
 }
 
@@ -129,7 +129,7 @@ UserSchema.virtual('fullName').get(function() {
 
 // Add instance methods
 UserSchema.methods.hasRole = function(role: string): boolean {
-  return this.role.includes(role);
+  return this.role === role;
 };
 
 UserSchema.methods.isAccountLocked = function(): boolean {

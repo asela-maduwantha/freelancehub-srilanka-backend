@@ -39,7 +39,7 @@ export class AuthService {
       throw new BadRequestException('User already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12); // Increased salt rounds
+    const hashedPassword = await bcrypt.hash(password, 12); 
     const otpCode = this.generateSecureOtp();
     const otpExpiry = new Date(
       Date.now() +
@@ -52,7 +52,7 @@ export class AuthService {
       lastName,
       email,
       password: hashedPassword,
-      role: Array.isArray(role) ? role : [role], // Ensure role is an array
+      role: role, // Single role
     });
 
     await user.save();
@@ -298,13 +298,13 @@ export class AuthService {
   }
 
   /**
-   * Generate secure alphanumeric OTP (8 characters)
+   * Generate secure 6-digit numeric OTP
    */
   private generateSecureOtp(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const digits = '0123456789';
     let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(crypto.randomInt(0, chars.length));
+    for (let i = 0; i < 6; i++) {
+      result += digits.charAt(crypto.randomInt(0, digits.length));
     }
     return result;
   }

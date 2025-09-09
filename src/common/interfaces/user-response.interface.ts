@@ -4,7 +4,7 @@ export interface StandardUserResponse {
   firstName: string;
   lastName: string;
   fullName: string;
-  role: string[];
+  role: string;
   profilePicture?: string;
   isActive: boolean;
   emailVerified: boolean;
@@ -27,7 +27,7 @@ export function createUserResponse(user: any): StandardUserResponse {
     firstName: user.firstName,
     lastName: user.lastName,
     fullName: `${user.firstName} ${user.lastName}`,
-    role: Array.isArray(user.role) ? user.role : [user.role],
+    role: user.role,
     profilePicture: user.profilePicture,
     isActive: user.isActive,
     emailVerified: user.emailVerified,

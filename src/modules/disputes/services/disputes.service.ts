@@ -216,7 +216,7 @@ export class DisputesService {
     // For now, only allow status updates by admin users
     // In a real application, you'd check for admin role
     const user = await this.userModel.findById(userId);
-    if (!user || !user.role.includes('admin')) {
+    if (!user || user.role !== 'admin') {
       throw new ForbiddenException(
         'Only administrators can update dispute status',
       );
@@ -239,7 +239,7 @@ export class DisputesService {
 
     // For now, only allow resolution by admin users
     const user = await this.userModel.findById(userId);
-    if (!user || !user.role.includes('admin')) {
+    if (!user || user.role !== 'admin') {
       throw new ForbiddenException('Only administrators can resolve disputes');
     }
 

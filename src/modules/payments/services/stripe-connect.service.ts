@@ -37,7 +37,7 @@ export class StripeConnectService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.role.includes('freelancer')) {
+    if (user.role !== 'freelancer') {
       throw new BadRequestException(
         'Only freelancers can create Stripe accounts',
       );

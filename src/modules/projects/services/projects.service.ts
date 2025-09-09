@@ -26,7 +26,7 @@ export class ProjectsService {
     createProjectDto: CreateProjectDto,
   ): Promise<Project> {
     const user = await this.usersService.getUserById(clientId);
-    if (!user.role.includes('client')) {
+    if (user.role !== 'client') {
       throw new ForbiddenException('Only clients can create projects');
     }
 

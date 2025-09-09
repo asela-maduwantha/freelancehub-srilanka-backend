@@ -50,14 +50,13 @@ export class RolesGuard implements CanActivate {
     }
 
     // Check for admin access
-    if (user.role?.includes('admin')) {
+    if (user.role === 'admin') {
       return true;
     }
 
     // Check for specific role access
-    const userRoles = Array.isArray(user.role) ? user.role : [user.role];
     const hasRole = requiredRoles.some(
-      (role) => role !== 'self' && userRoles.includes(role),
+      (role) => role !== 'self' && user.role === role,
     );
 
     if (!hasRole) {

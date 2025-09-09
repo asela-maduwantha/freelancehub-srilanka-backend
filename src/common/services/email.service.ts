@@ -95,7 +95,7 @@ export class EmailService {
       from: this.fromEmail,
       to,
       subject: '🔐 Verify Your Email - FreelanceHub',
-      text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`,
+      text: `Your 6-digit OTP code is: ${otp}. It will expire in 10 minutes.`,
       html: this.getBaseTemplate(
         'Verify Your Email',
         content,

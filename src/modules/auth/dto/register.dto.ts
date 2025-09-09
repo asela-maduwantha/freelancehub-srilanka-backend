@@ -50,13 +50,11 @@ export class RegisterDto {
   password: string;
 
     @ApiProperty({
-    description: 'User role(s)',
-    example: ['freelancer'],
-    type: [String],
+    description: 'User role',
+    example: 'freelancer',
     enum: ['freelancer', 'client'],
   })
-  @IsArray()
-  @IsString({ each: true })
-  @IsIn(['freelancer', 'client'], { each: true })
-  role: string[];
+  @IsString()
+  @IsIn(['freelancer', 'client'])
+  role: string;
 }

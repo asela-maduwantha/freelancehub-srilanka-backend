@@ -93,8 +93,8 @@ export class UserAnalyticsService {
       throw new Error('User not found');
     }
 
-    const isFreelancer = user.role.includes('freelancer');
-    const isClient = user.role.includes('client');
+    const isFreelancer = user.role === 'freelancer';
+    const isClient = user.role === 'client';
 
     // Basic project metrics
     const totalProjects = await this.getTotalProjects(
@@ -456,7 +456,7 @@ export class UserAnalyticsService {
     });
 
     // Role-specific fields
-    if (user.role.includes('freelancer')) {
+    if (user.role === 'freelancer') {
       const freelancerProfile = await this.freelancerProfileModel.findOne({
         userId: user._id,
       });
@@ -473,7 +473,7 @@ export class UserAnalyticsService {
       });
     }
 
-    if (user.role.includes('client')) {
+    if (user.role === 'client') {
       const clientProfile = await this.clientProfileModel.findOne({
         userId: user._id,
       });
