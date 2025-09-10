@@ -603,9 +603,15 @@ export class AdminController {
     return fees;
   }
 
-  // Analytics endpoints
-  @Get('analytics/projects')
-  @ApiOperation({ summary: 'Get project analytics' })
+  // Consolidated Analytics endpoint
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get admin analytics' })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['projects', 'contracts', 'payments', 'all'],
+    description: 'Type of analytics to retrieve',
+  })
   @ApiQuery({
     name: 'period',
     required: false,
@@ -614,127 +620,54 @@ export class AdminController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Project analytics retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        period: { type: 'string' },
-        totalProjects: { type: 'number' },
-        activeProjects: { type: 'number' },
-        completedProjects: { type: 'number' },
-        cancelledProjects: { type: 'number' },
-        averageBudget: { type: 'number' },
-        popularCategories: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              category: { type: 'string' },
-              count: { type: 'number' },
-            },
-          },
-        },
-      },
-    },
+    description: 'Analytics retrieved successfully',
   })
-  async getProjectAnalytics(@Query('period') period: string = 'month') {
-    // Return project analytics - in real app, this would aggregate from database
-    return {
-      period,
-      totalProjects: 150,
-      activeProjects: 45,
-      completedProjects: 89,
-      cancelledProjects: 16,
-      averageBudget: 1250,
-      popularCategories: [
-        { category: 'Web Development', count: 45 },
-        { category: 'Mobile Development', count: 32 },
-        { category: 'Design', count: 28 },
-      ],
-    };
-  }
+  async getAnalytics(
+    @Query('type') type: string = 'all',
+    @Query('period') period: string = 'month'
+  ) {
+    const result: any = { period };
 
-  @Get('analytics/contracts')
-  @ApiOperation({ summary: 'Get contract analytics' })
-  @ApiQuery({
-    name: 'period',
-    required: false,
-    enum: ['day', 'week', 'month', 'year'],
-    description: 'Time period for analytics',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Contract analytics retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        period: { type: 'string' },
-        totalContracts: { type: 'number' },
-        activeContracts: { type: 'number' },
-        completedContracts: { type: 'number' },
-        disputedContracts: { type: 'number' },
-        averageDuration: {
-          type: 'number',
-          description: 'Average duration in days',
-        },
-        averageValue: { type: 'number' },
-        successRate: { type: 'number', description: 'Success rate percentage' },
-      },
-    },
-  })
-  async getContractAnalytics(@Query('period') period: string = 'month') {
-    return {
-      period,
-      totalContracts: 120,
-      activeContracts: 35,
-      completedContracts: 75,
-      disputedContracts: 10,
-      averageDuration: 25, // days
-      averageValue: 2100,
-      successRate: 85, // percentage
-    };
-  }
+    if (type === 'projects' || type === 'all') {
+      result.projects = {
+        totalProjects: 150,
+        activeProjects: 45,
+        completedProjects: 89,
+        cancelledProjects: 16,
+        averageBudget: 1250,
+        popularCategories: [
+          { category: 'Web Development', count: 45 },
+          { category: 'Mobile Development', count: 32 },
+          { category: 'Design', count: 28 },
+        ],
+      };
+    }
 
-  @Get('analytics/payments')
-  @ApiOperation({ summary: 'Get payment analytics' })
-  @ApiQuery({
-    name: 'period',
-    required: false,
-    enum: ['day', 'week', 'month', 'year'],
-    description: 'Time period for analytics',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Payment analytics retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        period: { type: 'string' },
-        totalPayments: { type: 'number' },
-        totalVolume: { type: 'number' },
-        averagePayment: { type: 'number' },
+    if (type === 'contracts' || type === 'all') {
+      result.contracts = {
+        totalContracts: 120,
+        activeContracts: 35,
+        completedContracts: 75,
+        disputedContracts: 10,
+        averageDuration: 25, // days
+        averageValue: 2100,
+        successRate: 85, // percentage
+      };
+    }
+
+    if (type === 'payments' || type === 'all') {
+      result.payments = {
+        totalPayments: 95,
+        totalVolume: 185000,
+        averagePayment: 1947,
         paymentMethods: {
-          type: 'object',
-          properties: {
-            stripe: { type: 'number' },
-            paypal: { type: 'number' },
-          },
+          stripe: 85,
+          paypal: 10,
         },
-        currency: { type: 'string' },
-      },
-    },
-  })
-  async getPaymentAnalytics(@Query('period') period: string = 'month') {
-    return {
-      period,
-      totalPayments: 95,
-      totalVolume: 185000,
-      averagePayment: 1947,
-      paymentMethods: {
-        stripe: 85,
-        paypal: 10,
-      },
-      currency: 'USD',
-    };
+        currency: 'USD',
+      };
+    }
+
+    return result;
   }
 }

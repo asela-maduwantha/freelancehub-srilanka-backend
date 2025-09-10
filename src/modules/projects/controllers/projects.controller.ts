@@ -186,22 +186,6 @@ export class ProjectsController {
     );
   }
 
-  @Get('my-proposals')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('freelancer')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: "Get current user's proposals (freelancer view)" })
-  @ApiResponse({
-    status: 200,
-    description: 'Freelancer proposals retrieved successfully',
-  })
-  async getFreelancerProposals(
-    @Request() req: AuthenticatedRequest,
-    @Query() query: ProjectQuery,
-  ) {
-    return this.proposalsService.getUserProposals(req.user.userId);
-  }
-
   @Get('assigned')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('freelancer')

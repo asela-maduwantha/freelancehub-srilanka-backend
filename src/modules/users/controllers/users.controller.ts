@@ -341,51 +341,6 @@ export class UsersController {
     return this.usersService.getUserById(id);
   }
 
-  @Get(':id/profile')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('self', 'admin')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get user profile by ID' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User profile retrieved successfully',
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserProfile(@Param('id') id: string, @Request() req) {
-    return this.usersService.getProfile(id);
-  }
-
-  @Get(':id/freelancer-profile')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('self', 'admin')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get freelancer profile by user ID' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Freelancer profile retrieved successfully',
-  })
-  @ApiResponse({ status: 404, description: 'Freelancer profile not found' })
-  async getFreelancerProfileById(@Param('id') id: string, @Request() req) {
-    return this.usersService.getFreelancerProfile(id);
-  }
-
-  @Get(':id/client-profile')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('self', 'admin')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get client profile by user ID' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Client profile retrieved successfully',
-  })
-  @ApiResponse({ status: 404, description: 'Client profile not found' })
-  async getClientProfileById(@Param('id') id: string, @Request() req) {
-    return this.usersService.getClientProfile(id);
-  }
-
   @Get(':id/has-saved-cards')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('self', 'admin')
@@ -409,93 +364,14 @@ export class UsersController {
     return this.usersService.checkUserHasSavedCards(id);
   }
 
-  // Note: Follow/unfollow functionality removed due to clean User schema
-  // The following endpoints have been commented out as followers/following were removed
-
-  /*
-  @Post(':id/follow')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Follow a user' })
-  @ApiParam({ name: 'id', description: 'User ID to follow' })
-  @ApiResponse({
-    status: 200,
-    description: 'User followed successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'User followed successfully' },
-      },
-    },
-  })
-  @ApiResponse({ status: 400, description: 'Cannot follow yourself' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async followUser(@Request() req, @Param('id') userId: string) {
-    return this.usersService.followUser(req.user.userId, userId);
-  }
-
-  @Delete(':id/follow')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Unfollow a user' })
-  @ApiParam({ name: 'id', description: 'User ID to unfollow' })
-  @ApiResponse({
-    status: 200,
-    description: 'User unfollowed successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'User unfollowed successfully' },
-      },
-    },
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async unfollowUser(@Request() req, @Param('id') userId: string) {
-    return this.usersService.unfollowUser(req.user.userId, userId);
-  }
-
-  @Get(':id/followers')
-  @ApiOperation({ summary: 'Get user followers' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Followers retrieved successfully',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          firstName: { type: 'string' },
-          lastName: { type: 'string' },
-          profilePicture: { type: 'string' },
-        },
-      },
-    },
-  })
-  async getFollowers(@Param('id') userId: string) {
-    return this.usersService.getFollowers(userId);
-  }
-
-  @Get(':id/following')
-  @ApiOperation({ summary: 'Get users followed by user' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Following list retrieved successfully',
-  })
-  async getFollowing(@Param('id') userId: string) {
-    return this.usersService.getFollowing(userId);
-  }
-  */
-
   @Get(':id/analytics')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // Cache for 5 minutes
-  @ApiOperation({ summary: 'Get user analytics' })
+  @ApiOperation({ summary: 'Get user analytics (supports role-specific analytics)' })
   @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiQuery({ name: 'role', required: false, description: 'Analytics role filter (freelancer/client)', enum: ['freelancer', 'client'] })
   @ApiResponse({
     status: 200,
     description: 'User analytics retrieved successfully',
@@ -576,92 +452,51 @@ export class UsersController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserAnalytics(@Request() req, @Param('id') userId: string) {
+  async getUserAnalytics(@Request() req, @Param('id') userId: string, @Query('role') role?: string) {
     // Users can only view their own analytics
     if (req.user.userId !== userId) {
       throw new ForbiddenException('You can only view your own analytics');
     }
 
-    const analytics =
-      await this.userAnalyticsService.calculateUserAnalytics(userId);
-    return {
-      overview: {
-        totalProjects: analytics.totalProjects,
-        activeProjects: analytics.activeProjects,
-        completedProjects: analytics.completedProjects,
-        completionRate: analytics.completionRate,
-        avgRating: analytics.avgRating,
-      },
-      financial: {
-        totalEarnings: analytics.totalEarnings,
-        totalSpent: analytics.totalSpent,
-        monthlyEarnings: analytics.monthlyEarnings,
-      },
-      engagement: {
-        profileViews: analytics.profileViews,
-        profileCompletion: analytics.profileCompletion,
-        responseRate: analytics.responseRate,
-        responseTime: analytics.responseTime,
-      },
-      performance: {
-        onTimeDelivery: analytics.onTimeDelivery,
-        clientSatisfaction: analytics.clientSatisfaction,
-        repeatClients: analytics.repeatClients,
-      },
-      trends: {
-        ratingTrend: analytics.ratingTrend,
-        activityTrend: analytics.activityTrend,
-      },
-    };
-  }
-
-  @Get(':id/analytics/freelancer')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(300) // Cache for 5 minutes
-  @ApiOperation({ summary: 'Get freelancer-specific analytics' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Freelancer analytics retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'User is not a freelancer' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getFreelancerAnalytics(@Request() req, @Param('id') userId: string) {
-    // Users can only view their own analytics
-    if (req.user.userId !== userId) {
-      throw new ForbiddenException('You can only view your own analytics');
+    // Get analytics based on specified role or user's active role
+    if (role === 'freelancer' || (!role && req.user.activeRole === 'freelancer')) {
+      const analytics = await this.userAnalyticsService.calculateFreelancerAnalytics(userId);
+      return analytics;
+    } else if (role === 'client' || (!role && req.user.activeRole === 'client')) {
+      const analytics = await this.userAnalyticsService.calculateClientAnalytics(userId);
+      return analytics;
+    } else {
+      // General analytics
+      const analytics = await this.userAnalyticsService.calculateUserAnalytics(userId);
+      return {
+        overview: {
+          totalProjects: analytics.totalProjects,
+          activeProjects: analytics.activeProjects,
+          completedProjects: analytics.completedProjects,
+          completionRate: analytics.completionRate,
+          avgRating: analytics.avgRating,
+        },
+        financial: {
+          totalEarnings: analytics.totalEarnings,
+          totalSpent: analytics.totalSpent,
+          monthlyEarnings: analytics.monthlyEarnings,
+        },
+        engagement: {
+          profileViews: analytics.profileViews,
+          profileCompletion: analytics.profileCompletion,
+          responseRate: analytics.responseRate,
+          responseTime: analytics.responseTime,
+        },
+        performance: {
+          onTimeDelivery: analytics.onTimeDelivery,
+          clientSatisfaction: analytics.clientSatisfaction,
+          repeatClients: analytics.repeatClients,
+        },
+        trends: {
+          ratingTrend: analytics.ratingTrend,
+          activityTrend: analytics.activityTrend,
+        },
+      };
     }
-
-    const analytics =
-      await this.userAnalyticsService.calculateFreelancerAnalytics(userId);
-    return analytics;
-  }
-
-  @Get(':id/analytics/client')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(300) // Cache for 5 minutes
-  @ApiOperation({ summary: 'Get client-specific analytics' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Client analytics retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'User is not a client' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getClientAnalytics(@Request() req, @Param('id') userId: string) {
-    // Users can only view their own analytics
-    if (req.user.userId !== userId) {
-      throw new ForbiddenException('You can only view your own analytics');
-    }
-
-    const analytics =
-      await this.userAnalyticsService.calculateClientAnalytics(userId);
-    return analytics;
   }
 }

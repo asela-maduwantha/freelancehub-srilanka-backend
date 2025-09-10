@@ -855,61 +855,6 @@ export class ContractsController {
     );
   }
 
-  // Note: Contract approval workflow endpoints removed due to clean Contract schema
-  // The approval workflow was simplified in the clean architecture
-
-  /*
-  @Post(':id/approve/client')
-  @ApiOperation({ summary: 'Client approves contract' })
-  @ApiParam({ name: 'id', description: 'Contract ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Contract approved by client',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Contract approved by client successfully' },
-        contract: { type: 'object' },
-      },
-    },
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
-  async approveContractByClient(@Param('id') contractId: string, @Request() req) {
-    return this.contractsService.approveContractByClient(contractId, req.user.userId);
-  }
-
-  @Post(':id/approve/freelancer')
-  @ApiOperation({ summary: 'Freelancer approves contract' })
-  @ApiParam({ name: 'id', description: 'Contract ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Contract approved by freelancer',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Contract approved by freelancer successfully' },
-        contract: { type: 'object' },
-      },
-    },
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden - not authorized' })
-  async approveContractByFreelancer(@Param('id') contractId: string, @Request() req) {
-    return this.contractsService.approveContractByFreelancer(contractId, req.user.userId);
-  }
-
-  @Get(':id/freelancer-view')
-  @ApiOperation({ summary: 'Get contract for freelancer (only after client approval)' })
-  @ApiParam({ name: 'id', description: 'Contract ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Contract details for freelancer',
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden - not authorized or client not approved yet' })
-  async getContractForFreelancer(@Param('id') contractId: string, @Request() req) {
-    return this.contractsService.getContractForFreelancer(contractId, req.user.userId);
-  }
-  */
-
   @Get(':id/download-pdf')
   @ApiOperation({ summary: 'Download contract PDF' })
   @ApiParam({ name: 'id', description: 'Contract ID' })
@@ -942,50 +887,5 @@ export class ContractsController {
     });
 
     res.send(pdfBuffer);
-  }
-
-  @Post(':id/sign/client')
-  @ApiOperation({ summary: 'Sign contract by client' })
-  @ApiParam({ name: 'id', description: 'Contract ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Contract signed by client successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string' },
-      },
-    },
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden - only client can sign' })
-  @ApiResponse({ status: 404, description: 'Contract not found' })
-  async signContractByClient(@Param('id') contractId: string, @Request() req) {
-    return this.contractsService.signContractByClient(
-      contractId,
-      req.user.userId,
-    );
-  }
-
-  @Post(':id/sign/freelancer')
-  @ApiOperation({ summary: 'Sign contract by freelancer' })
-  @ApiParam({ name: 'id', description: 'Contract ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Contract signed by freelancer successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string' },
-      },
-    },
-  })
-  async signContractByFreelancer(
-    @Param('id') contractId: string,
-    @Request() req,
-  ) {
-    return this.contractsService.signContractByFreelancer(
-      contractId,
-      req.user.userId,
-    );
   }
 }
