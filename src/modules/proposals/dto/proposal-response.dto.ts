@@ -1,4 +1,3 @@
-// src/modules/proposals/dto/proposal-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ProposalStatus } from '../../../common/enums/proposal-status.enum';

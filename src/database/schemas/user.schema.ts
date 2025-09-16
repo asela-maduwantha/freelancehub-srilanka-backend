@@ -1,4 +1,3 @@
-// src/database/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { UserRole } from '../../common/enums/user-role.enum';

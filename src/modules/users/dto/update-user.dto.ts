@@ -1,4 +1,3 @@
-// src/modules/users/dto/update-user.dto.ts
 import {
   IsOptional,
   IsString,

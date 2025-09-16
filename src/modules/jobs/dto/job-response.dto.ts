@@ -1,4 +1,3 @@
-// src/modules/jobs/dto/job-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { JobStatus } from '../../../common/enums/job-status.enum';

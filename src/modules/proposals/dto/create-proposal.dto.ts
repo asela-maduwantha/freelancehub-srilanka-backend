@@ -1,4 +1,3 @@
-// src/modules/proposals/dto/create-proposal.dto.ts
 import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsArray, ValidateNested, Min, IsMongoId } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';

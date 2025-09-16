@@ -27,7 +27,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  // Get configuration values
+
   const port = configService.get('PORT', 3000);
   const apiPrefix = configService.get('API_PREFIX', 'api');
   const corsOrigins = configService.get('app').corsOrigins;

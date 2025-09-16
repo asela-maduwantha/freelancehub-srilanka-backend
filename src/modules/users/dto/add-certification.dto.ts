@@ -1,4 +1,3 @@
-// src/modules/users/dto/add-certification.dto.ts
 import { IsNotEmpty, IsString, IsDateString, IsOptional, IsUrl } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

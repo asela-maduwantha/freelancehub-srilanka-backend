@@ -1,4 +1,3 @@
-// src/modules/users/dto/update-education.dto.ts
 import { IsOptional, IsString, IsNumber, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 

@@ -1,4 +1,3 @@
-// src/database/schemas/payment.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';

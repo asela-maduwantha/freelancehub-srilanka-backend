@@ -1,4 +1,3 @@
-// src/modules/users/dto/user-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../../../common/enums/user-role.enum';
 

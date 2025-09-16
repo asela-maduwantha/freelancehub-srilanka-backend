@@ -1,4 +1,3 @@
-// src/modules/jobs/jobs.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -23,6 +22,7 @@ import {
 import { JobStatus } from '../../common/enums/job-status.enum';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import { ProposalsService } from '../proposals/proposals.service';
+import { UsersService } from '../users/users.service';
 import { SavedJob } from '../../database/schemas/saved-job.schema';
 import { JobReport, ReportReason } from '../../database/schemas/job-report.schema';
 
@@ -31,11 +31,11 @@ export class JobsService {
   constructor(
     @InjectModel(Job.name) private readonly jobModel: Model<Job>,
     private readonly proposalsService: ProposalsService,
+    private readonly usersService: UsersService,
     @InjectModel(SavedJob.name) private readonly savedJobModel: Model<SavedJob>,
     @InjectModel(JobReport.name) private readonly jobReportModel: Model<JobReport>,
   ) {}
 
-  // Create a new job
   async create(
     createJobDto: CreateJobDto,
     clientId: string,
@@ -58,7 +58,6 @@ export class JobsService {
     return this.mapToJobResponseDto(populatedJob);
   }
 
-  // Get all jobs with pagination and filtering
   async findAll(
     page: number = 1,
     limit: number = 10,
@@ -69,7 +68,6 @@ export class JobsService {
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Build filter
     const filter: any = {};
     if (status) filter.status = status;
     if (category) filter.category = category;
@@ -105,7 +103,6 @@ export class JobsService {
     };
   }
 
-  // Get a job by ID
   async findOne(id: string, clientId?: string): Promise<JobResponseDto> {
     const job = await this.jobModel
       .findById(id)
@@ -121,7 +118,6 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // If job is not active and requester is not the owner, don't show
     if (job.status !== JobStatus.OPEN && job.clientId?._id?.toString() !== clientId) {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
@@ -129,7 +125,8 @@ export class JobsService {
     return this.mapToJobResponseDto(job);
   }
 
-  // Update a job
+
+
   async update(
     id: string,
     updateJobDto: UpdateJobDto,
@@ -140,28 +137,22 @@ export class JobsService {
     if (!job) {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
-
-    // Check if user is the owner
     if (job.clientId.toString() !== clientId) {
       throw new ForbiddenException(RESPONSE_MESSAGES.JOB.UNAUTHORIZED);
     }
 
-    // Check if job can be modified
     if (job.status !== JobStatus.DRAFT && job.status !== JobStatus.OPEN) {
       throw new BadRequestException(RESPONSE_MESSAGES.JOB.CANNOT_MODIFY);
     }
 
-    // Update job - only update provided fields
     const updateData: any = {};
-    
-    // Helper function to add to updateData if value is not undefined
+
     const addIfDefined = (key: string, value: any) => {
       if (value !== undefined) {
         updateData[key] = value;
       }
     };
 
-    // Add simple fields
     addIfDefined('title', updateJobDto.title);
     addIfDefined('description', updateJobDto.description);
     addIfDefined('category', updateJobDto.category);
@@ -175,12 +166,10 @@ export class JobsService {
     addIfDefined('maxProposals', updateJobDto.maxProposals);
     addIfDefined('expiresAt', updateJobDto.expiresAt);
 
-    // Handle budget subdocument - only update if all required fields are provided
     if (updateJobDto.budget !== undefined) {
       if (updateJobDto.budget.type !== undefined && updateJobDto.budget.min !== undefined) {
         updateData.budget = updateJobDto.budget;
       } else {
-        // Update individual budget fields
         if (updateJobDto.budget.type !== undefined) {
           updateData['budget.type'] = updateJobDto.budget.type;
         }
@@ -196,24 +185,20 @@ export class JobsService {
       }
     }
 
-    // Handle duration subdocument - only update if all required fields are provided
     if (updateJobDto.duration !== undefined) {
       if (updateJobDto.duration.type !== undefined) {
         updateData.duration = updateJobDto.duration;
       } else {
-        // Update individual duration fields
         if (updateJobDto.duration.estimatedHours !== undefined) {
           updateData['duration.estimatedHours'] = updateJobDto.duration.estimatedHours;
         }
       }
     }
 
-    // Handle location subdocument - only update if all required fields are provided
     if (updateJobDto.location !== undefined) {
       if (updateJobDto.location.type !== undefined) {
         updateData.location = updateJobDto.location;
       } else {
-        // Update individual location fields
         if (updateJobDto.location.countries !== undefined) {
           updateData['location.countries'] = updateJobDto.location.countries;
         }
@@ -223,7 +208,6 @@ export class JobsService {
       }
     }
 
-    // Update the job using findByIdAndUpdate with $set
     const updatedJob = await this.jobModel
       .findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true })
       .populate('clientId', 'email profile.firstName profile.lastName')
@@ -236,7 +220,6 @@ export class JobsService {
     return this.mapToJobResponseDto(updatedJob);
   }
 
-  // Delete a job
   async remove(id: string, clientId: string): Promise<MessageResponseDto> {
     const job = await this.jobModel.findById(id).exec();
 
@@ -244,12 +227,10 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if user is the owner
     if (job.clientId.toString() !== clientId) {
       throw new ForbiddenException(RESPONSE_MESSAGES.JOB.UNAUTHORIZED);
     }
 
-    // Check if job can be deleted
     if (job.status !== JobStatus.DRAFT && job.status !== JobStatus.CANCELLED) {
       throw new BadRequestException(RESPONSE_MESSAGES.JOB.CANNOT_MODIFY);
     }
@@ -259,7 +240,6 @@ export class JobsService {
     return { message: RESPONSE_MESSAGES.JOB.DELETED };
   }
 
-  // Get all jobs posted by current client
   async findMyJobs(
     page: number = 1,
     limit: number = 10,
@@ -268,7 +248,6 @@ export class JobsService {
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Build filter
     const filter: any = { clientId };
     if (status) filter.status = status;
 
@@ -295,7 +274,6 @@ export class JobsService {
     };
   }
 
-  // Close job to new proposals
   async closeJob(id: string, clientId: string): Promise<MessageResponseDto> {
     const job = await this.jobModel.findById(id).exec();
 
@@ -303,23 +281,19 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if user is the owner
     if (job.clientId.toString() !== clientId) {
       throw new ForbiddenException(RESPONSE_MESSAGES.JOB.UNAUTHORIZED);
     }
 
-    // Check if job can be closed
     if (job.status !== JobStatus.OPEN) {
       throw new BadRequestException('Job is not open and cannot be closed');
     }
 
-    // Update job status to completed (since it's closed to new proposals)
     await this.jobModel.findByIdAndUpdate(id, { status: JobStatus.COMPLETED }).exec();
 
     return { message: 'Job closed successfully' };
   }
 
-  // Reopen job for proposals
   async reopenJob(id: string, clientId: string): Promise<MessageResponseDto> {
     const job = await this.jobModel.findById(id).exec();
 
@@ -327,23 +301,20 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if user is the owner
     if (job.clientId.toString() !== clientId) {
       throw new ForbiddenException(RESPONSE_MESSAGES.JOB.UNAUTHORIZED);
     }
 
-    // Check if job can be reopened
     if (job.status !== JobStatus.COMPLETED) {
       throw new BadRequestException('Only completed jobs can be reopened');
     }
 
-    // Update job status back to open
+
     await this.jobModel.findByIdAndUpdate(id, { status: JobStatus.OPEN }).exec();
 
     return { message: 'Job reopened successfully' };
   }
 
-  // Get featured jobs
   async findFeaturedJobs(
     page: number = 1,
     limit: number = 10,
@@ -379,7 +350,6 @@ export class JobsService {
     };
   }
 
-  // Get recent jobs
   async findRecentJobs(
     page: number = 1,
     limit: number = 10,
@@ -387,7 +357,6 @@ export class JobsService {
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
     
-    // Calculate date threshold
     const dateThreshold = new Date();
     dateThreshold.setDate(dateThreshold.getDate() - days);
 
@@ -420,7 +389,6 @@ export class JobsService {
     };
   }
 
-  // Get jobs by category
   async findJobsByCategory(
     category: string,
     page: number = 1,
@@ -457,7 +425,6 @@ export class JobsService {
     };
   }
 
-  // Get recommended jobs for freelancer
   async findRecommendedJobs(
     freelancerId: string,
     page: number = 1,
@@ -465,22 +432,70 @@ export class JobsService {
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Get freelancer's skills (this would need to be injected or accessed differently)
-    // For now, we'll implement a basic version that prioritizes jobs based on skills matching
-    // In a real implementation, you'd want to get the freelancer's profile and skills
-    
+    const freelancer = await this.usersService.getCurrentUser(freelancerId);
+    const freelancerSkills = freelancer.freelancerData?.skills || [];
+
     const filter = { 
       status: JobStatus.OPEN,
       deletedAt: { $exists: false }
     };
 
-    // For now, just return recent jobs as "recommended"
-    // In a full implementation, you'd match against freelancer's skills
-    const [jobs, total] = await Promise.all([
-      this.jobModel
-        .find(filter)
+    let jobsQuery = this.jobModel
+      .find(filter)
+      .populate('clientId', 'email profile.firstName profile.lastName')
+      .lean();
+
+    if (freelancerSkills.length > 0) {
+      const skillRegex = new RegExp(freelancerSkills.join('|'), 'i');
+      
+      const skillMatchedJobs = await this.jobModel
+        .find({
+          ...filter,
+          skills: { $in: freelancerSkills.map(skill => new RegExp(skill, 'i')) }
+        })
         .populate('clientId', 'email profile.firstName profile.lastName')
         .lean()
+        .sort({ postedAt: -1, isUrgent: -1, isFeatured: -1 })
+        .limit(limit * 2) 
+        .exec();
+
+      if (skillMatchedJobs.length > 0) {
+        const scoredJobs = skillMatchedJobs.map(job => {
+          const jobSkills = Array.isArray(job.skills) ? job.skills : [];
+          const matchingSkills = jobSkills.filter((jobSkill: string) => 
+            freelancerSkills.some(freelancerSkill => 
+              freelancerSkill.toLowerCase().includes(jobSkill.toLowerCase()) ||
+              jobSkill.toLowerCase().includes(freelancerSkill.toLowerCase())
+            )
+          );
+          
+          const skillMatchScore = matchingSkills.length / Math.max(jobSkills.length, 1);
+          const urgencyBonus = job.isUrgent ? 0.3 : 0;
+          const featuredBonus = job.isFeatured ? 0.2 : 0;
+          
+          return {
+            ...job,
+            skillMatchScore: skillMatchScore + urgencyBonus + featuredBonus
+          };
+        });
+
+        scoredJobs.sort((a, b) => b.skillMatchScore - a.skillMatchScore);
+        
+        const paginatedJobs = scoredJobs.slice(skip, skip + limit);
+        const total = Math.min(scoredJobs.length, await this.jobModel.countDocuments(filter).exec());
+
+        return {
+          jobs: paginatedJobs.map((job) => this.mapToJobResponseDto(job)),
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        };
+      }
+    }
+
+    const [jobs, total] = await Promise.all([
+      jobsQuery
         .sort({ postedAt: -1, isUrgent: -1, isFeatured: -1 })
         .skip(skip)
         .limit(limit)
@@ -499,7 +514,6 @@ export class JobsService {
     };
   }
 
-  // Get job statistics
   async getJobStats(id: string, userId: string) {
     const job = await this.jobModel.findById(id).exec();
 
@@ -507,18 +521,15 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if user is the owner or an admin
     if (job.clientId.toString() !== userId) {
-      // In a real implementation, you'd check if user is admin
       throw new ForbiddenException('Only job owner can view statistics');
     }
 
-    // Calculate some basic stats
     const daysPosted = Math.floor((Date.now() - job.postedAt.getTime()) / (1000 * 60 * 60 * 24));
     
     return {
       jobId: id,
-      views: 0, // Would need a separate tracking system
+      views: 0, 
       proposalCount: job.proposalCount || 0,
       daysPosted,
       status: job.status,
@@ -527,7 +538,6 @@ export class JobsService {
     };
   }
 
-  // Get job proposals
   async getJobProposals(id: string, clientId: string, page: number = 1, limit: number = 10) {
     const job = await this.jobModel.findById(id).exec();
 
@@ -535,7 +545,6 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if user is the owner
     if (job.clientId.toString() !== clientId) {
       throw new ForbiddenException('Only job owner can view proposals');
     }
@@ -543,7 +552,6 @@ export class JobsService {
     return this.proposalsService.findByJobId(id, clientId, page, limit);
   }
 
-  // Save job to favorites
   async saveJob(id: string, freelancerId: string): Promise<MessageResponseDto> {
     const job = await this.jobModel.findById(id).exec();
 
@@ -551,7 +559,6 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if job is already saved
     const existingSavedJob = await this.savedJobModel.findOne({
       jobId: id,
       freelancerId,
@@ -561,7 +568,6 @@ export class JobsService {
       throw new BadRequestException('Job is already saved');
     }
 
-    // Save the job
     const savedJob = new this.savedJobModel({
       jobId: id,
       freelancerId,
@@ -572,7 +578,6 @@ export class JobsService {
     return { message: 'Job saved successfully' };
   }
 
-  // Remove job from favorites
   async unsaveJob(id: string, freelancerId: string): Promise<MessageResponseDto> {
     const job = await this.jobModel.findById(id).exec();
 
@@ -580,7 +585,7 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Check if job is saved
+
     const savedJob = await this.savedJobModel.findOne({
       jobId: id,
       freelancerId,
@@ -590,13 +595,11 @@ export class JobsService {
       throw new NotFoundException('Job is not saved');
     }
 
-    // Remove from saved jobs
     await this.savedJobModel.findByIdAndDelete(savedJob._id).exec();
 
     return { message: 'Job removed from favorites successfully' };
   }
 
-  // Get saved jobs for freelancer
   async getSavedJobs(
     freelancerId: string,
     page: number = 1,
@@ -623,9 +626,8 @@ export class JobsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    // Extract job data from populated saved jobs
     const jobs = savedJobs
-      .filter((savedJob: any) => savedJob.jobId) // Filter out jobs that might have been deleted
+      .filter((savedJob: any) => savedJob.jobId)
       .map((savedJob: any) => this.mapToJobResponseDto(savedJob.jobId));
 
     return {
@@ -637,7 +639,6 @@ export class JobsService {
     };
   }
 
-  // Report inappropriate job
   async reportJob(
     id: string,
     reporterId: string,
@@ -649,12 +650,10 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    // Validate report reason
     if (!Object.values(ReportReason).includes(reportData.reason as ReportReason)) {
       throw new BadRequestException('Invalid report reason');
     }
 
-    // Check if job is already reported by this user
     const existingReport = await this.jobReportModel.findOne({
       jobId: id,
       reporterId,
@@ -664,7 +663,6 @@ export class JobsService {
       throw new BadRequestException('You have already reported this job');
     }
 
-    // Create the report
     const report = new this.jobReportModel({
       jobId: id,
       reporterId,
@@ -682,12 +680,10 @@ export class JobsService {
     const client = job.clientId;
     const clientProfile = client?.profile || {};
 
-    // Compute virtual fields directly to avoid serialization issues
     const isActive = job.status === JobStatus.OPEN && !job.deletedAt;
     const isExpired = job.expiresAt ? new Date() > new Date(job.expiresAt) : false;
     const canReceiveProposals = isActive && !isExpired && (!job.maxProposals || job.proposalCount < job.maxProposals);
 
-    // Create client DTO with explicit property assignment
     const clientDto = new ClientResponseDto();
     clientDto.id = client?._id?.toString() || '';
     clientDto.email = client?.email || '';
@@ -696,7 +692,6 @@ export class JobsService {
       : '';
     clientDto.avatar = clientProfile.avatar;
 
-    // Create budget DTO with explicit property assignment
     const budgetDto = new BudgetResponseDto();
     if (job.budget) {
       budgetDto.type = job.budget.type;
@@ -705,7 +700,6 @@ export class JobsService {
       budgetDto.currency = job.budget.currency || 'USD';
     }
 
-    // Create duration DTO if exists with explicit property assignment
     let durationDto: DurationResponseDto | undefined;
     if (job.duration) {
       durationDto = new DurationResponseDto();
@@ -713,7 +707,6 @@ export class JobsService {
       durationDto.estimatedHours = job.duration.estimatedHours;
     }
 
-    // Create location DTO if exists with explicit property assignment
     let locationDto: JobLocationResponseDto | undefined;
     if (job.location) {
       locationDto = new JobLocationResponseDto();
@@ -722,7 +715,6 @@ export class JobsService {
       locationDto.timezone = job.location.timezone;
     }
 
-    // Create attachments DTOs with explicit property assignment
     const attachments = (job.attachments || []).map((attachment: any) => {
       const attachmentDto = new AttachmentResponseDto();
       attachmentDto.filename = attachment.filename;
@@ -732,7 +724,6 @@ export class JobsService {
       return attachmentDto;
     });
 
-    // Create main job DTO with explicit property assignment
     const jobDto = new JobResponseDto();
     jobDto.id = job._id.toString();
     jobDto.client = clientDto;

@@ -1,4 +1,3 @@
-// src/database/schemas/index.ts
 export * from './user.schema';
 export * from './job.schema';
 export * from './proposal.schema';

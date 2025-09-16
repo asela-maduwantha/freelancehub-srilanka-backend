@@ -1,4 +1,3 @@
-// src/common/enums/index.ts
 export * from './user-role.enum';
 export * from './job-status.enum';
 export * from './proposal-status.enum';

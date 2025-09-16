@@ -1,4 +1,3 @@
-// src/modules/auth/auth.service.ts
 import {
   Injectable,
   ConflictException,
@@ -315,7 +314,7 @@ export class AuthService {
     }
   }
 
-  // Get current user profile
+
   async getProfile(userId: string): Promise<UserResponseDto> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {

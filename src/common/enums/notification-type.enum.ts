@@ -1,4 +1,3 @@
-// src/common/enums/notification-type.enum.ts
 export enum NotificationType {
   PROPOSAL_RECEIVED = 'proposal_received',
   PROPOSAL_ACCEPTED = 'proposal_accepted',

@@ -1,4 +1,3 @@
-// src/database/schemas/contract.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { ContractStatus } from '../../common/enums/contract-status.enum';

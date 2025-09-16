@@ -1,0 +1,298 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Category } from '../../database/schemas/category.schema';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import {
+  CategoryResponseDto,
+  CategoriesListResponseDto,
+  MessageResponseDto,
+} from './dto/category-response.dto';
+import { BatchCreateCategoryDto } from './dto/batch-create-category.dto';
+import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
+
+@Injectable()
+export class CategoriesService {
+  constructor(
+    @InjectModel(Category.name) private readonly categoryModel: Model<Category>,
+  ) {}
+
+
+  async create(createCategoryDto: CreateCategoryDto): Promise<CategoryResponseDto> {
+    // Check if slug already exists
+    if (createCategoryDto.slug) {
+      const existingCategory = await this.categoryModel.findOne({
+        slug: createCategoryDto.slug,
+        deletedAt: { $exists: false }
+      }).exec();
+
+      if (existingCategory) {
+        throw new BadRequestException('Category with this slug already exists');
+      }
+    }
+
+    // Check if parent category exists (if provided)
+    if (createCategoryDto.parentId) {
+      const parentCategory = await this.categoryModel.findById(createCategoryDto.parentId).exec();
+      if (!parentCategory) {
+        throw new NotFoundException('Parent category not found');
+      }
+    }
+
+    const category = new this.categoryModel(createCategoryDto);
+    const savedCategory = await category.save();
+
+    return this.mapToCategoryResponseDto(savedCategory);
+  }
+
+  // Create multiple categories in batch
+  async batchCreate(batchCreateCategoryDto: BatchCreateCategoryDto): Promise<MessageResponseDto> {
+    const categories = batchCreateCategoryDto.categories;
+    const createdCategories: any[] = [];
+    const errors: { name: string; error: string }[] = [];
+
+    for (const categoryDto of categories) {
+      try {
+        const category = new this.categoryModel(categoryDto);
+        const savedCategory = await category.save();
+        createdCategories.push(savedCategory);
+      } catch (error: any) {
+        errors.push({
+          name: categoryDto.name,
+          error: error.message,
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: `Created ${createdCategories.length} categories, ${errors.length} failed`,
+        errors,
+      });
+    }
+
+    return { message: `Successfully created ${createdCategories.length} categories` };
+  }
+
+
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    isActive?: boolean,
+    parentId?: string,
+    search?: string,
+  ): Promise<CategoriesListResponseDto> {
+    const skip = (page - 1) * limit;
+
+    // Build filter
+    const filter: any = { deletedAt: { $exists: false } };
+    if (isActive !== undefined) filter.isActive = isActive;
+    if (parentId !== undefined) {
+      if (parentId === 'null') {
+        filter.parentId = { $exists: false };
+      } else {
+        filter.parentId = parentId;
+      }
+    }
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [categories, total] = await Promise.all([
+      this.categoryModel
+        .find(filter)
+        .sort({ order: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.categoryModel.countDocuments(filter).exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      categories: categories.map((category) => this.mapToCategoryResponseDto(category)),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+
+  async findOne(id: string): Promise<CategoryResponseDto> {
+    const category = await this.categoryModel
+      .findById(id)
+      .exec();
+
+    if (!category || category.deletedAt) {
+      throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
+    }
+
+    return this.mapToCategoryResponseDto(category);
+  }
+
+
+  async findBySlug(slug: string): Promise<CategoryResponseDto> {
+    const category = await this.categoryModel
+      .findOne({ slug, deletedAt: { $exists: false } })
+      .exec();
+
+    if (!category) {
+      throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
+    }
+
+    return this.mapToCategoryResponseDto(category);
+  }
+
+
+  async findMainCategories(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<CategoriesListResponseDto> {
+    const skip = (page - 1) * limit;
+
+    const filter = {
+      parentId: { $exists: false },
+      isActive: true,
+      deletedAt: { $exists: false }
+    };
+
+    const [categories, total] = await Promise.all([
+      this.categoryModel
+        .find(filter)
+        .sort({ order: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.categoryModel.countDocuments(filter).exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      categories: categories.map((category) => this.mapToCategoryResponseDto(category)),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+
+  async findSubcategories(parentId: string): Promise<CategoryResponseDto[]> {
+    const categories = await this.categoryModel
+      .find({
+        parentId,
+        isActive: true,
+        deletedAt: { $exists: false }
+      })
+      .sort({ order: 1, name: 1 })
+      .exec();
+
+    return categories.map((category) => this.mapToCategoryResponseDto(category));
+  }
+
+
+  async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+    const category = await this.categoryModel.findById(id).exec();
+
+    if (!category || category.deletedAt) {
+      throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
+    }
+
+    // Check if slug is being updated and if it already exists
+    if (updateCategoryDto.slug && updateCategoryDto.slug !== category.slug) {
+      const existingCategory = await this.categoryModel.findOne({
+        slug: updateCategoryDto.slug,
+        deletedAt: { $exists: false },
+        _id: { $ne: id }
+      }).exec();
+
+      if (existingCategory) {
+        throw new BadRequestException('Category with this slug already exists');
+      }
+    }
+
+    // Check if parent category exists (if being updated)
+    if (updateCategoryDto.parentId && updateCategoryDto.parentId !== category.parentId?.toString()) {
+      const parentCategory = await this.categoryModel.findById(updateCategoryDto.parentId).exec();
+      if (!parentCategory) {
+        throw new NotFoundException('Parent category not found');
+      }
+    }
+
+    // Update the category
+    const updatedCategory = await this.categoryModel
+      .findByIdAndUpdate(id, updateCategoryDto, { new: true })
+      .exec();
+
+    if (!updatedCategory) {
+      throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
+    }
+
+    return this.mapToCategoryResponseDto(updatedCategory);
+  }
+
+
+  async remove(id: string): Promise<MessageResponseDto> {
+    const category = await this.categoryModel.findById(id).exec();
+
+    if (!category || category.deletedAt) {
+      throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
+    }
+
+    // Check if category has subcategories
+    const subcategoriesCount = await this.categoryModel.countDocuments({
+      parentId: id,
+      deletedAt: { $exists: false }
+    }).exec();
+
+    if (subcategoriesCount > 0) {
+      throw new BadRequestException('Cannot delete category with existing subcategories');
+    }
+
+    await this.categoryModel.findByIdAndUpdate(id, { deletedAt: new Date() }).exec();
+
+    return { message: RESPONSE_MESSAGES.CATEGORY.DELETED };
+  }
+
+  // Increment job count for a category
+  async incrementJobCount(id: string): Promise<void> {
+    await this.categoryModel.findByIdAndUpdate(id, { $inc: { jobCount: 1 } }).exec();
+  }
+
+  // Decrement job count for a category
+  async decrementJobCount(id: string): Promise<void> {
+    await this.categoryModel.findByIdAndUpdate(id, { $inc: { jobCount: -1 } }).exec();
+  }
+
+  // Map category document to response DTO
+  private mapToCategoryResponseDto(category: any): CategoryResponseDto {
+    return {
+      id: category._id.toString(),
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      icon: category.icon,
+      isActive: category.isActive,
+      parentId: category.parentId?.toString(),
+      order: category.order,
+      subcategories: Array.isArray(category.subcategories) ? [...category.subcategories] : [],
+      jobCount: category.jobCount || 0,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      isSubcategory: !!category.parentId,
+      hasSubcategories: category.subcategories && category.subcategories.length > 0,
+      isDeleted: !!category.deletedAt,
+    };
+  }
+}

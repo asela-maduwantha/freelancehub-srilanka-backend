@@ -1,4 +1,3 @@
-// src/database/schemas/job.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { JobStatus } from '../../common/enums/job-status.enum';

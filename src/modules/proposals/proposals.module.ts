@@ -1,4 +1,3 @@
-// src/modules/proposals/proposals.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ProposalsController } from './proposals.controller';

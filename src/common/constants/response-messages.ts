@@ -41,4 +41,20 @@ export const RESPONSE_MESSAGES = {
     INVALID_STATUS: 'Invalid job status.',
     CANNOT_MODIFY: 'Cannot modify job in current status.',
   },
+  SKILL: {
+    NOT_FOUND: 'Skill not found.',
+    CREATED: 'Skill created successfully.',
+    UPDATED: 'Skill updated successfully.',
+    DELETED: 'Skill deleted successfully.',
+    BATCH_CREATED: 'Skills created successfully.',
+    UNAUTHORIZED: 'Unauthorized to perform this action on the skill.',
+  },
+  CATEGORY: {
+    NOT_FOUND: 'Category not found.',
+    CREATED: 'Category created successfully.',
+    UPDATED: 'Category updated successfully.',
+    DELETED: 'Category deleted successfully.',
+    BATCH_CREATED: 'Categories created successfully.',
+    UNAUTHORIZED: 'Unauthorized to perform this action on the category.',
+  },
 };

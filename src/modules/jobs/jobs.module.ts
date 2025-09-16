@@ -1,4 +1,3 @@
-// src/modules/jobs/jobs.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JobsController } from './jobs.controller';
@@ -7,6 +6,7 @@ import { Job, JobSchema } from '../../database/schemas/job.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 import { ProposalsModule } from '../proposals/proposals.module';
+import { UsersModule } from '../users/users.module';
 import { SavedJob, SavedJobSchema } from '../../database/schemas/saved-job.schema';
 import { JobReport, JobReportSchema } from '../../database/schemas/job-report.schema';
 
@@ -17,6 +17,9 @@ import { JobReport, JobReportSchema } from '../../database/schemas/job-report.sc
 
     // Proposals module for accessing proposal data
     ProposalsModule,
+
+    // Users module for accessing user data
+    UsersModule,
 
     // Mongoose models
     MongooseModule.forFeature([

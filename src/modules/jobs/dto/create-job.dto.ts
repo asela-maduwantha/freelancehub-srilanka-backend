@@ -1,4 +1,3 @@
-// src/modules/jobs/dto/create-job.dto.ts
 import {
   IsString,
   IsNotEmpty,

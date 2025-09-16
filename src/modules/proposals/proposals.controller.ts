@@ -1,4 +1,3 @@
-// src/modules/proposals/proposals.controller.ts
 import {
   Controller,
   Get,

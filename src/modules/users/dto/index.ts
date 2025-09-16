@@ -1,4 +1,3 @@
-// src/modules/users/dto/index.ts
 export * from './update-profile.dto';
 export * from './update-user.dto';
 export * from './update-status.dto';

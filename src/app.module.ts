@@ -18,6 +18,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ProposalsModule } from './modules/proposals/proposals.module';
+import { SkillsModule } from './modules/skills/skills.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { ProposalsModule } from './modules/proposals/proposals.module';
     UsersModule,
     JobsModule,
     ProposalsModule,
+    SkillsModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

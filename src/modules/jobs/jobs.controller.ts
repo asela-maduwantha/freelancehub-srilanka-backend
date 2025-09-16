@@ -1,4 +1,3 @@
-// src/modules/jobs/jobs.controller.ts
 import {
   Controller,
   Get,

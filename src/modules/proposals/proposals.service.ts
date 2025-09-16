@@ -1,4 +1,3 @@
-// src/modules/proposals/proposals.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -24,7 +23,7 @@ export class ProposalsService {
     @InjectModel(Proposal.name) private readonly proposalModel: Model<Proposal>,
   ) {}
 
-  // Create a new proposal
+
   async create(
     createProposalDto: CreateProposalDto,
     freelancerId: string,
@@ -60,7 +59,7 @@ export class ProposalsService {
     return this.mapToProposalResponseDto(populatedProposal);
   }
 
-  // Get proposals for a specific job
+
   async findByJobId(
     jobId: string,
     clientId: string,
@@ -93,7 +92,7 @@ export class ProposalsService {
     };
   }
 
-  // Get current user's proposals
+
   async findMyProposals(
     freelancerId: string,
     page: number = 1,
@@ -129,7 +128,7 @@ export class ProposalsService {
     };
   }
 
-  // Get a proposal by ID
+
   async findOne(id: string, userId: string): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
       .findById(id)
@@ -154,7 +153,7 @@ export class ProposalsService {
     return this.mapToProposalResponseDto(proposal);
   }
 
-  // Update a proposal
+
   async update(
     id: string,
     updateProposalDto: UpdateProposalDto,
@@ -212,7 +211,7 @@ export class ProposalsService {
     return this.mapToProposalResponseDto(updatedProposal);
   }
 
-  // Delete a proposal
+
   async remove(id: string, freelancerId: string): Promise<MessageResponseDto> {
     const proposal = await this.proposalModel.findById(id).exec();
 

@@ -1,4 +1,3 @@
-// src/modules/users/users.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -37,7 +36,6 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
-  // Get current user profile
   async getCurrentUser(userId: string): Promise<UserResponseDto> {
     const user = await this.userModel
       .findById(userId)
@@ -51,7 +49,6 @@ export class UsersService {
     return this.mapToUserResponseDto(user);
   }
 
-  // Update current user profile
   async updateCurrentUser(
     userId: string,
     updateProfileDto: UpdateProfileDto,
@@ -126,7 +123,6 @@ export class UsersService {
     return this.mapToUserResponseDto(updatedUser);
   }
 
-  // Get user by ID
   async getUserById(
     id: string,
     currentUserId?: string,
@@ -151,7 +147,6 @@ export class UsersService {
     return this.mapToUserResponseDto(user);
   }
 
-  // Get all users with pagination and filtering
   async getUsers(
     page: number = 1,
     limit: number = 10,
@@ -161,7 +156,6 @@ export class UsersService {
   ): Promise<UsersListResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Build filter
     const filter: any = {};
     if (role) filter.role = role;
     if (isActive !== undefined) filter.isActive = isActive;
@@ -201,7 +195,6 @@ export class UsersService {
     updateStatusDto: UpdateStatusDto,
     currentUserId: string,
   ): Promise<MessageResponseDto> {
-    // Check if current user is admin
     const currentUser = await this.userModel.findById(currentUserId).exec();
     if (!currentUser || currentUser.role !== UserRole.ADMIN) {
       throw new ForbiddenException(RESPONSE_MESSAGES.AUTH.UNAUTHORIZED);
@@ -247,7 +240,6 @@ export class UsersService {
     };
   }
 
-  // Upload avatar
   async uploadAvatar(
     userId: string,
     file: Express.Multer.File,
@@ -278,7 +270,6 @@ export class UsersService {
     };
   }
 
-  // Delete avatar
   async deleteAvatar(userId: string): Promise<MessageResponseDto> {
     const user = await this.userModel.findById(userId).exec();
 
@@ -300,7 +291,6 @@ export class UsersService {
     };
   }
 
-  // Update freelancer profile
   async updateFreelancerProfile(
     userId: string,
     updateFreelancerProfileDto: UpdateFreelancerProfileDto,
@@ -362,7 +352,7 @@ export class UsersService {
     return this.mapToUserResponseDto(updatedUser);
   }
 
-  // Add freelancer skills
+
   async addFreelancerSkills(
     userId: string,
     skills: string[],
@@ -436,7 +426,7 @@ export class UsersService {
     };
   }
 
-  // Add portfolio item
+
   async addPortfolioItem(
     userId: string,
     addPortfolioItemDto: AddPortfolioItemDto,
@@ -573,7 +563,7 @@ export class UsersService {
     };
   }
 
-  // Add education record
+
   async addEducationRecord(
     userId: string,
     addEducationDto: AddEducationDto,
@@ -702,7 +692,7 @@ export class UsersService {
     };
   }
 
-  // Add certification
+
   async addCertification(
     userId: string,
     addCertificationDto: AddCertificationDto,
@@ -991,7 +981,6 @@ export class UsersService {
     };
   }
 
-  // Get freelancer public profile
   async getFreelancerPublicProfile(
     freelancerId: string,
   ): Promise<FreelancerPublicProfileDto> {
@@ -1034,7 +1023,7 @@ export class UsersService {
     };
   }
 
-  // Get client public profile
+
   async getClientPublicProfile(clientId: string): Promise<ClientPublicProfileDto> {
     const client = await this.userModel
       .findOne({
@@ -1073,7 +1062,7 @@ export class UsersService {
     };
   }
 
-  // Get user settings
+
   async getUserSettings(userId: string): Promise<UserSettingsResponseDto> {
     const user = await this.userModel.findById(userId).exec();
 

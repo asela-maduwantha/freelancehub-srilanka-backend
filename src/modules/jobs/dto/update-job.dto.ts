@@ -1,4 +1,3 @@
-// src/modules/jobs/dto/update-job.dto.ts
 import {
   IsString,
   IsOptional,

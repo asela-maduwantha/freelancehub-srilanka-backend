@@ -1,4 +1,3 @@
-// src/common/enums/job-status.enum.ts
 export enum JobStatus {
   DRAFT = 'draft',
   OPEN = 'open',

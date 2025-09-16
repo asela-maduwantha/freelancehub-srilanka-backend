@@ -1,4 +1,3 @@
-// src/modules/users/dto/update-freelancer-profile.dto.ts
 import { IsOptional, IsNumber, IsEnum, IsArray, IsString, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 

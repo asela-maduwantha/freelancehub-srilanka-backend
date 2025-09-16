@@ -1,4 +1,3 @@
-// src/modules/users/users.controller.ts
 import {
   Controller,
   Get,

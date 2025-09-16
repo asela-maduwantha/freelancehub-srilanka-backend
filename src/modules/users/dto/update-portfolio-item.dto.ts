@@ -1,4 +1,3 @@
-// src/modules/users/dto/update-portfolio-item.dto.ts
 import { IsOptional, IsString, IsArray, IsUrl } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
