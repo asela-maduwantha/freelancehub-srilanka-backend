@@ -1,26 +1,24 @@
-import { Module, forwardRef } from '@nestjs/common';
+// src/modules/proposals/proposals.module.ts
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ProposalsController } from './controllers/proposals.controller';
-import { ProposalsService } from './services/proposals.service';
-import { Proposal, ProposalSchema } from '../../schemas/proposal.schema';
-import { User, UserSchema } from '../../schemas/user.schema';
-import { Project, ProjectSchema } from '../../schemas/project.schema';
-import { UsersModule } from '../users/users.module';
-import { CommonModule } from '../../common/common.module';
-import { ContractsModule } from '../contracts/contracts.module';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { ProposalsController } from './proposals.controller';
+import { ProposalsService } from './proposals.service';
+import { Proposal, ProposalSchema } from '../../database/schemas/proposal.schema';
+import { Job, JobSchema } from '../../database/schemas/job.schema';
+import { User, UserSchema } from '../../database/schemas/user.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    // Auth module for JWT services
+    AuthModule,
+
+    // Mongoose models
     MongooseModule.forFeature([
       { name: Proposal.name, schema: ProposalSchema },
+      { name: Job.name, schema: JobSchema },
       { name: User.name, schema: UserSchema },
-      { name: Project.name, schema: ProjectSchema },
     ]),
-    UsersModule,
-    CommonModule,
-    forwardRef(() => ContractsModule),
-    NotificationsModule,
   ],
   controllers: [ProposalsController],
   providers: [ProposalsService],

@@ -1,0 +1,10 @@
+export const AUTH_CONSTANTS = {
+  JWT_SECRET: 'JWT_SECRET',
+  JWT_EXPIRES_IN: '7d',
+  REFRESH_TOKEN_EXPIRES_IN: '30d',
+  OTP_EXPIRY_MINUTES: 10,
+  OTP_LENGTH: 6,
+  MAX_OTP_ATTEMPTS: 3,
+  PASSWORD_MIN_LENGTH: 8,
+  EMAIL_REGEX: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+};

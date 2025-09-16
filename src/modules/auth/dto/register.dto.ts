@@ -1,60 +1,53 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsString,
-  IsIn,
   MinLength,
+  IsOptional,
   Matches,
-  IsArray,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from '../../../common/enums/user-role.enum';
+import { AUTH_CONSTANTS } from '../../../common/constants/auth.constants';
 
 export class RegisterDto {
-  @ApiProperty({
-    description: 'User first name',
-    example: 'John',
-  })
-  @IsString()
-  @IsNotEmpty()
-  firstName: string;
-
-  @ApiProperty({
-    description: 'User last name',
-    example: 'Doe',
-  })
-  @IsString()
-  @IsNotEmpty()
-  lastName: string;
-
-  @ApiProperty({
-    description: 'User email address',
-    example: 'john.doe@example.com',
-    format: 'email',
-  })
-  @IsEmail()
-  @IsNotEmpty()
+  @ApiProperty({ example: 'john.doe@example.com' })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
   email: string;
 
-  @ApiProperty({
-    description: 'User password',
-    example: 'SecurePass123!',
-    minLength: 8,
+  @ApiProperty({ example: 'SecurePassword123!' })
+  @IsString({ message: 'Password must be a string' })
+  @MinLength(AUTH_CONSTANTS.PASSWORD_MIN_LENGTH, {
+    message: `Password must be at least ${AUTH_CONSTANTS.PASSWORD_MIN_LENGTH} characters long`,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])?(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
     message:
-      'Password must contain at least one lowercase letter, one number, and one special character. Uppercase is optional.',
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
+  @IsNotEmpty({ message: 'Password is required' })
   password: string;
 
-    @ApiProperty({
-    description: 'User role',
-    example: 'freelancer',
-    enum: ['freelancer', 'client'],
+  @ApiProperty({ enum: UserRole, example: UserRole.FREELANCER })
+  @IsEnum(UserRole, {
+    message: 'Role must be either freelancer, client, or admin',
   })
-  @IsString()
-  @IsIn(['freelancer', 'client'])
-  role: string;
+  @IsNotEmpty({ message: 'Role is required' })
+  role: UserRole;
+
+  @ApiProperty({ example: 'John' })
+  @IsString({ message: 'First name must be a string' })
+  @IsNotEmpty({ message: 'First name is required' })
+  firstName: string;
+
+  @ApiProperty({ example: 'Doe' })
+  @IsString({ message: 'Last name must be a string' })
+  @IsNotEmpty({ message: 'Last name is required' })
+  lastName: string;
+
+  @ApiProperty({ example: '+1234567890', required: false })
+  @IsOptional()
+  @IsString({ message: 'Phone must be a string' })
+  phone?: string;
 }

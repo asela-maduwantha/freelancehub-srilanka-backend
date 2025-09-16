@@ -1,129 +1,136 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { RequestMethod } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
-import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { CustomValidationPipe } from './common/pipes/custom-validation.pipe';
-import { RateLimitGuard } from './common/guards/rate-limit.guard';
+import { JwtService } from '@nestjs/jwt';
+import * as compression from 'compression';
 import helmet from 'helmet';
 
+import { AppModule } from './app.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logLevel = (process.env.LOG_LEVEL?.split(',').filter((level) =>
+    ['error', 'warn', 'log', 'verbose', 'debug', 'fatal'].includes(level),
+  ) as ('error' | 'warn' | 'log' | 'verbose' | 'debug' | 'fatal')[]) || [
+    'error',
+    'warn',
+    'log',
+  ];
+
+  const app = await NestFactory.create(AppModule, {
+    logger: logLevel,
+  });
+
   const configService = app.get(ConfigService);
 
-  app.setGlobalPrefix('api/v1');
+  // Get configuration values
+  const port = configService.get('PORT', 3000);
+  const apiPrefix = configService.get('API_PREFIX', 'api');
+  const corsOrigins = configService.get('app').corsOrigins;
+  const enableSwagger = configService.get('ENABLE_SWAGGER', true);
 
   // Security middleware
   app.use(helmet());
+  app.use(compression());
 
-  // HTTPS enforcement in production
-  if (configService.get('NODE_ENV') === 'production') {
-    app.use((req: any, res: any, next: any) => {
-      if (req.header('x-forwarded-proto') !== 'https') {
-        res.redirect(`https://${req.header('host')}${req.url}`);
-      } else {
-        next();
-      }
-    });
-  }
-
-  // Additional security headers
-  app.use((req: any, res: any, next: any) => {
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-Frame-Options', 'DENY');
-    res.header('X-XSS-Protection', '1; mode=block');
-    res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
-    next();
+  // CORS configuration
+  app.enableCors({
+    origin: corsOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   });
 
-  // Swagger Configuration
-  const config = new DocumentBuilder()
-    .setTitle('FreelanceHub API')
-    .setDescription(
-      'Comprehensive API documentation for FreelanceHub platform - Enhanced with security and performance improvements',
-    )
-    .setVersion('2.0')
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('users', 'User management endpoints')
-    .addTag('projects', 'Project management endpoints')
-    .addTag('proposals', 'Proposal management endpoints')
-    .addTag('contracts', 'Contract management endpoints')
-    .addTag('disputes', 'Dispute resolution endpoints')
-    .addTag('payments', 'Payment processing endpoints')
-    .addTag('reviews', 'Review and rating endpoints')
-    .addTag('admin', 'Administrative endpoints')
-    .addTag('storage', 'File storage and upload endpoints')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
+  // Set global API prefix
+  app.setGlobalPrefix(apiPrefix);
+
+  // Global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      disableErrorMessages: process.env.NODE_ENV === 'production',
+      validationError: {
+        target: false,
+        value: false,
       },
-      'JWT-auth',
-    )
-    .build();
+    }),
+  );
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/v1/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tagsSorter: 'alpha',
-      operationsSorter: 'alpha',
-    },
-  });
-
-  // Global exception filter
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  // Global guards - Use the Passport JWT guard instead
+  // Guards are applied at the module level in AuthModule
+  const reflector = app.get(Reflector);
 
   // Global interceptors
   app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(reflector),
+    new ResponseInterceptor(),
     new LoggingInterceptor(),
-    new ResponseInterceptor(), // Standardize API responses
   );
 
-  // Enable CORS with enhanced security
-  app.enableCors({
-    origin:
-      configService.get('app.corsOrigin') ||
-      process.env.CORS_ORIGIN ||
-      'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  });
+  // Global filters
+  app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Global validation pipe with enhanced settings
-  app.useGlobalPipes(new CustomValidationPipe());
+  // Swagger documentation
+  if (enableSwagger) {
+    const config = new DocumentBuilder()
+      .setTitle('Frevo Backend API')
+      .setDescription('The Frevo freelancer platform backend API documentation')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .addTag(
+        'Authentication',
+        'User authentication and authorization endpoints',
+      )
+      .addTag('Users', 'User management endpoints')
+      .addTag('Jobs', 'Job posting and management endpoints')
+      .addTag('Proposals', 'Proposal management endpoints')
+      .addTag('Contracts', 'Contract management endpoints')
+      .addTag('Payments', 'Payment processing endpoints')
+      .addTag('Messages', 'Messaging system endpoints')
+      .addTag('Reviews', 'Review and rating endpoints')
+      .addTag('Admin', 'Administrative endpoints')
+      .build();
 
-  // Body size limit
-  app.use(
-    require('express').json({
-      limit: configService.get('app.maxRequestSize') || '10mb',
-      verify: (req: any, res: any, buf: Buffer) => {
-        req.rawBody = buf;
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup(`${apiPrefix}/docs`, app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
       },
-    }),
-  );
-  app.use(
-    require('express').urlencoded({
-      limit: configService.get('app.maxRequestSize') || '10mb',
-      extended: true,
-    }),
-  );
+    });
 
-  const port = configService.get('app.port') || process.env.PORT || 8000;
+    console.log(
+      `Swagger documentation available at: http://localhost:${port}/${apiPrefix}/docs`,
+    );
+  }
+
   await app.listen(port);
-  console.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
+
   console.log(
-    `📚 Swagger documentation available at: http://localhost:${port}/api/v1/docs`,
+    `🚀 Application is running on: http://localhost:${port}/${apiPrefix}`,
   );
-  console.log(`🔒 Security headers enabled, rate limiting active`);
+  console.log(
+    ' API Documentation: http://localhost:' + port + `/${apiPrefix}/docs`,
+  );
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }
-bootstrap();
+
+bootstrap().catch((error) => {
+  console.error('Error starting the application:', error);
+  process.exit(1);
+});

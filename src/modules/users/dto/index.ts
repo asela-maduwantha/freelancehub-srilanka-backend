@@ -1,0 +1,15 @@
+// src/modules/users/dto/index.ts
+export * from './update-profile.dto';
+export * from './update-user.dto';
+export * from './update-status.dto';
+export * from './user-response.dto';
+export * from './upload-avatar.dto';
+export * from './update-freelancer-profile.dto';
+export * from './add-skills.dto';
+export * from './add-portfolio-item.dto';
+export * from './update-portfolio-item.dto';
+export * from './add-education.dto';
+export * from './update-education.dto';
+export * from './add-certification.dto';
+export * from './client-public-profile.dto';
+export * from './user-settings.dto';

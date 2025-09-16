@@ -7,67 +7,36 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-export interface ApiResponse<T> {
+export interface Response<T> {
+  success: boolean;
   data: T;
-  meta?: {
-    total?: number;
-    page?: number;
-    limit?: number;
-    hasNext?: boolean;
-    hasPrev?: boolean;
-  };
   message?: string;
   timestamp: string;
+  statusCode: number;
 }
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponse<T>>
-{
+export class ResponseInterceptor<T> implements NestInterceptor<T, Response<T>> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<ApiResponse<T>> {
+  ): Observable<Response<T>> {
+    const ctx = context.switchToHttp();
+    const response = ctx.getResponse();
+    const statusCode = response.statusCode;
+
     return next.handle().pipe(
       map((data) => {
-        // If data is already wrapped in our format, return as is
-        if (
-          data &&
-          typeof data === 'object' &&
-          'data' in data &&
-          'timestamp' in data
-        ) {
+        // Don't wrap if it's already a custom response format
+        if (data && typeof data === 'object' && 'success' in data) {
           return data;
         }
 
-        // Handle pagination responses
-        if (
-          data &&
-          typeof data === 'object' &&
-          ('total' in data || 'page' in data)
-        ) {
-          const { data: items, total, page, limit, ...rest } = data;
-
-          if (items !== undefined) {
-            return {
-              data: items,
-              meta: {
-                total,
-                page,
-                limit,
-                hasNext: page && limit ? page * limit < total : false,
-                hasPrev: page ? page > 1 : false,
-              },
-              timestamp: new Date().toISOString(),
-              ...rest,
-            };
-          }
-        }
-
-        // Standard response wrapping
         return {
+          success: true,
           data,
           timestamp: new Date().toISOString(),
+          statusCode,
         };
       }),
     );

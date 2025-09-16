@@ -1,60 +1,29 @@
-import {
-  IsOptional,
-  IsString,
-  IsEnum,
-  IsUrl,
-  IsBoolean,
-} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsIn } from 'class-validator';
 
 export class UpdateClientProfileDto {
   @ApiPropertyOptional({
-    description: 'The name of the company',
-    example: 'ABC Corp',
+    description: 'Company name',
+    example: 'Tech Solutions Inc.',
   })
   @IsOptional()
   @IsString()
   companyName?: string;
 
   @ApiPropertyOptional({
-    description: 'The size of the company',
+    description: 'Company size',
+    enum: ['1-10', '11-50', '51-200', '201-500', '500+'],
     example: '11-50',
-    enum: ['1-10', '11-50', '51-200', '200+'],
   })
   @IsOptional()
-  @IsEnum(['1-10', '11-50', '51-200', '200+'])
+  @IsIn(['1-10', '11-50', '51-200', '201-500', '500+'])
   companySize?: string;
 
   @ApiPropertyOptional({
-    description: 'The industry of the company',
+    description: 'Industry',
     example: 'Technology',
   })
   @IsOptional()
   @IsString()
   industry?: string;
-
-  @ApiPropertyOptional({
-    description: 'The website URL of the company',
-    example: 'https://example.com',
-    format: 'url',
-  })
-  @IsOptional()
-  @IsUrl()
-  website?: string;
-
-  @ApiPropertyOptional({
-    description: 'A description of the company',
-    example: 'A leading tech company',
-  })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiPropertyOptional({
-    description: 'Whether the company profile is verified',
-    example: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  verified?: boolean;
 }

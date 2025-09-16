@@ -13,57 +13,43 @@ export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(LoggingInterceptor.name);
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const { method, url, body, query, params, user } = request;
+    const ctx = context.switchToHttp();
+    const request = ctx.getRequest();
+    const response = ctx.getResponse();
+
+    const { method, url, ip, body } = request;
     const userAgent = request.get('User-Agent') || '';
-    const ip = request.ip || request.connection.remoteAddress;
+    const userId = request.user?.id || 'anonymous';
+    const isDevelopment = process.env.NODE_ENV !== 'production';
 
-    const now = Date.now();
+    const start = Date.now();
 
-    this.logger.log(`Incoming Request: ${method} ${url}`, {
-      method,
-      url,
-      userAgent,
-      ip,
-      userId: user?.userId || 'anonymous',
-      body: this.sanitizeBody(body),
-      query,
-      params,
-    });
+    // Log request details
+    const requestLog = `${method} ${url} - ${ip} - ${userAgent} - User: ${userId}`;
+    if (isDevelopment && body && Object.keys(body).length > 0) {
+      this.logger.debug(`Request Body: ${JSON.stringify(body)}`);
+    }
+    this.logger.log(`Incoming: ${requestLog}`);
 
     return next.handle().pipe(
-      tap((data) => {
-        const responseTime = Date.now() - now;
-        this.logger.log(`Response: ${method} ${url} - ${responseTime}ms`, {
-          method,
-          url,
-          responseTime,
-          statusCode: context.switchToHttp().getResponse().statusCode,
-        });
+      tap({
+        next: () => {
+          const duration = Date.now() - start;
+          const { statusCode } = response;
+
+          this.logger.log(
+            `Outgoing: ${method} ${url} ${statusCode} ${duration}ms - ${ip} - ${userAgent} - User: ${userId}`,
+          );
+        },
+        error: (error) => {
+          const duration = Date.now() - start;
+          const statusCode = error?.status || 500;
+
+          this.logger.error(
+            `Error: ${method} ${url} ${statusCode} ${duration}ms - ${ip} - ${userAgent} - User: ${userId} - Error: ${error?.message}`,
+          );
+        },
       }),
     );
-  }
-
-  private sanitizeBody(body: any): any {
-    if (!body || typeof body !== 'object') {
-      return body;
-    }
-
-    const sanitized = { ...body };
-
-    // Remove sensitive fields
-    const sensitiveFields = [
-      'password',
-      'otpCode',
-      'refreshToken',
-      'stripeSecretKey',
-    ];
-    sensitiveFields.forEach((field) => {
-      if (sanitized[field]) {
-        sanitized[field] = '[REDACTED]';
-      }
-    });
-
-    return sanitized;
   }
 }

@@ -1,42 +1,45 @@
+// src/modules/users/users.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UsersController } from './controllers/users.controller';
-import { UsersService } from './services/users.service';
-import { UserAnalyticsService } from './services/user-analytics.service';
-import {
-  User,
-  UserSchema,
-  FreelancerProfile,
-  FreelancerProfileSchema,
-  ClientProfile,
-  ClientProfileSchema,
-  Otp,
-  OtpSchema,
-  Project,
-  ProjectSchema,
-  Contract,
-  ContractSchema,
-  Proposal,
-  ProposalSchema,
-  Payment,
-  PaymentSchema,
-} from '../../schemas';
+import { MulterModule } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+import { User, UserSchema } from '../../database/schemas/user.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: User.name, schema: UserSchema },
-      { name: FreelancerProfile.name, schema: FreelancerProfileSchema },
-      { name: ClientProfile.name, schema: ClientProfileSchema },
-      { name: Otp.name, schema: OtpSchema },
-      { name: Project.name, schema: ProjectSchema },
-      { name: Contract.name, schema: ContractSchema },
-      { name: Proposal.name, schema: ProposalSchema },
-      { name: Payment.name, schema: PaymentSchema },
-    ]),
+    // Auth module for JWT services
+    AuthModule,
+
+    // Mongoose models
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+
+    // Multer for file uploads
+    MulterModule.register({
+      storage: diskStorage({
+        destination: './uploads/avatars',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const extension = extname(file.originalname);
+          callback(null, `avatar-${uniqueSuffix}${extension}`);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+          return callback(new Error('Only image files are allowed!'), false);
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+      },
+    }),
   ],
   controllers: [UsersController],
-  providers: [UsersService, UserAnalyticsService],
-  exports: [UsersService, UserAnalyticsService],
+  providers: [UsersService],
+  exports: [UsersService],
 })
 export class UsersModule {}

@@ -1,11 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TokenBlacklistService } from '../services/token-blacklist.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User } from '../../../database/schemas/user.schema';
 
-interface JwtPayload {
-  sub: string;
+export interface JwtPayload {
+  sub: string; // user id
   email: string;
   role: string;
   iat: number;
@@ -15,42 +17,23 @@ interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
-    private tokenBlacklistService: TokenBlacklistService,
+    private readonly configService: ConfigService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {
-    const jwtSecret = configService.get<string>('app.jwtSecret');
-    
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is required but not provided in configuration');
-    }
-
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
-      passReqToCallback: true, // Pass request to validate method
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'fallback-secret',
     });
   }
 
-  async validate(request: any, payload: JwtPayload) {
-    // Extract token from authorization header
-    const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
-    
-    if (!token) {
-      throw new UnauthorizedException('Token not found');
+  async validate(payload: JwtPayload): Promise<User> {
+    const user = await this.userModel.findById(payload.sub).exec();
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
     }
 
-    // Check if token is blacklisted
-    const isBlacklisted = await this.tokenBlacklistService.isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      throw new UnauthorizedException('Token has been invalidated');
-    }
-
-    return {
-      userId: payload.sub,
-      email: payload.email,
-      role: payload.role,
-      tokenIssuedAt: payload.iat,
-    };
+    return user;
   }
 }

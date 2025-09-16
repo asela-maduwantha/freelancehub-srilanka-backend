@@ -3,41 +3,48 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthController } from './controllers/auth.controller';
-import { AuthService } from './services/auth.service';
-import { TokenBlacklistService } from './services/token-blacklist.service';
+
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { User, UserSchema } from '../../schemas/user.schema';
-import { Otp, OtpSchema } from '../../schemas/otp.schema';
-import { TokenBlacklist, TokenBlacklistSchema } from '../../schemas/token-blacklist.schema';
-import { UsersModule } from '../users/users.module';
-import { CommonModule } from '../../common/common.module';
+import { LocalStrategy } from './strategies/local.strategy';
+
+import { User, UserSchema } from '../../database/schemas/user.schema';
+import {
+  OtpVerification,
+  OtpVerificationSchema,
+} from '../../database/schemas/otp-verification.schema';
+
+import { EmailService } from '../../services/email/email.service';
 
 @Module({
   imports: [
-    PassportModule,
+    // Passport module for authentication strategies
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+
+    // JWT module with async configuration
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        return {
-          secret: configService.get<string>('app.jwtSecret'),
-          signOptions: {
-            expiresIn: configService.get<string>('app.jwtExpiresIn'),
-          },
-        };
-      },
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '7d'),
+        },
+      }),
       inject: [ConfigService],
     }),
+
+    // Mongoose models
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: Otp.name, schema: OtpSchema },
-      { name: TokenBlacklist.name, schema: TokenBlacklistSchema },
+      { name: OtpVerification.name, schema: OtpVerificationSchema },
     ]),
-    UsersModule, // Import UsersModule instead of providing UsersService directly
-    CommonModule,
+
+    // Config module for environment variables
+    ConfigModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenBlacklistService, JwtStrategy],
-  exports: [AuthService, TokenBlacklistService, JwtModule],
+  providers: [AuthService, JwtStrategy, LocalStrategy, EmailService],
+  exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
 })
 export class AuthModule {}
