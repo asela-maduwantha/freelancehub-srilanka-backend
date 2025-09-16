@@ -15,6 +15,7 @@ import {
   MessageResponseDto,
 } from './dto/skill-response.dto';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
+import slugify from 'slugify';
 
 @Injectable()
 export class SkillsService {
@@ -23,27 +24,33 @@ export class SkillsService {
   ) {}
 
 
-  async create(createSkillDto: CreateSkillDto): Promise<SkillResponseDto> {
-    const skill = new this.skillModel(createSkillDto);
-    const savedSkill = await skill.save();
-    return this.mapToSkillResponseDto(savedSkill);
+async create(createSkillDto: CreateSkillDto): Promise<SkillResponseDto> {
+  if (!createSkillDto.slug) {
+    createSkillDto.slug = slugify(createSkillDto.name, { lower: true, strict: true });
   }
 
-  // Create multiple skills in batch
-  async batchCreate(batchCreateSkillDto: BatchCreateSkillDto): Promise<MessageResponseDto> {
-    const skills = batchCreateSkillDto.skills.map(skillData => new this.skillModel(skillData));
+  const skill = new this.skillModel(createSkillDto);
+  const savedSkill = await skill.save();
+  return this.mapToSkillResponseDto(savedSkill);
+}
 
-    try {
-      await this.skillModel.insertMany(skills, { ordered: false });
-      return { message: `${skills.length} skills created successfully` };
-    } catch (error) {
-      // Handle duplicate key errors gracefully
-      if (error.code === 11000) {
-        throw new BadRequestException('Some skills already exist with duplicate slugs');
-      }
-      throw error;
+async batchCreate(batchCreateSkillDto: BatchCreateSkillDto): Promise<MessageResponseDto> {
+  try {
+    const skills = batchCreateSkillDto.skills.map(skillData => {
+      const slug = skillData.slug || slugify(skillData.name, { lower: true, strict: true });
+      return new this.skillModel({ ...skillData, slug });
+    });
+
+    await Promise.all(skills.map(skill => skill.save()));
+
+    return { message: `${skills.length} skills created successfully` };
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new BadRequestException('Some skills already exist with duplicate slugs');
     }
+    throw error;
   }
+}
 
 
   async findAll(
@@ -56,12 +63,11 @@ export class SkillsService {
   ): Promise<SkillsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Build filter
     const filter: any = {};
     if (category) filter.category = category;
     if (difficulty) filter.difficulty = difficulty;
     if (isActive !== undefined) filter.isActive = isActive;
-    filter.deletedAt = { $exists: false }; // Only active skills
+    filter.deletedAt = { $exists: false }; 
 
     if (search) {
       filter.$text = { $search: search };
@@ -122,17 +128,14 @@ export class SkillsService {
       throw new NotFoundException(RESPONSE_MESSAGES.SKILL.NOT_FOUND);
     }
 
-    // Update skill - only update provided fields
     const updateData: any = {};
 
-    // Helper function to add to updateData if value is not undefined
     const addIfDefined = (key: string, value: any) => {
       if (value !== undefined) {
         updateData[key] = value;
       }
     };
 
-    // Add simple fields
     addIfDefined('name', updateSkillDto.name);
     addIfDefined('slug', updateSkillDto.slug);
     addIfDefined('description', updateSkillDto.description);
@@ -146,7 +149,6 @@ export class SkillsService {
     addIfDefined('icon', updateSkillDto.icon);
     addIfDefined('color', updateSkillDto.color);
 
-    // Update the skill
     const updatedSkill = await this.skillModel
       .findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true })
       .exec();
