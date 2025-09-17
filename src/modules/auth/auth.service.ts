@@ -9,7 +9,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
-import * as bcrypt from 'bcryptjs';
 import { User } from '../../database/schemas/user.schema';
 import { OtpVerification } from '../../database/schemas/otp-verification.schema';
 import { RegisterDto } from './dto/register.dto';
@@ -31,6 +30,8 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { OtpPurpose } from '../../common/enums/otp-purpose.enum';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import { AUTH_CONSTANTS } from '../../common/constants/auth.constants';
+import { HashUtil } from '../../common/utils/hash.util';
+import { OtpUtil } from '../../common/utils/otp.util';
 import { EmailService } from '../../services/email/email.service';
 
 @Injectable()
@@ -55,7 +56,7 @@ export class AuthService {
     }
 
     // Hash password
-    const hashedPassword = await this.hashPassword(password);
+    const hashedPassword = await HashUtil.hash(password);
 
     // Create new user
     const newUser = new this.userModel({
@@ -129,7 +130,7 @@ export class AuthService {
       return null;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await HashUtil.compare(password, user.password);
     if (!isPasswordValid) {
       return null;
     }
@@ -216,7 +217,7 @@ export class AuthService {
     }
 
     // Hash new password
-    const hashedPassword = await this.hashPassword(newPassword);
+    const hashedPassword = await HashUtil.hash(newPassword);
 
     // Update user password
     user.password = hashedPassword;
@@ -246,7 +247,7 @@ export class AuthService {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(
+    const isCurrentPasswordValid = await HashUtil.compare(
       currentPassword,
       user.password,
     );
@@ -255,7 +256,7 @@ export class AuthService {
     }
 
     // Hash new password
-    const hashedPassword = await this.hashPassword(newPassword);
+    const hashedPassword = await HashUtil.hash(newPassword);
 
     // Update user password
     user.password = hashedPassword;
@@ -400,12 +401,6 @@ export class AuthService {
     };
   }
 
-  // Private helper methods
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = 12;
-    return bcrypt.hash(password, saltRounds);
-  }
-
   private async generateTokens(user: User, rememberMe = false) {
     const payload = {
       sub: (user as any)._id.toString(),
@@ -440,10 +435,8 @@ export class AuthService {
     await this.otpModel.deleteMany({ email, purpose }).exec();
 
     // Generate new OTP
-    const otp = this.generateOtp();
-    const expiresAt = new Date(
-      Date.now() + AUTH_CONSTANTS.OTP_EXPIRY_MINUTES * 60 * 1000,
-    );
+    const otp = OtpUtil.generate();
+    const expiresAt = OtpUtil.createExpiryDate();
 
     // Save OTP to database
     const otpRecord = new this.otpModel({
@@ -507,10 +500,6 @@ export class AuthService {
     }
 
     return otpRecord;
-  }
-
-  private generateOtp(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   private transformUserResponse(user: User): UserResponseDto {

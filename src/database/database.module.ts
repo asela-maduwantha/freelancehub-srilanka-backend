@@ -6,19 +6,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   imports: [
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri:
-          configService.get<string>('MONGODB_URI') ||
-          'mongodb://localhost:27017/frevo',
-        retryWrites: true,
-        w: 'majority',
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        family: 4,
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const databaseConfig = configService.get('database');
+        return {
+          uri: databaseConfig.uri,
+          ...databaseConfig.options,
+        };
+      },
       inject: [ConfigService],
     }),
   ],
