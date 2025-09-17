@@ -15,6 +15,7 @@ import {
 } from './dto/category-response.dto';
 import { BatchCreateCategoryDto } from './dto/batch-create-category.dto';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
+import slugify from 'slugify';
 
 @Injectable()
 export class CategoriesService {
@@ -24,24 +25,15 @@ export class CategoriesService {
 
 
   async create(createCategoryDto: CreateCategoryDto): Promise<CategoryResponseDto> {
-    // Check if slug already exists
-    if (createCategoryDto.slug) {
-      const existingCategory = await this.categoryModel.findOne({
-        slug: createCategoryDto.slug,
-        deletedAt: { $exists: false }
-      }).exec();
-
-      if (existingCategory) {
-        throw new BadRequestException('Category with this slug already exists');
-      }
+    // Generate slug if not provided
+    if (!createCategoryDto.slug) {
+      createCategoryDto.slug = slugify(createCategoryDto.name, { lower: true, strict: true, trim: true });
     }
 
-    // Check if parent category exists (if provided)
-    if (createCategoryDto.parentId) {
-      const parentCategory = await this.categoryModel.findById(createCategoryDto.parentId).exec();
-      if (!parentCategory) {
-        throw new NotFoundException('Parent category not found');
-      }
+    // Check for duplicate slug
+    const existingCategory = await this.categoryModel.findOne({ slug: createCategoryDto.slug, deletedAt: { $exists: false } }).exec();
+    if (existingCategory) {
+      throw new BadRequestException('Category with this slug already exists');
     }
 
     const category = new this.categoryModel(createCategoryDto);
@@ -50,22 +42,22 @@ export class CategoriesService {
     return this.mapToCategoryResponseDto(savedCategory);
   }
 
-  // Create multiple categories in batch
   async batchCreate(batchCreateCategoryDto: BatchCreateCategoryDto): Promise<MessageResponseDto> {
-    const categories = batchCreateCategoryDto.categories;
     const createdCategories: any[] = [];
     const errors: { name: string; error: string }[] = [];
 
-    for (const categoryDto of categories) {
+    for (const categoryDto of batchCreateCategoryDto.categories) {
       try {
+        // Generate slug if not provided
+        if (!categoryDto.slug) {
+          categoryDto.slug = slugify(categoryDto.name, { lower: true, strict: true, trim: true });
+        }
+
         const category = new this.categoryModel(categoryDto);
         const savedCategory = await category.save();
         createdCategories.push(savedCategory);
       } catch (error: any) {
-        errors.push({
-          name: categoryDto.name,
-          error: error.message,
-        });
+        errors.push({ name: categoryDto.name, error: error.message });
       }
     }
 

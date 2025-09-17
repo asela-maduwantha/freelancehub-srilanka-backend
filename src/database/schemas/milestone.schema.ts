@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { MilestoneStatus } from '../../common/enums/milestone-status.enum';
 
-// Deliverable Sub-schema
+
 @Schema({ _id: false })
 export class Deliverable {
   @Prop({ required: true })
@@ -21,7 +21,6 @@ export class Deliverable {
   uploadedAt: Date;
 }
 
-// Main Milestone Schema
 @Schema({
   timestamps: true,
   collection: 'milestones',
@@ -91,7 +90,6 @@ export class Milestone extends Document {
   @Prop()
   deletedAt?: Date;
 
-  // Virtual fields
   get isOverdue(): boolean {
     return !!(
       this.dueDate &&
@@ -145,12 +143,10 @@ MilestoneSchema.index({ order: 1 });
 MilestoneSchema.index({ paymentId: 1 }, { sparse: true });
 MilestoneSchema.index({ deletedAt: 1 }, { sparse: true });
 
-// Compound indexes
 MilestoneSchema.index({ contractId: 1, order: 1 });
 MilestoneSchema.index({ contractId: 1, status: 1 });
 MilestoneSchema.index({ status: 1, dueDate: 1 });
 
-// Add virtual fields
 MilestoneSchema.virtual('isOverdue').get(function () {
   return (
     this.dueDate &&
@@ -193,9 +189,7 @@ MilestoneSchema.virtual('isPaid').get(function () {
   return this.status === MilestoneStatus.PAID;
 });
 
-// Pre-save middleware
 MilestoneSchema.pre('save', function (next) {
-  // Set timestamps based on status changes
   if (this.isModified('status')) {
     const now = new Date();
 
@@ -218,12 +212,9 @@ MilestoneSchema.pre('save', function (next) {
   next();
 });
 
-// Pre-find middleware to populate references
 MilestoneSchema.pre(/^find/, function (next) {
-  // Populate will be handled at query level to avoid TypeScript issues
   next();
 });
 
-// Ensure virtuals are included in JSON
 MilestoneSchema.set('toJSON', { virtuals: true });
 MilestoneSchema.set('toObject', { virtuals: true });

@@ -175,4 +175,52 @@ export class ProposalsController {
   ): Promise<MessageResponseDto> {
     return this.proposalsService.remove(id, freelancerId);
   }
+
+  @Put(':id/accept')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept a proposal' })
+  @ApiParam({ name: 'id', description: 'Proposal ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Proposal accepted successfully',
+    type: ProposalResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Not authorized to accept this proposal',
+  })
+  async acceptProposal(
+    @Param('id') id: string,
+    @CurrentUser('id') clientId: string,
+  ): Promise<ProposalResponseDto> {
+    return this.proposalsService.acceptProposal(id, clientId);
+  }
+
+  @Put(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject a proposal' })
+  @ApiParam({ name: 'id', description: 'Proposal ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Proposal rejected successfully',
+    type: ProposalResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Not authorized to reject this proposal',
+  })
+  async rejectProposal(
+    @Param('id') id: string,
+    @CurrentUser('id') clientId: string,
+  ): Promise<ProposalResponseDto> {
+    return this.proposalsService.rejectProposal(id, clientId);
+  }
 }

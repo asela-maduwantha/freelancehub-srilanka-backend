@@ -15,7 +15,6 @@ import {
   MessageResponseDto,
 } from './dto/proposal-response.dto';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
-import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 
 @Injectable()
 export class ProposalsService {
@@ -28,7 +27,6 @@ export class ProposalsService {
     createProposalDto: CreateProposalDto,
     freelancerId: string,
   ): Promise<ProposalResponseDto> {
-    // Check if freelancer already submitted a proposal for this job
     const existingProposal = await this.proposalModel
       .findOne({
         jobId: createProposalDto.jobId,
@@ -101,7 +99,6 @@ export class ProposalsService {
   ): Promise<ProposalsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Build filter
     const filter: any = { freelancerId };
     if (status) filter.status = status;
 
@@ -141,7 +138,6 @@ export class ProposalsService {
       throw new NotFoundException('Proposal not found');
     }
 
-    // Check if user is the freelancer or the job client
     const job = proposal.jobId as any;
     if (
       proposal.freelancerId._id.toString() !== userId &&
@@ -165,17 +161,16 @@ export class ProposalsService {
       throw new NotFoundException('Proposal not found');
     }
 
-    // Check if user is the owner
+  
     if (proposal.freelancerId.toString() !== freelancerId) {
       throw new ForbiddenException('You are not authorized to update this proposal');
     }
 
-    // Check if proposal can be modified
+
     if (proposal.status !== ProposalStatus.PENDING) {
       throw new BadRequestException('Proposal cannot be modified');
     }
 
-    // Update proposal - only update provided fields
     const updateData: any = {};
 
     if (updateProposalDto.coverLetter !== undefined) {
@@ -219,12 +214,10 @@ export class ProposalsService {
       throw new NotFoundException('Proposal not found');
     }
 
-    // Check if user is the owner
     if (proposal.freelancerId.toString() !== freelancerId) {
       throw new ForbiddenException('You are not authorized to delete this proposal');
     }
 
-    // Check if proposal can be deleted
     if (proposal.status !== ProposalStatus.PENDING) {
       throw new BadRequestException('Proposal cannot be deleted');
     }
@@ -234,7 +227,44 @@ export class ProposalsService {
     return { message: 'Proposal deleted successfully' };
   }
 
-  // Helper method to map to response DTO
+
+  async acceptProposal(id: string, clientId: string): Promise<ProposalResponseDto> {
+    const proposal = await this.proposalModel
+      .findById(id)
+      .populate('jobId', 'clientId status')
+      .exec();
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+    const job = proposal.jobId as any;
+    if (job.clientId?.toString() !== clientId) {
+      throw new ForbiddenException('You are not authorized to accept this proposal');
+    }
+
+    proposal.status = ProposalStatus.ACCEPTED;
+    await proposal.save();
+
+    return this.mapToProposalResponseDto(proposal);
+  }
+
+  async rejectProposal(id: string, clientId: string): Promise<ProposalResponseDto> {
+    const proposal = await this.proposalModel
+      .findById(id)
+      .populate('jobId', 'clientId status')
+      .exec();
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+    const job = proposal.jobId as any;
+    if (job.clientId?.toString() !== clientId) {
+      throw new ForbiddenException('You are not authorized to reject this proposal');
+    }
+    proposal.status = ProposalStatus.REJECTED;
+    await proposal.save();
+    return this.mapToProposalResponseDto(proposal);
+  }
+
+
   private mapToProposalResponseDto(proposal: any): ProposalResponseDto {
     return {
       _id: proposal._id?.toString(),
