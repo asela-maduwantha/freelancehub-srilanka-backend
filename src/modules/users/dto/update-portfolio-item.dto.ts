@@ -12,7 +12,8 @@ export class UpdatePortfolioItemDto {
 
   @ApiPropertyOptional({
     description: 'Description of the portfolio item',
-    example: 'An updated full-stack e-commerce website built with React and Node.js',
+    example:
+      'An updated full-stack e-commerce website built with React and Node.js',
   })
   @IsOptional()
   @IsString()
@@ -20,7 +21,10 @@ export class UpdatePortfolioItemDto {
 
   @ApiPropertyOptional({
     description: 'Array of image URLs for the portfolio item',
-    example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
+    example: [
+      'https://example.com/image1.jpg',
+      'https://example.com/image2.jpg',
+    ],
   })
   @IsOptional()
   @IsArray()

@@ -79,7 +79,14 @@ export class JobsController {
     @Query('clientId') clientId?: string,
     @Query('search') search?: string,
   ): Promise<JobsListResponseDto> {
-    return this.jobsService.findAll(page, limit, status, category, clientId, search);
+    return this.jobsService.findAll(
+      page,
+      limit,
+      status,
+      category,
+      clientId,
+      search,
+    );
   }
 
   @Get(':id')
@@ -253,7 +260,12 @@ export class JobsController {
   @ApiOperation({ summary: 'Get recently posted jobs' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of days to look back (default: 7)' })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    type: Number,
+    description: 'Number of days to look back (default: 7)',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Recent jobs retrieved successfully',

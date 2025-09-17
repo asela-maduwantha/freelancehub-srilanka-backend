@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserProfile, Language, PortfolioItem, Education, Certification } from '../../database/schemas/user.schema';
+import {
+  User,
+  UserProfile,
+  Language,
+  PortfolioItem,
+  Education,
+  Certification,
+} from '../../database/schemas/user.schema';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import {
@@ -25,9 +32,15 @@ import { AddCertificationDto } from './dto/add-certification.dto';
 import { UpdateCertificationDto } from './dto/update-certification.dto';
 import { UpdateClientProfileDto } from './dto/update-client-profile.dto';
 import { SearchFreelancersDto } from './dto/search-freelancers.dto';
-import { FreelancersSearchResponseDto, FreelancerPublicProfileDto } from './dto/freelancer-public-profile.dto';
+import {
+  FreelancersSearchResponseDto,
+  FreelancerPublicProfileDto,
+} from './dto/freelancer-public-profile.dto';
 import { ClientPublicProfileDto } from './dto/client-public-profile.dto';
-import { UserSettingsResponseDto, UserSettingsDto } from './dto/user-settings.dto';
+import {
+  UserSettingsResponseDto,
+  UserSettingsDto,
+} from './dto/user-settings.dto';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 @Injectable()
@@ -322,7 +335,8 @@ export class UsersService {
     }
 
     if (updateFreelancerProfileDto.availability !== undefined) {
-      user.freelancerData.availability = updateFreelancerProfileDto.availability;
+      user.freelancerData.availability =
+        updateFreelancerProfileDto.availability;
     }
 
     if (updateFreelancerProfileDto.experience !== undefined) {
@@ -331,10 +345,12 @@ export class UsersService {
 
     if (updateFreelancerProfileDto.languages !== undefined) {
       // Convert string array to Language objects
-      user.freelancerData.languages = updateFreelancerProfileDto.languages.map(lang => ({
-        language: lang,
-        proficiency: 'fluent', // Default proficiency
-      }));
+      user.freelancerData.languages = updateFreelancerProfileDto.languages.map(
+        (lang) => ({
+          language: lang,
+          proficiency: 'fluent', // Default proficiency
+        }),
+      );
     }
 
     await user.save();
@@ -351,7 +367,6 @@ export class UsersService {
 
     return this.mapToUserResponseDto(updatedUser);
   }
-
 
   async addFreelancerSkills(
     userId: string,
@@ -380,7 +395,7 @@ export class UsersService {
 
     // Add new skills (avoid duplicates)
     const existingSkills = new Set(user.freelancerData.skills);
-    const newSkills = skills.filter(skill => !existingSkills.has(skill));
+    const newSkills = skills.filter((skill) => !existingSkills.has(skill));
 
     if (newSkills.length === 0) {
       throw new BadRequestException('All provided skills are already added');
@@ -425,7 +440,6 @@ export class UsersService {
       message: 'Skill removed successfully from freelancer profile',
     };
   }
-
 
   async addPortfolioItem(
     userId: string,
@@ -495,7 +509,7 @@ export class UsersService {
     }
 
     const portfolioItemIndex = user.freelancerData.portfolio.findIndex(
-      (item, index) => index.toString() === portfolioItemId
+      (item, index) => index.toString() === portfolioItemId,
     );
 
     if (portfolioItemIndex === -1) {
@@ -548,7 +562,7 @@ export class UsersService {
     }
 
     const portfolioItemIndex = user.freelancerData.portfolio.findIndex(
-      (item, index) => index.toString() === portfolioItemId
+      (item, index) => index.toString() === portfolioItemId,
     );
 
     if (portfolioItemIndex === -1) {
@@ -562,7 +576,6 @@ export class UsersService {
       message: 'Portfolio item deleted successfully',
     };
   }
-
 
   async addEducationRecord(
     userId: string,
@@ -630,7 +643,7 @@ export class UsersService {
     }
 
     const educationRecordIndex = user.freelancerData.education.findIndex(
-      (record, index) => index.toString() === educationRecordId
+      (record, index) => index.toString() === educationRecordId,
     );
 
     if (educationRecordIndex === -1) {
@@ -677,7 +690,7 @@ export class UsersService {
     }
 
     const educationRecordIndex = user.freelancerData.education.findIndex(
-      (record, index) => index.toString() === educationRecordId
+      (record, index) => index.toString() === educationRecordId,
     );
 
     if (educationRecordIndex === -1) {
@@ -691,7 +704,6 @@ export class UsersService {
       message: 'Education record deleted successfully',
     };
   }
-
 
   async addCertification(
     userId: string,
@@ -760,14 +772,15 @@ export class UsersService {
     }
 
     const certificationIndex = user.freelancerData.certifications.findIndex(
-      (cert, index) => index.toString() === certificationId
+      (cert, index) => index.toString() === certificationId,
     );
 
     if (certificationIndex === -1) {
       throw new NotFoundException('Certification not found');
     }
 
-    const certification = user.freelancerData.certifications[certificationIndex];
+    const certification =
+      user.freelancerData.certifications[certificationIndex];
 
     // Update fields if provided
     if (updateCertificationDto.name !== undefined) {
@@ -810,7 +823,7 @@ export class UsersService {
     }
 
     const certificationIndex = user.freelancerData.certifications.findIndex(
-      (cert, index) => index.toString() === certificationId
+      (cert, index) => index.toString() === certificationId,
     );
 
     if (certificationIndex === -1) {
@@ -940,7 +953,10 @@ export class UsersService {
           '_id email firstName lastName role avatar location bio freelancerData',
         )
         .populate('freelancerData')
-        .sort({ 'freelancerData.rating': -1, 'freelancerData.completedJobs': -1 })
+        .sort({
+          'freelancerData.rating': -1,
+          'freelancerData.completedJobs': -1,
+        })
         .skip(skip)
         .limit(limit)
         .exec(),
@@ -948,27 +964,27 @@ export class UsersService {
     ]);
 
     // Transform the data to match the response DTO
-    const freelancerProfiles: FreelancerPublicProfileDto[] = (freelancers as any[]).map(
-      (freelancer: any) => ({
-        _id: freelancer._id.toString(),
-        email: freelancer.email,
-        firstName: freelancer.firstName,
-        lastName: freelancer.lastName,
-        role: freelancer.role,
-        avatar: freelancer.avatar,
-        location: freelancer.location,
-        bio: freelancer.bio,
-        skills: freelancer.freelancerData?.skills || [],
-        hourlyRate: freelancer.freelancerData?.hourlyRate,
-        rating: freelancer.freelancerData?.rating || 0,
-        reviewCount: freelancer.freelancerData?.reviewCount || 0,
-        totalEarned: freelancer.freelancerData?.totalEarned || 0,
-        completedJobs: freelancer.freelancerData?.completedJobs || 0,
-        portfolio: freelancer.freelancerData?.portfolio || [],
-        education: freelancer.freelancerData?.education || [],
-        certifications: freelancer.freelancerData?.certifications || [],
-      }),
-    );
+    const freelancerProfiles: FreelancerPublicProfileDto[] = (
+      freelancers as any[]
+    ).map((freelancer: any) => ({
+      _id: freelancer._id.toString(),
+      email: freelancer.email,
+      firstName: freelancer.firstName,
+      lastName: freelancer.lastName,
+      role: freelancer.role,
+      avatar: freelancer.avatar,
+      location: freelancer.location,
+      bio: freelancer.bio,
+      skills: freelancer.freelancerData?.skills || [],
+      hourlyRate: freelancer.freelancerData?.hourlyRate,
+      rating: freelancer.freelancerData?.rating || 0,
+      reviewCount: freelancer.freelancerData?.reviewCount || 0,
+      totalEarned: freelancer.freelancerData?.totalEarned || 0,
+      completedJobs: freelancer.freelancerData?.completedJobs || 0,
+      portfolio: freelancer.freelancerData?.portfolio || [],
+      education: freelancer.freelancerData?.education || [],
+      certifications: freelancer.freelancerData?.certifications || [],
+    }));
 
     const totalPages = Math.ceil(total / limit);
 
@@ -1023,8 +1039,9 @@ export class UsersService {
     };
   }
 
-
-  async getClientPublicProfile(clientId: string): Promise<ClientPublicProfileDto> {
+  async getClientPublicProfile(
+    clientId: string,
+  ): Promise<ClientPublicProfileDto> {
     const client = await this.userModel
       .findOne({
         _id: clientId,
@@ -1061,7 +1078,6 @@ export class UsersService {
       postedJobs: clientDoc.clientData?.postedJobs || 0,
     };
   }
-
 
   async getUserSettings(userId: string): Promise<UserSettingsResponseDto> {
     const user = await this.userModel.findById(userId).exec();

@@ -120,7 +120,14 @@ export class SkillsController {
     @Query('search') search?: string,
     @Query('isActive') isActive?: boolean,
   ): Promise<SkillsListResponseDto> {
-    return this.skillsService.findAll(page, limit, category, difficulty, search, isActive);
+    return this.skillsService.findAll(
+      page,
+      limit,
+      category,
+      difficulty,
+      search,
+      isActive,
+    );
   }
 
   @Get('popular')
@@ -132,7 +139,9 @@ export class SkillsController {
     description: 'Popular skills retrieved successfully',
     type: [SkillResponseDto],
   })
-  async findPopular(@Query('limit') limit: number = 20): Promise<SkillResponseDto[]> {
+  async findPopular(
+    @Query('limit') limit: number = 20,
+  ): Promise<SkillResponseDto[]> {
     return this.skillsService.findPopular(limit);
   }
 

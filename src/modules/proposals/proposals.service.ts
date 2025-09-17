@@ -22,7 +22,6 @@ export class ProposalsService {
     @InjectModel(Proposal.name) private readonly proposalModel: Model<Proposal>,
   ) {}
 
-
   async create(
     createProposalDto: CreateProposalDto,
     freelancerId: string,
@@ -35,7 +34,9 @@ export class ProposalsService {
       .exec();
 
     if (existingProposal) {
-      throw new BadRequestException('You have already submitted a proposal for this job');
+      throw new BadRequestException(
+        'You have already submitted a proposal for this job',
+      );
     }
 
     const proposal = new this.proposalModel({
@@ -56,7 +57,6 @@ export class ProposalsService {
 
     return this.mapToProposalResponseDto(populatedProposal);
   }
-
 
   async findByJobId(
     jobId: string,
@@ -82,14 +82,15 @@ export class ProposalsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      proposals: proposals.map((proposal) => this.mapToProposalResponseDto(proposal)),
+      proposals: proposals.map((proposal) =>
+        this.mapToProposalResponseDto(proposal),
+      ),
       total,
       page,
       limit,
       totalPages,
     };
   }
-
 
   async findMyProposals(
     freelancerId: string,
@@ -117,14 +118,15 @@ export class ProposalsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      proposals: proposals.map((proposal) => this.mapToProposalResponseDto(proposal)),
+      proposals: proposals.map((proposal) =>
+        this.mapToProposalResponseDto(proposal),
+      ),
       total,
       page,
       limit,
       totalPages,
     };
   }
-
 
   async findOne(id: string, userId: string): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
@@ -143,12 +145,13 @@ export class ProposalsService {
       proposal.freelancerId._id.toString() !== userId &&
       job.clientId?.toString() !== userId
     ) {
-      throw new ForbiddenException('You are not authorized to view this proposal');
+      throw new ForbiddenException(
+        'You are not authorized to view this proposal',
+      );
     }
 
     return this.mapToProposalResponseDto(proposal);
   }
-
 
   async update(
     id: string,
@@ -161,11 +164,11 @@ export class ProposalsService {
       throw new NotFoundException('Proposal not found');
     }
 
-  
     if (proposal.freelancerId.toString() !== freelancerId) {
-      throw new ForbiddenException('You are not authorized to update this proposal');
+      throw new ForbiddenException(
+        'You are not authorized to update this proposal',
+      );
     }
-
 
     if (proposal.status !== ProposalStatus.PENDING) {
       throw new BadRequestException('Proposal cannot be modified');
@@ -194,7 +197,11 @@ export class ProposalsService {
     }
 
     const updatedProposal = await this.proposalModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true })
+      .findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true },
+      )
       .populate('freelancerId', 'email profile.firstName profile.lastName')
       .populate('jobId', 'title clientId')
       .exec();
@@ -206,7 +213,6 @@ export class ProposalsService {
     return this.mapToProposalResponseDto(updatedProposal);
   }
 
-
   async remove(id: string, freelancerId: string): Promise<MessageResponseDto> {
     const proposal = await this.proposalModel.findById(id).exec();
 
@@ -215,7 +221,9 @@ export class ProposalsService {
     }
 
     if (proposal.freelancerId.toString() !== freelancerId) {
-      throw new ForbiddenException('You are not authorized to delete this proposal');
+      throw new ForbiddenException(
+        'You are not authorized to delete this proposal',
+      );
     }
 
     if (proposal.status !== ProposalStatus.PENDING) {
@@ -227,8 +235,10 @@ export class ProposalsService {
     return { message: 'Proposal deleted successfully' };
   }
 
-
-  async acceptProposal(id: string, clientId: string): Promise<ProposalResponseDto> {
+  async acceptProposal(
+    id: string,
+    clientId: string,
+  ): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
       .findById(id)
       .populate('jobId', 'clientId status')
@@ -238,7 +248,9 @@ export class ProposalsService {
     }
     const job = proposal.jobId as any;
     if (job.clientId?.toString() !== clientId) {
-      throw new ForbiddenException('You are not authorized to accept this proposal');
+      throw new ForbiddenException(
+        'You are not authorized to accept this proposal',
+      );
     }
 
     proposal.status = ProposalStatus.ACCEPTED;
@@ -247,7 +259,10 @@ export class ProposalsService {
     return this.mapToProposalResponseDto(proposal);
   }
 
-  async rejectProposal(id: string, clientId: string): Promise<ProposalResponseDto> {
+  async rejectProposal(
+    id: string,
+    clientId: string,
+  ): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
       .findById(id)
       .populate('jobId', 'clientId status')
@@ -257,19 +272,22 @@ export class ProposalsService {
     }
     const job = proposal.jobId as any;
     if (job.clientId?.toString() !== clientId) {
-      throw new ForbiddenException('You are not authorized to reject this proposal');
+      throw new ForbiddenException(
+        'You are not authorized to reject this proposal',
+      );
     }
     proposal.status = ProposalStatus.REJECTED;
     await proposal.save();
     return this.mapToProposalResponseDto(proposal);
   }
 
-
   private mapToProposalResponseDto(proposal: any): ProposalResponseDto {
     return {
       _id: proposal._id?.toString(),
       jobId: proposal.jobId?._id?.toString() || proposal.jobId?.toString(),
-      freelancerId: proposal.freelancerId?._id?.toString() || proposal.freelancerId?.toString(),
+      freelancerId:
+        proposal.freelancerId?._id?.toString() ||
+        proposal.freelancerId?.toString(),
       coverLetter: proposal.coverLetter,
       proposedRate: proposal.proposedRate,
       estimatedDuration: proposal.estimatedDuration,

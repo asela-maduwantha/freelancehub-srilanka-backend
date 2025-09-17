@@ -4,7 +4,10 @@ import { IsArray, ValidateNested } from 'class-validator';
 import { CreateSkillDto } from './create-skill.dto';
 
 export class BatchCreateSkillDto {
-  @ApiProperty({ type: [CreateSkillDto], description: 'Array of skills to create' })
+  @ApiProperty({
+    type: [CreateSkillDto],
+    description: 'Array of skills to create',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateSkillDto)

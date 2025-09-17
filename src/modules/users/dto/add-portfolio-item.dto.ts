@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, IsUrl } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsUrl,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AddPortfolioItemDto {
@@ -20,7 +26,10 @@ export class AddPortfolioItemDto {
 
   @ApiPropertyOptional({
     description: 'Array of image URLs for the portfolio item',
-    example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
+    example: [
+      'https://example.com/image1.jpg',
+      'https://example.com/image2.jpg',
+    ],
   })
   @IsOptional()
   @IsArray()

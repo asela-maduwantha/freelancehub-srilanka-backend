@@ -78,7 +78,7 @@ export class ProposalsController {
   }
 
   @Get('my')
-  @ApiOperation({ summary: 'Get current user\'s proposals' })
+  @ApiOperation({ summary: "Get current user's proposals" })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, enum: ProposalStatus })
@@ -93,7 +93,12 @@ export class ProposalsController {
     @Query('limit') limit: number = 10,
     @Query('status') status?: ProposalStatus,
   ): Promise<ProposalsListResponseDto> {
-    return this.proposalsService.findMyProposals(freelancerId, page, limit, status);
+    return this.proposalsService.findMyProposals(
+      freelancerId,
+      page,
+      limit,
+      status,
+    );
   }
 
   @Get(':id')

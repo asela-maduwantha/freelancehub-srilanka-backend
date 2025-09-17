@@ -1,12 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsMongoId, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  IsMongoId,
+  Min,
+} from 'class-validator';
 
 export class CreateCategoryDto {
   @ApiProperty({ description: 'Name of the category' })
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Unique slug for the category (auto-generated if not provided)' })
+  @ApiPropertyOptional({
+    description:
+      'Unique slug for the category (auto-generated if not provided)',
+  })
   @IsOptional()
   @IsString()
   slug?: string;
@@ -21,7 +32,10 @@ export class CreateCategoryDto {
   @IsString()
   icon?: string;
 
-  @ApiPropertyOptional({ description: 'Whether the category is active', default: true })
+  @ApiPropertyOptional({
+    description: 'Whether the category is active',
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

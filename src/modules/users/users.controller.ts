@@ -45,9 +45,15 @@ import { AddCertificationDto } from './dto/add-certification.dto';
 import { UpdateCertificationDto } from './dto/update-certification.dto';
 import { UpdateClientProfileDto } from './dto/update-client-profile.dto';
 import { SearchFreelancersDto } from './dto/search-freelancers.dto';
-import { FreelancersSearchResponseDto, FreelancerPublicProfileDto } from './dto/freelancer-public-profile.dto';
+import {
+  FreelancersSearchResponseDto,
+  FreelancerPublicProfileDto,
+} from './dto/freelancer-public-profile.dto';
 import { ClientPublicProfileDto } from './dto/client-public-profile.dto';
-import { UserSettingsResponseDto, UserSettingsDto } from './dto/user-settings.dto';
+import {
+  UserSettingsResponseDto,
+  UserSettingsDto,
+} from './dto/user-settings.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -256,9 +262,13 @@ export class UsersController {
   })
   async updateFreelancerProfile(
     @CurrentUser('id') userId: string,
-    @Body(ValidationPipe) updateFreelancerProfileDto: UpdateFreelancerProfileDto,
+    @Body(ValidationPipe)
+    updateFreelancerProfileDto: UpdateFreelancerProfileDto,
   ): Promise<UserResponseDto> {
-    return this.usersService.updateFreelancerProfile(userId, updateFreelancerProfileDto);
+    return this.usersService.updateFreelancerProfile(
+      userId,
+      updateFreelancerProfileDto,
+    );
   }
 
   @Post('freelancer/skills')
@@ -365,7 +375,11 @@ export class UsersController {
     @Param('id') portfolioItemId: string,
     @Body(ValidationPipe) updatePortfolioItemDto: UpdatePortfolioItemDto,
   ): Promise<MessageResponseDto> {
-    return this.usersService.updatePortfolioItem(userId, portfolioItemId, updatePortfolioItemDto);
+    return this.usersService.updatePortfolioItem(
+      userId,
+      portfolioItemId,
+      updatePortfolioItemDto,
+    );
   }
 
   @Delete('freelancer/portfolio/:id')
@@ -445,7 +459,11 @@ export class UsersController {
     @Param('id') educationRecordId: string,
     @Body(ValidationPipe) updateEducationDto: UpdateEducationDto,
   ): Promise<MessageResponseDto> {
-    return this.usersService.updateEducationRecord(userId, educationRecordId, updateEducationDto);
+    return this.usersService.updateEducationRecord(
+      userId,
+      educationRecordId,
+      updateEducationDto,
+    );
   }
 
   @Delete('freelancer/education/:id')
@@ -525,7 +543,11 @@ export class UsersController {
     @Param('id') certificationId: string,
     @Body(ValidationPipe) updateCertificationDto: UpdateCertificationDto,
   ): Promise<MessageResponseDto> {
-    return this.usersService.updateCertification(userId, certificationId, updateCertificationDto);
+    return this.usersService.updateCertification(
+      userId,
+      certificationId,
+      updateCertificationDto,
+    );
   }
 
   @Delete('freelancer/certification/:id')
@@ -580,7 +602,10 @@ export class UsersController {
     @CurrentUser('id') userId: string,
     @Body(ValidationPipe) updateClientProfileDto: UpdateClientProfileDto,
   ): Promise<MessageResponseDto> {
-    return this.usersService.updateClientProfile(userId, updateClientProfileDto);
+    return this.usersService.updateClientProfile(
+      userId,
+      updateClientProfileDto,
+    );
   }
 
   @Get('freelancers')

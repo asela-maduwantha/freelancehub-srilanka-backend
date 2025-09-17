@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { MongooseExceptionFilter } from './common/filters/mongoose-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
@@ -26,7 +27,6 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
-
 
   const port = configService.get('PORT', 3000);
   const apiPrefix = configService.get('API_PREFIX', 'api');
@@ -74,7 +74,10 @@ async function bootstrap() {
   );
 
   // Global filters
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(
+    new AllExceptionsFilter(),
+    new MongooseExceptionFilter(),
+  );
 
   // Swagger documentation
   if (enableSwagger) {

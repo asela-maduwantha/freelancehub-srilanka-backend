@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ProposalsController } from './proposals.controller';
 import { ProposalsService } from './proposals.service';
-import { Proposal, ProposalSchema } from '../../database/schemas/proposal.schema';
+import {
+  Proposal,
+  ProposalSchema,
+} from '../../database/schemas/proposal.schema';
 import { Job, JobSchema } from '../../database/schemas/job.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';

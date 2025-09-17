@@ -2,7 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { MilestoneStatus } from '../../common/enums/milestone-status.enum';
 
-
 @Schema({ _id: false })
 export class Deliverable {
   @Prop({ required: true })

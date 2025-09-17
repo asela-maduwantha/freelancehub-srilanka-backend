@@ -1,4 +1,14 @@
-import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsArray, ValidateNested, Min, IsMongoId } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  Min,
+  IsMongoId,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -35,7 +45,10 @@ class ProposedMilestoneDto {
   @IsNotEmpty()
   title: string;
 
-  @ApiProperty({ example: 'Set up the project structure', description: 'Milestone description' })
+  @ApiProperty({
+    example: 'Set up the project structure',
+    description: 'Milestone description',
+  })
   @IsString()
   @IsNotEmpty()
   description: string;
@@ -57,7 +70,10 @@ class ProposalAttachmentDto {
   @IsNotEmpty()
   filename: string;
 
-  @ApiProperty({ example: 'https://example.com/document.pdf', description: 'Attachment URL' })
+  @ApiProperty({
+    example: 'https://example.com/document.pdf',
+    description: 'Attachment URL',
+  })
   @IsString()
   @IsNotEmpty()
   url: string;
@@ -79,7 +95,10 @@ export class CreateProposalDto {
   @IsNotEmpty()
   jobId: string;
 
-  @ApiProperty({ example: 'I am excited to work on this project...', description: 'Cover letter' })
+  @ApiProperty({
+    example: 'I am excited to work on this project...',
+    description: 'Cover letter',
+  })
   @IsString()
   @IsNotEmpty()
   coverLetter: string;
@@ -89,20 +108,29 @@ export class CreateProposalDto {
   @Type(() => ProposedRateDto)
   proposedRate: ProposedRateDto;
 
-  @ApiPropertyOptional({ type: EstimatedDurationDto, description: 'Estimated duration' })
+  @ApiPropertyOptional({
+    type: EstimatedDurationDto,
+    description: 'Estimated duration',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => EstimatedDurationDto)
   estimatedDuration?: EstimatedDurationDto;
 
-  @ApiPropertyOptional({ type: [ProposedMilestoneDto], description: 'Proposed milestones' })
+  @ApiPropertyOptional({
+    type: [ProposedMilestoneDto],
+    description: 'Proposed milestones',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProposedMilestoneDto)
   proposedMilestones?: ProposedMilestoneDto[];
 
-  @ApiPropertyOptional({ type: [ProposalAttachmentDto], description: 'Attachments' })
+  @ApiPropertyOptional({
+    type: [ProposalAttachmentDto],
+    description: 'Attachments',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

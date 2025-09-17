@@ -157,12 +157,18 @@ export class CreateJobDto {
   @IsEnum(['beginner', 'intermediate', 'expert'])
   experienceLevel?: string;
 
-  @ApiPropertyOptional({ description: 'Is this an urgent job?', default: false })
+  @ApiPropertyOptional({
+    description: 'Is this an urgent job?',
+    default: false,
+  })
   @IsOptional()
   @IsIn([true, false])
   isUrgent?: boolean = false;
 
-  @ApiPropertyOptional({ description: 'Is this a featured job?', default: false })
+  @ApiPropertyOptional({
+    description: 'Is this a featured job?',
+    default: false,
+  })
   @IsOptional()
   @IsIn([true, false])
   isFeatured?: boolean = false;

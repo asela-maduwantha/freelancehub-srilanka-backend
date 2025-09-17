@@ -23,15 +23,22 @@ export class CategoriesService {
     @InjectModel(Category.name) private readonly categoryModel: Model<Category>,
   ) {}
 
-
-  async create(createCategoryDto: CreateCategoryDto): Promise<CategoryResponseDto> {
+  async create(
+    createCategoryDto: CreateCategoryDto,
+  ): Promise<CategoryResponseDto> {
     // Generate slug if not provided
     if (!createCategoryDto.slug) {
-      createCategoryDto.slug = slugify(createCategoryDto.name, { lower: true, strict: true, trim: true });
+      createCategoryDto.slug = slugify(createCategoryDto.name, {
+        lower: true,
+        strict: true,
+        trim: true,
+      });
     }
 
     // Check for duplicate slug
-    const existingCategory = await this.categoryModel.findOne({ slug: createCategoryDto.slug, deletedAt: { $exists: false } }).exec();
+    const existingCategory = await this.categoryModel
+      .findOne({ slug: createCategoryDto.slug, deletedAt: { $exists: false } })
+      .exec();
     if (existingCategory) {
       throw new BadRequestException('Category with this slug already exists');
     }
@@ -42,7 +49,9 @@ export class CategoriesService {
     return this.mapToCategoryResponseDto(savedCategory);
   }
 
-  async batchCreate(batchCreateCategoryDto: BatchCreateCategoryDto): Promise<MessageResponseDto> {
+  async batchCreate(
+    batchCreateCategoryDto: BatchCreateCategoryDto,
+  ): Promise<MessageResponseDto> {
     const createdCategories: any[] = [];
     const errors: { name: string; error: string }[] = [];
 
@@ -50,7 +59,11 @@ export class CategoriesService {
       try {
         // Generate slug if not provided
         if (!categoryDto.slug) {
-          categoryDto.slug = slugify(categoryDto.name, { lower: true, strict: true, trim: true });
+          categoryDto.slug = slugify(categoryDto.name, {
+            lower: true,
+            strict: true,
+            trim: true,
+          });
         }
 
         const category = new this.categoryModel(categoryDto);
@@ -68,9 +81,10 @@ export class CategoriesService {
       });
     }
 
-    return { message: `Successfully created ${createdCategories.length} categories` };
+    return {
+      message: `Successfully created ${createdCategories.length} categories`,
+    };
   }
-
 
   async findAll(
     page: number = 1,
@@ -111,7 +125,9 @@ export class CategoriesService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      categories: categories.map((category) => this.mapToCategoryResponseDto(category)),
+      categories: categories.map((category) =>
+        this.mapToCategoryResponseDto(category),
+      ),
       total,
       page,
       limit,
@@ -119,11 +135,8 @@ export class CategoriesService {
     };
   }
 
-
   async findOne(id: string): Promise<CategoryResponseDto> {
-    const category = await this.categoryModel
-      .findById(id)
-      .exec();
+    const category = await this.categoryModel.findById(id).exec();
 
     if (!category || category.deletedAt) {
       throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
@@ -131,7 +144,6 @@ export class CategoriesService {
 
     return this.mapToCategoryResponseDto(category);
   }
-
 
   async findBySlug(slug: string): Promise<CategoryResponseDto> {
     const category = await this.categoryModel
@@ -145,7 +157,6 @@ export class CategoriesService {
     return this.mapToCategoryResponseDto(category);
   }
 
-
   async findMainCategories(
     page: number = 1,
     limit: number = 10,
@@ -155,7 +166,7 @@ export class CategoriesService {
     const filter = {
       parentId: { $exists: false },
       isActive: true,
-      deletedAt: { $exists: false }
+      deletedAt: { $exists: false },
     };
 
     const [categories, total] = await Promise.all([
@@ -171,7 +182,9 @@ export class CategoriesService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      categories: categories.map((category) => this.mapToCategoryResponseDto(category)),
+      categories: categories.map((category) =>
+        this.mapToCategoryResponseDto(category),
+      ),
       total,
       page,
       limit,
@@ -179,22 +192,25 @@ export class CategoriesService {
     };
   }
 
-
   async findSubcategories(parentId: string): Promise<CategoryResponseDto[]> {
     const categories = await this.categoryModel
       .find({
         parentId,
         isActive: true,
-        deletedAt: { $exists: false }
+        deletedAt: { $exists: false },
       })
       .sort({ order: 1, name: 1 })
       .exec();
 
-    return categories.map((category) => this.mapToCategoryResponseDto(category));
+    return categories.map((category) =>
+      this.mapToCategoryResponseDto(category),
+    );
   }
 
-
-  async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<CategoryResponseDto> {
     const category = await this.categoryModel.findById(id).exec();
 
     if (!category || category.deletedAt) {
@@ -203,11 +219,13 @@ export class CategoriesService {
 
     // Check if slug is being updated and if it already exists
     if (updateCategoryDto.slug && updateCategoryDto.slug !== category.slug) {
-      const existingCategory = await this.categoryModel.findOne({
-        slug: updateCategoryDto.slug,
-        deletedAt: { $exists: false },
-        _id: { $ne: id }
-      }).exec();
+      const existingCategory = await this.categoryModel
+        .findOne({
+          slug: updateCategoryDto.slug,
+          deletedAt: { $exists: false },
+          _id: { $ne: id },
+        })
+        .exec();
 
       if (existingCategory) {
         throw new BadRequestException('Category with this slug already exists');
@@ -215,8 +233,13 @@ export class CategoriesService {
     }
 
     // Check if parent category exists (if being updated)
-    if (updateCategoryDto.parentId && updateCategoryDto.parentId !== category.parentId?.toString()) {
-      const parentCategory = await this.categoryModel.findById(updateCategoryDto.parentId).exec();
+    if (
+      updateCategoryDto.parentId &&
+      updateCategoryDto.parentId !== category.parentId?.toString()
+    ) {
+      const parentCategory = await this.categoryModel
+        .findById(updateCategoryDto.parentId)
+        .exec();
       if (!parentCategory) {
         throw new NotFoundException('Parent category not found');
       }
@@ -234,7 +257,6 @@ export class CategoriesService {
     return this.mapToCategoryResponseDto(updatedCategory);
   }
 
-
   async remove(id: string): Promise<MessageResponseDto> {
     const category = await this.categoryModel.findById(id).exec();
 
@@ -243,28 +265,38 @@ export class CategoriesService {
     }
 
     // Check if category has subcategories
-    const subcategoriesCount = await this.categoryModel.countDocuments({
-      parentId: id,
-      deletedAt: { $exists: false }
-    }).exec();
+    const subcategoriesCount = await this.categoryModel
+      .countDocuments({
+        parentId: id,
+        deletedAt: { $exists: false },
+      })
+      .exec();
 
     if (subcategoriesCount > 0) {
-      throw new BadRequestException('Cannot delete category with existing subcategories');
+      throw new BadRequestException(
+        'Cannot delete category with existing subcategories',
+      );
     }
 
-    await this.categoryModel.findByIdAndUpdate(id, { deletedAt: new Date() }).exec();
+    await this.categoryModel
+      .findByIdAndUpdate(id, { deletedAt: new Date() })
+      .exec();
 
     return { message: RESPONSE_MESSAGES.CATEGORY.DELETED };
   }
 
   // Increment job count for a category
   async incrementJobCount(id: string): Promise<void> {
-    await this.categoryModel.findByIdAndUpdate(id, { $inc: { jobCount: 1 } }).exec();
+    await this.categoryModel
+      .findByIdAndUpdate(id, { $inc: { jobCount: 1 } })
+      .exec();
   }
 
   // Decrement job count for a category
   async decrementJobCount(id: string): Promise<void> {
-    await this.categoryModel.findByIdAndUpdate(id, { $inc: { jobCount: -1 } }).exec();
+    await this.categoryModel
+      .findByIdAndUpdate(id, { $inc: { jobCount: -1 } })
+      .exec();
   }
 
   // Map category document to response DTO
@@ -278,12 +310,15 @@ export class CategoriesService {
       isActive: category.isActive,
       parentId: category.parentId?.toString(),
       order: category.order,
-      subcategories: Array.isArray(category.subcategories) ? [...category.subcategories] : [],
+      subcategories: Array.isArray(category.subcategories)
+        ? [...category.subcategories]
+        : [],
       jobCount: category.jobCount || 0,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
       isSubcategory: !!category.parentId,
-      hasSubcategories: category.subcategories && category.subcategories.length > 0,
+      hasSubcategories:
+        category.subcategories && category.subcategories.length > 0,
       isDeleted: !!category.deletedAt,
     };
   }

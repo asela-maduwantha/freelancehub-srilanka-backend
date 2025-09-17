@@ -104,9 +104,16 @@ export class FreelancerPublicProfileDto {
       type: 'object',
       properties: {
         title: { type: 'string', example: 'E-commerce Website' },
-        description: { type: 'string', example: 'Built a full-stack e-commerce platform' },
+        description: {
+          type: 'string',
+          example: 'Built a full-stack e-commerce platform',
+        },
         url: { type: 'string', example: 'https://example.com/portfolio/1' },
-        technologies: { type: 'array', items: { type: 'string' }, example: ['React', 'Node.js'] },
+        technologies: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['React', 'Node.js'],
+        },
       },
     },
     required: false,
@@ -137,7 +144,10 @@ export class FreelancerPublicProfileDto {
         name: { type: 'string', example: 'AWS Certified Developer' },
         issuer: { type: 'string', example: 'Amazon Web Services' },
         date: { type: 'string', format: 'date', example: '2023-01-15' },
-        url: { type: 'string', example: 'https://aws.amazon.com/certification' },
+        url: {
+          type: 'string',
+          example: 'https://aws.amazon.com/certification',
+        },
       },
     },
     required: false,

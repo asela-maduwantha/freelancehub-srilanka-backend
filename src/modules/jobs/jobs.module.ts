@@ -7,8 +7,14 @@ import { User, UserSchema } from '../../database/schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 import { ProposalsModule } from '../proposals/proposals.module';
 import { UsersModule } from '../users/users.module';
-import { SavedJob, SavedJobSchema } from '../../database/schemas/saved-job.schema';
-import { JobReport, JobReportSchema } from '../../database/schemas/job-report.schema';
+import {
+  SavedJob,
+  SavedJobSchema,
+} from '../../database/schemas/saved-job.schema';
+import {
+  JobReport,
+  JobReportSchema,
+} from '../../database/schemas/job-report.schema';
 
 @Module({
   imports: [

@@ -4,7 +4,10 @@ import { IsArray, ValidateNested } from 'class-validator';
 import { CreateCategoryDto } from './create-category.dto';
 
 export class BatchCreateCategoryDto {
-  @ApiProperty({ type: [CreateCategoryDto], description: 'Array of categories to create' })
+  @ApiProperty({
+    type: [CreateCategoryDto],
+    description: 'Array of categories to create',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateCategoryDto)

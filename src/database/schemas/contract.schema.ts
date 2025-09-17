@@ -2,7 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { ContractStatus } from '../../common/enums/contract-status.enum';
 
-// Main Contract Schema
 @Schema({
   timestamps: true,
   collection: 'contracts',
@@ -70,6 +69,12 @@ export class Contract extends Document {
   terms?: string;
 
   @Prop()
+  isClientSigned?: boolean;
+
+  @Prop()
+  isFreelancerSigned?: boolean;
+
+  @Prop()
   completedAt?: Date;
 
   @Prop()
@@ -78,7 +83,6 @@ export class Contract extends Document {
   @Prop()
   deletedAt?: Date;
 
-  // Virtual fields
   get remainingAmount(): number {
     return Math.max(0, this.totalAmount - this.totalPaid);
   }
@@ -107,7 +111,6 @@ export class Contract extends Document {
 
 export const ContractSchema = SchemaFactory.createForClass(Contract);
 
-// Create indexes
 ContractSchema.index({ clientId: 1 });
 ContractSchema.index({ freelancerId: 1 });
 ContractSchema.index({ jobId: 1 });
@@ -118,12 +121,10 @@ ContractSchema.index({ startDate: 1 });
 ContractSchema.index({ endDate: 1 });
 ContractSchema.index({ deletedAt: 1 }, { sparse: true });
 
-// Compound indexes
 ContractSchema.index({ clientId: 1, status: 1 });
 ContractSchema.index({ freelancerId: 1, status: 1 });
 ContractSchema.index({ status: 1, createdAt: -1 });
 
-// Add virtual fields
 ContractSchema.virtual('remainingAmount').get(function () {
   return Math.max(0, this.totalAmount - this.totalPaid);
 });
@@ -149,9 +150,7 @@ ContractSchema.virtual('freelancerAmount').get(function () {
   return this.totalAmount - this.platformFee;
 });
 
-// Pre-save middleware
 ContractSchema.pre('save', function (next) {
-  // Set completion date when status changes to completed
   if (
     this.isModified('status') &&
     this.status === ContractStatus.COMPLETED &&
@@ -160,7 +159,6 @@ ContractSchema.pre('save', function (next) {
     this.completedAt = new Date();
   }
 
-  // Set cancellation date when status changes to cancelled
   if (
     this.isModified('status') &&
     this.status === ContractStatus.CANCELLED &&
@@ -172,12 +170,9 @@ ContractSchema.pre('save', function (next) {
   next();
 });
 
-// Pre-find middleware to populate references
 ContractSchema.pre(/^find/, function (next) {
-  // Populate will be handled at query level to avoid TypeScript issues
   next();
 });
 
-// Ensure virtuals are included in JSON
 ContractSchema.set('toJSON', { virtuals: true });
 ContractSchema.set('toObject', { virtuals: true });

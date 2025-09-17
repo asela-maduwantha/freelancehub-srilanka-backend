@@ -16,7 +16,8 @@ import { AuthModule } from '../auth/auth.module';
       storage: diskStorage({
         destination: './uploads/avatars',
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const extension = extname(file.originalname);
           callback(null, `avatar-${uniqueSuffix}${extension}`);
         },
@@ -28,7 +29,7 @@ import { AuthModule } from '../auth/auth.module';
         callback(null, true);
       },
       limits: {
-        fileSize: 5 * 1024 * 1024, 
+        fileSize: 5 * 1024 * 1024,
       },
     }),
   ],

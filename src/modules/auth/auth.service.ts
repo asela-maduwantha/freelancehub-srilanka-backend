@@ -314,7 +314,6 @@ export class AuthService {
     }
   }
 
-
   async getProfile(userId: string): Promise<UserResponseDto> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
@@ -348,7 +347,9 @@ export class AuthService {
   }
 
   // Send email verification OTP
-  async sendVerification(sendVerificationDto: SendVerificationDto): Promise<MessageResponseDto> {
+  async sendVerification(
+    sendVerificationDto: SendVerificationDto,
+  ): Promise<MessageResponseDto> {
     const { email } = sendVerificationDto;
 
     // Check if user exists
@@ -359,7 +360,9 @@ export class AuthService {
 
     // Check if email is already verified
     if (user.isEmailVerified) {
-      throw new BadRequestException(RESPONSE_MESSAGES.AUTH.EMAIL_ALREADY_VERIFIED);
+      throw new BadRequestException(
+        RESPONSE_MESSAGES.AUTH.EMAIL_ALREADY_VERIFIED,
+      );
     }
 
     // Send email verification OTP
@@ -371,7 +374,9 @@ export class AuthService {
   }
 
   // Resend email verification OTP
-  async resendVerification(resendVerificationDto: ResendVerificationDto): Promise<MessageResponseDto> {
+  async resendVerification(
+    resendVerificationDto: ResendVerificationDto,
+  ): Promise<MessageResponseDto> {
     const { email } = resendVerificationDto;
 
     // Check if user exists
@@ -382,7 +387,9 @@ export class AuthService {
 
     // Check if email is already verified
     if (user.isEmailVerified) {
-      throw new BadRequestException(RESPONSE_MESSAGES.AUTH.EMAIL_ALREADY_VERIFIED);
+      throw new BadRequestException(
+        RESPONSE_MESSAGES.AUTH.EMAIL_ALREADY_VERIFIED,
+      );
     }
 
     // Send email verification OTP

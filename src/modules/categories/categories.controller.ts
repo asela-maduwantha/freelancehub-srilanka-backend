@@ -118,7 +118,13 @@ export class CategoriesController {
     @Query('parentId') parentId?: string,
     @Query('search') search?: string,
   ): Promise<CategoriesListResponseDto> {
-    return this.categoriesService.findAll(page, limit, isActive, parentId, search);
+    return this.categoriesService.findAll(
+      page,
+      limit,
+      isActive,
+      parentId,
+      search,
+    );
   }
 
   @Get('main')
@@ -181,7 +187,9 @@ export class CategoriesController {
     description: 'Subcategories retrieved successfully',
     type: [CategoryResponseDto],
   })
-  async findSubcategories(@Param('id') id: string): Promise<CategoryResponseDto[]> {
+  async findSubcategories(
+    @Param('id') id: string,
+  ): Promise<CategoryResponseDto[]> {
     return this.categoriesService.findSubcategories(id);
   }
 

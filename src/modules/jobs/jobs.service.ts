@@ -24,7 +24,10 @@ import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import { ProposalsService } from '../proposals/proposals.service';
 import { UsersService } from '../users/users.service';
 import { SavedJob } from '../../database/schemas/saved-job.schema';
-import { JobReport, ReportReason } from '../../database/schemas/job-report.schema';
+import {
+  JobReport,
+  ReportReason,
+} from '../../database/schemas/job-report.schema';
 
 @Injectable()
 export class JobsService {
@@ -33,7 +36,8 @@ export class JobsService {
     private readonly proposalsService: ProposalsService,
     private readonly usersService: UsersService,
     @InjectModel(SavedJob.name) private readonly savedJobModel: Model<SavedJob>,
-    @InjectModel(JobReport.name) private readonly jobReportModel: Model<JobReport>,
+    @InjectModel(JobReport.name)
+    private readonly jobReportModel: Model<JobReport>,
   ) {}
 
   async create(
@@ -118,14 +122,15 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    if (job.status !== JobStatus.OPEN && job.clientId?._id?.toString() !== clientId) {
+    if (
+      job.status !== JobStatus.OPEN &&
+      job.clientId?._id?.toString() !== clientId
+    ) {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
     return this.mapToJobResponseDto(job);
   }
-
-
 
   async update(
     id: string,
@@ -167,7 +172,10 @@ export class JobsService {
     addIfDefined('expiresAt', updateJobDto.expiresAt);
 
     if (updateJobDto.budget !== undefined) {
-      if (updateJobDto.budget.type !== undefined && updateJobDto.budget.min !== undefined) {
+      if (
+        updateJobDto.budget.type !== undefined &&
+        updateJobDto.budget.min !== undefined
+      ) {
         updateData.budget = updateJobDto.budget;
       } else {
         if (updateJobDto.budget.type !== undefined) {
@@ -190,7 +198,8 @@ export class JobsService {
         updateData.duration = updateJobDto.duration;
       } else {
         if (updateJobDto.duration.estimatedHours !== undefined) {
-          updateData['duration.estimatedHours'] = updateJobDto.duration.estimatedHours;
+          updateData['duration.estimatedHours'] =
+            updateJobDto.duration.estimatedHours;
         }
       }
     }
@@ -209,7 +218,11 @@ export class JobsService {
     }
 
     const updatedJob = await this.jobModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true })
+      .findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true },
+      )
       .populate('clientId', 'email profile.firstName profile.lastName')
       .exec();
 
@@ -289,7 +302,9 @@ export class JobsService {
       throw new BadRequestException('Job is not open and cannot be closed');
     }
 
-    await this.jobModel.findByIdAndUpdate(id, { status: JobStatus.COMPLETED }).exec();
+    await this.jobModel
+      .findByIdAndUpdate(id, { status: JobStatus.COMPLETED })
+      .exec();
 
     return { message: 'Job closed successfully' };
   }
@@ -309,8 +324,9 @@ export class JobsService {
       throw new BadRequestException('Only completed jobs can be reopened');
     }
 
-
-    await this.jobModel.findByIdAndUpdate(id, { status: JobStatus.OPEN }).exec();
+    await this.jobModel
+      .findByIdAndUpdate(id, { status: JobStatus.OPEN })
+      .exec();
 
     return { message: 'Job reopened successfully' };
   }
@@ -321,10 +337,10 @@ export class JobsService {
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    const filter = { 
+    const filter = {
       status: JobStatus.OPEN,
       isFeatured: true,
-      deletedAt: { $exists: false }
+      deletedAt: { $exists: false },
     };
 
     const [jobs, total] = await Promise.all([
@@ -356,14 +372,14 @@ export class JobsService {
     days: number = 7,
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
-    
+
     const dateThreshold = new Date();
     dateThreshold.setDate(dateThreshold.getDate() - days);
 
-    const filter = { 
+    const filter = {
       status: JobStatus.OPEN,
       postedAt: { $gte: dateThreshold },
-      deletedAt: { $exists: false }
+      deletedAt: { $exists: false },
     };
 
     const [jobs, total] = await Promise.all([
@@ -396,10 +412,10 @@ export class JobsService {
   ): Promise<JobsListResponseDto> {
     const skip = (page - 1) * limit;
 
-    const filter = { 
+    const filter = {
       status: JobStatus.OPEN,
       category: { $regex: new RegExp(category, 'i') },
-      deletedAt: { $exists: false }
+      deletedAt: { $exists: false },
     };
 
     const [jobs, total] = await Promise.all([
@@ -435,54 +451,63 @@ export class JobsService {
     const freelancer = await this.usersService.getCurrentUser(freelancerId);
     const freelancerSkills = freelancer.freelancerData?.skills || [];
 
-    const filter = { 
+    const filter = {
       status: JobStatus.OPEN,
-      deletedAt: { $exists: false }
+      deletedAt: { $exists: false },
     };
 
-    let jobsQuery = this.jobModel
+    const jobsQuery = this.jobModel
       .find(filter)
       .populate('clientId', 'email profile.firstName profile.lastName')
       .lean();
 
     if (freelancerSkills.length > 0) {
       const skillRegex = new RegExp(freelancerSkills.join('|'), 'i');
-      
+
       const skillMatchedJobs = await this.jobModel
         .find({
           ...filter,
-          skills: { $in: freelancerSkills.map(skill => new RegExp(skill, 'i')) }
+          skills: {
+            $in: freelancerSkills.map((skill) => new RegExp(skill, 'i')),
+          },
         })
         .populate('clientId', 'email profile.firstName profile.lastName')
         .lean()
         .sort({ postedAt: -1, isUrgent: -1, isFeatured: -1 })
-        .limit(limit * 2) 
+        .limit(limit * 2)
         .exec();
 
       if (skillMatchedJobs.length > 0) {
-        const scoredJobs = skillMatchedJobs.map(job => {
+        const scoredJobs = skillMatchedJobs.map((job) => {
           const jobSkills = Array.isArray(job.skills) ? job.skills : [];
-          const matchingSkills = jobSkills.filter((jobSkill: string) => 
-            freelancerSkills.some(freelancerSkill => 
-              freelancerSkill.toLowerCase().includes(jobSkill.toLowerCase()) ||
-              jobSkill.toLowerCase().includes(freelancerSkill.toLowerCase())
-            )
+          const matchingSkills = jobSkills.filter((jobSkill: string) =>
+            freelancerSkills.some(
+              (freelancerSkill) =>
+                freelancerSkill
+                  .toLowerCase()
+                  .includes(jobSkill.toLowerCase()) ||
+                jobSkill.toLowerCase().includes(freelancerSkill.toLowerCase()),
+            ),
           );
-          
-          const skillMatchScore = matchingSkills.length / Math.max(jobSkills.length, 1);
+
+          const skillMatchScore =
+            matchingSkills.length / Math.max(jobSkills.length, 1);
           const urgencyBonus = job.isUrgent ? 0.3 : 0;
           const featuredBonus = job.isFeatured ? 0.2 : 0;
-          
+
           return {
             ...job,
-            skillMatchScore: skillMatchScore + urgencyBonus + featuredBonus
+            skillMatchScore: skillMatchScore + urgencyBonus + featuredBonus,
           };
         });
 
         scoredJobs.sort((a, b) => b.skillMatchScore - a.skillMatchScore);
-        
+
         const paginatedJobs = scoredJobs.slice(skip, skip + limit);
-        const total = Math.min(scoredJobs.length, await this.jobModel.countDocuments(filter).exec());
+        const total = Math.min(
+          scoredJobs.length,
+          await this.jobModel.countDocuments(filter).exec(),
+        );
 
         return {
           jobs: paginatedJobs.map((job) => this.mapToJobResponseDto(job)),
@@ -525,11 +550,13 @@ export class JobsService {
       throw new ForbiddenException('Only job owner can view statistics');
     }
 
-    const daysPosted = Math.floor((Date.now() - job.postedAt.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const daysPosted = Math.floor(
+      (Date.now() - job.postedAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     return {
       jobId: id,
-      views: 0, 
+      views: 0,
       proposalCount: job.proposalCount || 0,
       daysPosted,
       status: job.status,
@@ -538,7 +565,12 @@ export class JobsService {
     };
   }
 
-  async getJobProposals(id: string, clientId: string, page: number = 1, limit: number = 10) {
+  async getJobProposals(
+    id: string,
+    clientId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
     const job = await this.jobModel.findById(id).exec();
 
     if (!job) {
@@ -559,10 +591,12 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    const existingSavedJob = await this.savedJobModel.findOne({
-      jobId: id,
-      freelancerId,
-    }).exec();
+    const existingSavedJob = await this.savedJobModel
+      .findOne({
+        jobId: id,
+        freelancerId,
+      })
+      .exec();
 
     if (existingSavedJob) {
       throw new BadRequestException('Job is already saved');
@@ -578,18 +612,22 @@ export class JobsService {
     return { message: 'Job saved successfully' };
   }
 
-  async unsaveJob(id: string, freelancerId: string): Promise<MessageResponseDto> {
+  async unsaveJob(
+    id: string,
+    freelancerId: string,
+  ): Promise<MessageResponseDto> {
     const job = await this.jobModel.findById(id).exec();
 
     if (!job) {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-
-    const savedJob = await this.savedJobModel.findOne({
-      jobId: id,
-      freelancerId,
-    }).exec();
+    const savedJob = await this.savedJobModel
+      .findOne({
+        jobId: id,
+        freelancerId,
+      })
+      .exec();
 
     if (!savedJob) {
       throw new NotFoundException('Job is not saved');
@@ -650,14 +688,18 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    if (!Object.values(ReportReason).includes(reportData.reason as ReportReason)) {
+    if (
+      !Object.values(ReportReason).includes(reportData.reason as ReportReason)
+    ) {
       throw new BadRequestException('Invalid report reason');
     }
 
-    const existingReport = await this.jobReportModel.findOne({
-      jobId: id,
-      reporterId,
-    }).exec();
+    const existingReport = await this.jobReportModel
+      .findOne({
+        jobId: id,
+        reporterId,
+      })
+      .exec();
 
     if (existingReport) {
       throw new BadRequestException('You have already reported this job');
@@ -681,8 +723,13 @@ export class JobsService {
     const clientProfile = client?.profile || {};
 
     const isActive = job.status === JobStatus.OPEN && !job.deletedAt;
-    const isExpired = job.expiresAt ? new Date() > new Date(job.expiresAt) : false;
-    const canReceiveProposals = isActive && !isExpired && (!job.maxProposals || job.proposalCount < job.maxProposals);
+    const isExpired = job.expiresAt
+      ? new Date() > new Date(job.expiresAt)
+      : false;
+    const canReceiveProposals =
+      isActive &&
+      !isExpired &&
+      (!job.maxProposals || job.proposalCount < job.maxProposals);
 
     const clientDto = new ClientResponseDto();
     clientDto.id = client?._id?.toString() || '';
@@ -711,7 +758,9 @@ export class JobsService {
     if (job.location) {
       locationDto = new JobLocationResponseDto();
       locationDto.type = job.location.type;
-      locationDto.countries = job.location.countries ? [...job.location.countries] : undefined;
+      locationDto.countries = job.location.countries
+        ? [...job.location.countries]
+        : undefined;
       locationDto.timezone = job.location.timezone;
     }
 

@@ -1,4 +1,11 @@
-import { IsOptional, IsNumber, IsEnum, IsArray, IsString, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsArray,
+  IsString,
+  Min,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateFreelancerProfileDto {

@@ -1,12 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsBoolean, IsNumber, Min, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsNumber,
+  Min,
+  IsEnum,
+} from 'class-validator';
 
 export class CreateSkillDto {
   @ApiProperty({ description: 'Name of the skill' })
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Unique slug for the skill (auto-generated if not provided)' })
+  @ApiPropertyOptional({
+    description: 'Unique slug for the skill (auto-generated if not provided)',
+  })
   @IsOptional()
   @IsString()
   slug?: string;
@@ -16,7 +26,10 @@ export class CreateSkillDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Synonyms for the skill', type: [String] })
+  @ApiPropertyOptional({
+    description: 'Synonyms for the skill',
+    type: [String],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -28,17 +41,27 @@ export class CreateSkillDto {
   @IsString({ each: true })
   relatedSkills?: string[];
 
-  @ApiPropertyOptional({ description: 'Category of the skill', default: 'technical' })
+  @ApiPropertyOptional({
+    description: 'Category of the skill',
+    default: 'technical',
+  })
   @IsOptional()
   @IsString()
   category?: string;
 
-  @ApiPropertyOptional({ description: 'Difficulty level', enum: ['beginner', 'intermediate', 'expert'], default: 'intermediate' })
+  @ApiPropertyOptional({
+    description: 'Difficulty level',
+    enum: ['beginner', 'intermediate', 'expert'],
+    default: 'intermediate',
+  })
   @IsOptional()
   @IsString()
   difficulty?: string;
 
-  @ApiPropertyOptional({ description: 'Whether the skill is active', default: true })
+  @ApiPropertyOptional({
+    description: 'Whether the skill is active',
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
