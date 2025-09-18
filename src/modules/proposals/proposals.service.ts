@@ -289,10 +289,27 @@ export class ProposalsService {
         proposal.freelancerId?._id?.toString() ||
         proposal.freelancerId?.toString(),
       coverLetter: proposal.coverLetter,
-      proposedRate: proposal.proposedRate,
-      estimatedDuration: proposal.estimatedDuration,
-      proposedMilestones: proposal.proposedMilestones || [],
-      attachments: proposal.attachments || [],
+      proposedRate: {
+        amount: proposal.proposedRate?.amount,
+        type: proposal.proposedRate?.type,
+        currency: proposal.proposedRate?.currency,
+      },
+      estimatedDuration: proposal.estimatedDuration ? {
+        value: proposal.estimatedDuration.value,
+        unit: proposal.estimatedDuration.unit,
+      } : undefined,
+      proposedMilestones: (proposal.proposedMilestones || []).map((milestone: any) => ({
+        title: milestone.title,
+        description: milestone.description,
+        amount: milestone.amount,
+        durationDays: milestone.durationDays,
+      })),
+      attachments: (proposal.attachments || []).map((attachment: any) => ({
+        filename: attachment.filename,
+        url: attachment.url,
+        size: attachment.size,
+        type: attachment.type,
+      })),
       status: proposal.status,
       clientViewed: proposal.clientViewed,
       clientViewedAt: proposal.clientViewedAt,

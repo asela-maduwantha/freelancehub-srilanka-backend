@@ -107,6 +107,43 @@ export class UsersController {
     return this.usersService.updateCurrentUser(userId, updateProfileDto);
   }
 
+  @Get('freelancers')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Search and filter freelancers' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Freelancers search results',
+    type: FreelancersSearchResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation error',
+  })
+  async searchFreelancers(
+    @Query() searchFreelancersDto: SearchFreelancersDto,
+  ): Promise<FreelancersSearchResponseDto> {
+    return this.usersService.searchFreelancers(searchFreelancersDto);
+  }
+
+  @Get('freelancers/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get freelancer public profile' })
+  @ApiParam({ name: 'id', description: 'Freelancer ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Freelancer public profile',
+    type: FreelancerPublicProfileDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Freelancer not found',
+  })
+  async getFreelancerPublicProfile(
+    @Param('id') freelancerId: string,
+  ): Promise<FreelancerPublicProfileDto> {
+    return this.usersService.getFreelancerPublicProfile(freelancerId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
@@ -606,43 +643,6 @@ export class UsersController {
       userId,
       updateClientProfileDto,
     );
-  }
-
-  @Get('freelancers')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Search and filter freelancers' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Freelancers search results',
-    type: FreelancersSearchResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Validation error',
-  })
-  async searchFreelancers(
-    @Query() searchFreelancersDto: SearchFreelancersDto,
-  ): Promise<FreelancersSearchResponseDto> {
-    return this.usersService.searchFreelancers(searchFreelancersDto);
-  }
-
-  @Get('freelancers/:id')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get freelancer public profile' })
-  @ApiParam({ name: 'id', description: 'Freelancer ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Freelancer public profile',
-    type: FreelancerPublicProfileDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Freelancer not found',
-  })
-  async getFreelancerPublicProfile(
-    @Param('id') freelancerId: string,
-  ): Promise<FreelancerPublicProfileDto> {
-    return this.usersService.getFreelancerPublicProfile(freelancerId);
   }
 
   @Get('clients/:id')

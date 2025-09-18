@@ -28,7 +28,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  const port = configService.get('PORT', 3000);
+  const port = configService.get('PORT', 8000);
   const apiPrefix = configService.get('API_PREFIX', 'api');
   const corsOrigins = configService.get('app').corsOrigins;
   const enableSwagger = configService.get('ENABLE_SWAGGER', true);

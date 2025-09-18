@@ -113,14 +113,6 @@ export class UsersService {
       user.profile.location = updateProfileDto.location;
     }
 
-    if (updateProfileDto.website !== undefined) {
-      user.profile.website = updateProfileDto.website;
-    }
-
-    if (updateProfileDto.socialLinks !== undefined) {
-      user.profile.socialLinks = updateProfileDto.socialLinks;
-    }
-
     await user.save();
 
     // Return updated user without password
@@ -233,23 +225,21 @@ export class UsersService {
     };
   }
 
-  // Helper method to map User to UserResponseDto
   private mapToUserResponseDto(user: any): UserResponseDto {
+    const plainUser = user.toObject ? user.toObject() : user;
+
     return {
-      id: user._id.toString(),
-      email: user.email,
-      role: user.role,
-      isEmailVerified: user.isEmailVerified,
-      isActive: user.isActive,
-      profile: user.profile,
-      freelancerData:
-        user.role === UserRole.FREELANCER ? user.freelancerData : undefined,
-      clientData: user.role === UserRole.CLIENT ? user.clientData : undefined,
-      createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt,
-      fullName:
-        user.fullName ||
-        `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim(),
+      id: plainUser._id.toString(),
+      email: plainUser.email,
+      role: plainUser.role,
+      isEmailVerified: plainUser.isEmailVerified,
+      isActive: plainUser.isActive,
+      profile: plainUser.profile,
+      freelancerData: plainUser.role === UserRole.FREELANCER ? plainUser.freelancerData : undefined,
+      clientData: plainUser.role === UserRole.CLIENT ? plainUser.clientData : undefined,
+      createdAt: plainUser.createdAt,
+      lastLoginAt: plainUser.lastLoginAt,
+      fullName: plainUser.fullName || `${plainUser.profile?.firstName || ''} ${plainUser.profile?.lastName || ''}`.trim(),
     };
   }
 
@@ -351,6 +341,14 @@ export class UsersService {
           proficiency: 'fluent', // Default proficiency
         }),
       );
+    }
+
+    if (updateFreelancerProfileDto.title !== undefined) {
+      user.freelancerData.title = updateFreelancerProfileDto.title;
+    }
+
+    if (updateFreelancerProfileDto.overview !== undefined) {
+      user.freelancerData.overview = updateFreelancerProfileDto.overview;
     }
 
     await user.save();
@@ -892,6 +890,7 @@ export class UsersService {
       minRating,
       location,
       experienceLevel,
+      availability,
       minHourlyRate,
       maxHourlyRate,
       page = 1,
@@ -901,7 +900,7 @@ export class UsersService {
     // Build the query filter
     const filter: any = {
       role: UserRole.FREELANCER,
-      isActive: true, // Only show active freelancers
+      isActive: true, 
     };
 
     // Text search on name or skills
@@ -928,8 +927,15 @@ export class UsersService {
       filter.location = { $regex: location, $options: 'i' };
     }
 
-    // Experience level filter (this would need to be implemented in the schema)
-    // For now, we'll skip this as it's not in the current schema
+    // Availability filter
+    if (availability) {
+      filter['freelancerData.availability'] = availability;
+    }
+
+    // Experience level filter
+    if (experienceLevel) {
+      filter['freelancerData.experience'] = experienceLevel;
+    }
 
     // Hourly rate filter
     if (minHourlyRate !== undefined || maxHourlyRate !== undefined) {
@@ -950,9 +956,8 @@ export class UsersService {
       this.userModel
         .find(filter)
         .select(
-          '_id email firstName lastName role avatar location bio freelancerData',
+          '_id email role profile.firstName profile.lastName profile.avatar profile.location profile.bio freelancerData',
         )
-        .populate('freelancerData')
         .sort({
           'freelancerData.rating': -1,
           'freelancerData.completedJobs': -1,
@@ -966,25 +971,42 @@ export class UsersService {
     // Transform the data to match the response DTO
     const freelancerProfiles: FreelancerPublicProfileDto[] = (
       freelancers as any[]
-    ).map((freelancer: any) => ({
-      _id: freelancer._id.toString(),
-      email: freelancer.email,
-      firstName: freelancer.firstName,
-      lastName: freelancer.lastName,
-      role: freelancer.role,
-      avatar: freelancer.avatar,
-      location: freelancer.location,
-      bio: freelancer.bio,
-      skills: freelancer.freelancerData?.skills || [],
-      hourlyRate: freelancer.freelancerData?.hourlyRate,
-      rating: freelancer.freelancerData?.rating || 0,
-      reviewCount: freelancer.freelancerData?.reviewCount || 0,
-      totalEarned: freelancer.freelancerData?.totalEarned || 0,
-      completedJobs: freelancer.freelancerData?.completedJobs || 0,
-      portfolio: freelancer.freelancerData?.portfolio || [],
-      education: freelancer.freelancerData?.education || [],
-      certifications: freelancer.freelancerData?.certifications || [],
-    }));
+    ).map((freelancer: any) => {
+      // Use toObject to avoid transformation issues
+      const plainFreelancer = freelancer.toObject ? freelancer.toObject() : freelancer;
+      
+      return {
+        _id: plainFreelancer._id.toString(),
+        email: plainFreelancer.email,
+        firstName: plainFreelancer.profile?.firstName || '',
+        lastName: plainFreelancer.profile?.lastName || '',
+        role: plainFreelancer.role,
+        avatar: plainFreelancer.profile?.avatar,
+        location: plainFreelancer.profile?.location,
+        bio: plainFreelancer.profile?.bio,
+        skills: plainFreelancer.freelancerData?.skills || [],
+        hourlyRate: plainFreelancer.freelancerData?.hourlyRate,
+        availability: plainFreelancer.freelancerData?.availability,
+        experience: plainFreelancer.freelancerData?.experience,
+        title: plainFreelancer.freelancerData?.title,
+        overview: plainFreelancer.freelancerData?.overview,
+        languages: plainFreelancer.freelancerData?.languages?.map(lang => 
+          typeof lang === 'string' ? lang : lang.language
+        ) || [],
+        rating: plainFreelancer.freelancerData?.rating || 0,
+        reviewCount: plainFreelancer.freelancerData?.reviewCount || 0,
+        totalEarned: plainFreelancer.freelancerData?.totalEarned || 0,
+        completedJobs: plainFreelancer.freelancerData?.completedJobs || 0,
+        portfolio: plainFreelancer.freelancerData?.portfolio || [],
+        education: plainFreelancer.freelancerData?.education || [],
+        certifications: plainFreelancer.freelancerData?.certifications?.map(cert => ({
+          name: cert.name,
+          issuer: cert.issuer,
+          date: cert.date instanceof Date ? cert.date.toISOString().split('T')[0] : cert.date,
+          url: cert.url,
+        })) || [],
+      };
+    });
 
     const totalPages = Math.ceil(total / limit);
 

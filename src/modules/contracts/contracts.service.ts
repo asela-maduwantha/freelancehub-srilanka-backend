@@ -1,235 +1,216 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Contract } from '../../database/schemas/contract.schema';
-import { User } from '../../database/schemas/user.schema';
-import { ContractStatus } from '../../common/enums/contract-status.enum';
-import { UpdateContractDto } from './dto';
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types, ClientSession } from "mongoose";
+import { Contract, Milestone, Proposal, User, Job } from "src/database/schemas";
+import { CreateContractDto } from "./dto";
+import { ContractStatus } from "src/common/enums";
+import { LoggerService } from "src/services/logger/logger.service";
+import { PaginationDto, PaginationResult } from "src/common/dto";
+
 
 @Injectable()
 export class ContractsService {
-  constructor(
+   constructor(
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
+    @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
+    @InjectModel(Job.name) private jobModel: Model<Job>,
+    @InjectModel(Proposal.name) private proposalModel: Model<Proposal>,
     @InjectModel(User.name) private userModel: Model<User>,
+    private logger: LoggerService,
   ) {}
 
-  async findAllForUser(userId: string): Promise<Contract[]> {
-    return this.contractModel
-      .find({
-        $or: [{ clientId: userId }, { freelancerId: userId }],
-        deletedAt: null,
-      })
-      .populate('clientId', 'profile email')
-      .populate('freelancerId', 'profile email')
-      .populate('jobId', 'title')
-      .sort({ createdAt: -1 })
-      .exec();
+ async createContract(contractData: CreateContractDto, clientId: string): Promise<Contract> {
+    const session: ClientSession = await this.contractModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const proposal = await this.proposalModel.findById(contractData.proposalId).session(session);
+      if (!proposal) {
+        throw new NotFoundException('Proposal not found');
+      }
+
+      const job = await this.jobModel.findById(proposal.jobId).session(session);
+      if (!job) {
+        throw new NotFoundException('Job not found');
+      }
+      if (job.clientId.toString() !== clientId) {
+        throw new BadRequestException('Unauthorized: Client does not own this job');
+      }
+
+      const contract = new this.contractModel();
+
+      contract.proposalId = proposal._id as Types.ObjectId;
+      contract.jobId = job._id as Types.ObjectId;
+      contract.clientId = job.clientId;
+      contract.freelancerId = proposal.freelancerId;
+      contract.title = job.title;
+      contract.description = job.description;
+      contract.contractType = job.projectType;
+      contract.totalAmount = proposal.proposedRate.amount;
+      contract.currency = proposal.proposedRate.currency;
+      contract.hourlyRate = proposal.proposedRate.type === 'hourly' ? proposal.proposedRate.amount : 0;
+      contract.startDate = contractData.startDate;
+      contract.endDate = contractData.endDate;
+      contract.status = ContractStatus.PENDING;
+      contract.platformFeePercentage = 10;
+      contract.totalPaid = 0;
+      contract.milestoneCount = 0;
+      contract.terms = contractData.terms || '';
+      contract.isClientSigned = false;
+      contract.isFreelancerSigned = false;
+
+      await contract.save({ session });
+
+      job.contractId = contract._id as Types.ObjectId;
+      await job.save({ session });
+
+      await session.commitTransaction();
+
+      this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
+
+      return contract;
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
-  async findOne(id: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel
-      .findOne({
-        _id: id,
-        $or: [{ clientId: userId }, { freelancerId: userId }],
-        deletedAt: null,
-      })
-      .populate('clientId', 'profile email')
-      .populate('freelancerId', 'profile email')
-      .populate('jobId', 'title description')
-      .populate('proposalId')
-      .exec();
-
+  async startContract(contractId: string, userId: string): Promise<Contract> {
+    const contract = await this.contractModel.findById(contractId);
     if (!contract) {
       throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.clientId.toString() !== userId) {
+      throw new UnauthorizedException('Unauthorized: User is not part of this contract');
+    }
+
+    contract.status = ContractStatus.ACTIVE;
+    contract.startDate = new Date();
+    contract.isClientSigned = true;
+    await contract.save();
+    this.logger.log(`Contract started successfully: ${contract._id}`, 'ContractsService');
+    return contract;
+  }
+
+  async freelancerSignContract(contractId: string, userId: string): Promise<Contract> {
+    const contract = await this.contractModel.findById(contractId);
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+    if (contract.freelancerId.toString() !== userId) {
+      throw new UnauthorizedException('Unauthorized: User is not part of this contract');
+    }
+
+    contract.isFreelancerSigned = true;
+    await contract.save();
+    this.logger.log(`Contract signed by freelancer: ${contract._id}`, 'ContractsService');
+    return contract;
+  }
+
+  async getContractById(contractId: string, userId: string): Promise<Contract> {
+    const contract = await this.contractModel.findById(contractId);
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+      throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
 
     return contract;
   }
 
-  async update(
-    id: string,
-    updateContractDto: UpdateContractDto,
-    userId: string,
-  ): Promise<Contract> {
-    const contract = await this.contractModel.findOne({
-      _id: id,
+  async getContractsForUser(userId: string, pagination: PaginationDto): Promise<PaginationResult<Contract>> {
+    const { page = 1, limit = 10 } = pagination;
+    const skip = (page - 1) * limit;
+
+    const filter = {
       $or: [{ clientId: userId }, { freelancerId: userId }],
-      deletedAt: null,
-    });
+    };
 
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
+    const [contracts, total] = await Promise.all([
+      this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      this.contractModel.countDocuments(filter),
+    ]);
 
-    // Only allow updates if contract hasn't started
-    if (contract.startDate && contract.startDate <= new Date()) {
-      throw new BadRequestException(
-        'Cannot update contract that has already started',
-      );
-    }
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
 
-    // Only client or freelancer can update
-    if (
-      contract.clientId.toString() !== userId &&
-      contract.freelancerId.toString() !== userId
-    ) {
-      throw new ForbiddenException(
-        'You do not have permission to update this contract',
-      );
-    }
-
-    Object.assign(contract, updateContractDto);
-    return contract.save();
+    return {
+      data: contracts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext,
+        hasPrev,
+      },
+    };
   }
 
-  async start(id: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findOne({
-      _id: id,
-      $or: [{ clientId: userId }, { freelancerId: userId }],
-      deletedAt: null,
-    });
+  async completeContract(contractId: string, userId: string): Promise<Contract> {
+    const session: ClientSession = await this.contractModel.db.startSession();
+    session.startTransaction();
 
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
+    try {
+      const contract = await this.contractModel.findById(contractId).session(session);
+      if (!contract) {
+        throw new NotFoundException('Contract not found');
+      }
+
+      if (contract.status !== ContractStatus.ACTIVE) {
+        throw new BadRequestException(`Cannot complete contract with status: ${contract.status}`);
+      }
+
+      if (contract.clientId.toString() !== userId) {
+        throw new UnauthorizedException('Unauthorized: Only the client can complete this contract');
+      }
+
+      const freelancer = await this.userModel.findById(contract.freelancerId).session(session);
+
+      if (!freelancer) {
+        throw new NotFoundException('Associated user not found');
+      }
+
+      contract.status = ContractStatus.COMPLETED;
+      contract.endDate = new Date();
+      await contract.save({ session });
+
+      if (freelancer.freelancerData) {
+        freelancer.freelancerData.completedJobs = (freelancer.freelancerData.completedJobs || 0) + 1;
+        await freelancer.save({ session });
+      }
+
+      await session.commitTransaction();
+
+      this.logger.log(`Contract completed successfully: ${contract._id} by user: ${userId}`, 'ContractsService');
+      return contract;
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(`Failed to complete contract ${contractId}: ${error.message}`, error.stack, 'ContractsService');
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    if (
-      contract.status !== ContractStatus.PENDING &&
-      contract.status !== ContractStatus.ACTIVE
-    ) {
-      throw new BadRequestException('Contract cannot be started');
-    }
-
-    contract.status = ContractStatus.ACTIVE;
-    contract.startDate = new Date();
-
-    return contract.save();
   }
 
-  async complete(id: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findOne({
-      _id: id,
-      $or: [{ clientId: userId }, { freelancerId: userId }],
-      deletedAt: null,
-    });
-
+  async cancelContract(contractId: string, userId: string): Promise<Contract> {
+    const contract = await this.contractModel.findById(contractId);
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
 
-    if (contract.status !== ContractStatus.ACTIVE) {
-      throw new BadRequestException('Only active contracts can be completed');
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+      throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
-
-    if (contract.clientId.toString() !== userId) {
-      throw new ForbiddenException('Only the client can complete the contract');
-    }
-
-    contract.status = ContractStatus.COMPLETED;
-    contract.completedAt = new Date();
-
-    return contract.save();
-  }
-
-  async cancel(id: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findOne({
-      _id: id,
-      $or: [{ clientId: userId }, { freelancerId: userId }],
-      deletedAt: null,
-    });
-
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
-
-    if (
-      contract.status === ContractStatus.COMPLETED ||
-      contract.status === ContractStatus.CANCELLED
-    ) {
-      throw new BadRequestException(
-        'Contract is already completed or cancelled',
-      );
-    }
-
     contract.status = ContractStatus.CANCELLED;
-    contract.cancelledAt = new Date();
-
-    return contract.save();
-  }
-
-  async findActive(userId: string): Promise<Contract[]> {
-    return this.contractModel
-      .find({
-        $or: [{ clientId: userId }, { freelancerId: userId }],
-        status: ContractStatus.ACTIVE,
-        deletedAt: null,
-      })
-      .populate('clientId', 'profile email')
-      .populate('freelancerId', 'profile email')
-      .populate('jobId', 'title')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async findCompleted(userId: string): Promise<Contract[]> {
-    return this.contractModel
-      .find({
-        $or: [{ clientId: userId }, { freelancerId: userId }],
-        status: ContractStatus.COMPLETED,
-        deletedAt: null,
-      })
-      .populate('clientId', 'profile email')
-      .populate('freelancerId', 'profile email')
-      .populate('jobId', 'title')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async findPending(userId: string): Promise<Contract[]> {
-    return this.contractModel
-      .find({
-        $or: [{ clientId: userId }, { freelancerId: userId }],
-        status: ContractStatus.PENDING,
-        deletedAt: null,
-      })
-      .populate('clientId', 'profile email')
-      .populate('freelancerId', 'profile email')
-      .populate('jobId', 'title')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async sign(id: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findOne({
-      _id: id,
-      $or: [{ clientId: userId }, { freelancerId: userId }],
-      deletedAt: null,
-    });
-
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
-
-    if (contract.clientId.toString() === userId) {
-      contract.isClientSigned = true;
-    } else if (contract.freelancerId.toString() === userId) {
-      contract.isFreelancerSigned = true;
-    } else {
-      throw new ForbiddenException(
-        'You do not have permission to sign this contract',
-      );
-    }
-
-    return contract.save();
-  }
-
-  async generateAgreement(id: string, userId: string): Promise<Contract> {
-    const contract = await this.findOne(id, userId);
-    return contract; 
+    await contract.save();
+    this.logger.log(`Contract cancelled successfully: ${contract._id}`, 'ContractsService');
+    return contract;
   }
 }

@@ -8,7 +8,7 @@ import {
   IsArray,
   IsIn,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class SearchFreelancersDto {
   @ApiPropertyOptional({
@@ -20,11 +20,17 @@ export class SearchFreelancersDto {
   query?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by skills (array of skill names)',
-    example: ['JavaScript', 'React', 'Node.js'],
+    description: 'Filter by skills (comma-separated string or array)',
+    example: 'JavaScript,React,Node.js',
     type: [String],
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((skill: string) => skill.trim()).filter(Boolean);
+    }
+    return value;
+  })
   @IsArray()
   @IsString({ each: true })
   skills?: string[];
@@ -58,6 +64,15 @@ export class SearchFreelancersDto {
   @IsOptional()
   @IsIn(['beginner', 'intermediate', 'expert'])
   experienceLevel?: string;
+
+  @ApiPropertyOptional({
+    description: 'Availability filter',
+    enum: ['full-time', 'part-time', 'contract'],
+    example: 'full-time',
+  })
+  @IsOptional()
+  @IsIn(['full-time', 'part-time', 'contract'])
+  availability?: string;
 
   @ApiPropertyOptional({
     description: 'Minimum hourly rate',

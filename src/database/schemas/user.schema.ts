@@ -39,24 +39,6 @@ export class UserProfile {
     country?: string;
     state?: string;
     city?: string;
-    timezone?: string;
-  };
-
-  @Prop()
-  website?: string;
-
-  @Prop({
-    type: {
-      linkedin: String,
-      github: String,
-      portfolio: String,
-    },
-    _id: false,
-  })
-  socialLinks?: {
-    linkedin?: string;
-    github?: string;
-    portfolio?: string;
   };
 }
 
@@ -148,6 +130,12 @@ export class FreelancerData {
   @Prop({ type: [PortfolioItem], default: [] })
   portfolio?: PortfolioItem[];
 
+  @Prop()
+  title?: string;
+
+  @Prop()
+  overview?: string;
+
   @Prop({ default: 0, min: 0 })
   totalEarned: number;
 
@@ -186,16 +174,6 @@ export class ClientData {
   reviewCount: number;
 }
 
-// Admin Data Sub-schema
-@Schema({ _id: false })
-export class AdminData {
-  @Prop({ type: [String], default: [] })
-  permissions: string[];
-
-  @Prop()
-  lastLoginAt?: Date;
-}
-
 // Main User Schema
 @Schema({
   timestamps: true,
@@ -226,9 +204,6 @@ export class User extends Document {
   @Prop({ type: ClientData })
   clientData?: ClientData;
 
-  @Prop({ type: AdminData })
-  adminData?: AdminData;
-
   @Prop()
   stripeCustomerId?: string;
 
@@ -241,21 +216,8 @@ export class User extends Document {
   @Prop()
   deletedAt?: Date;
 
-  // Virtual fields
   get fullName(): string {
     return `${this.profile?.firstName} ${this.profile?.lastName}`.trim();
-  }
-
-  get isFreelancer(): boolean {
-    return this.role === UserRole.FREELANCER;
-  }
-
-  get isClient(): boolean {
-    return this.role === UserRole.CLIENT;
-  }
-
-  get isAdmin(): boolean {
-    return this.role === UserRole.ADMIN;
   }
 }
 
@@ -304,11 +266,6 @@ UserSchema.pre('save', function (next) {
       case UserRole.CLIENT:
         if (!this.clientData) {
           this.clientData = new ClientData();
-        }
-        break;
-      case UserRole.ADMIN:
-        if (!this.adminData) {
-          this.adminData = new AdminData();
         }
         break;
     }

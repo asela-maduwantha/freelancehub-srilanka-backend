@@ -21,19 +21,11 @@ export class Budget {
 // Duration Sub-schema
 @Schema({ _id: false })
 export class Duration {
-  @Prop({
-    required: true,
-    enum: [
-      'less-than-1-month',
-      '1-3-months',
-      '3-6-months',
-      'more-than-6-months',
-    ],
-  })
-  type: string;
+  @Prop({ required: true, min: 1 })
+  value: number;
 
-  @Prop({ min: 1 })
-  estimatedHours?: number;
+  @Prop({ required: true, enum: ['days', 'weeks', 'months'] })
+  unit: string;
 }
 
 // Attachment Sub-schema
@@ -50,19 +42,6 @@ export class Attachment {
 
   @Prop({ required: true })
   type: string;
-}
-
-// Location Sub-schema
-@Schema({ _id: false })
-export class JobLocation {
-  @Prop({ required: true, enum: ['remote', 'onsite', 'hybrid'] })
-  type: string;
-
-  @Prop({ type: [String] })
-  countries?: string[];
-
-  @Prop()
-  timezone?: string;
 }
 
 // Main Job Schema
@@ -82,9 +61,6 @@ export class Job extends Document {
 
   @Prop({ required: true })
   category: string;
-
-  @Prop()
-  subcategory?: string;
 
   @Prop({ required: true, enum: ['fixed-price', 'hourly'] })
   projectType: string;
@@ -112,9 +88,6 @@ export class Job extends Document {
 
   @Prop({ type: [Attachment], default: [] })
   attachments: Attachment[];
-
-  @Prop({ type: JobLocation })
-  location?: JobLocation;
 
   @Prop({ default: 0, min: 0 })
   proposalCount: number;

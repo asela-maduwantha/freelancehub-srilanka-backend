@@ -26,9 +26,9 @@ export class EstimatedDuration {
 }
 
 // Proposed Milestone Sub-schema
-@Schema({ _id: false })
+@Schema({ _id: true })
 export class ProposedMilestone {
-  @Prop({ required: true, trim: true })
+  @Prop({ required: true })
   title: string;
 
   @Prop({ required: true })
@@ -40,6 +40,7 @@ export class ProposedMilestone {
   @Prop({ required: true, min: 1 })
   durationDays: number;
 }
+
 
 // Attachment Sub-schema (reused from job schema)
 @Schema({ _id: false })
@@ -101,31 +102,7 @@ export class Proposal extends Document {
   submittedAt: Date;
 
   @Prop()
-  respondedAt?: Date;
-
-  @Prop()
   deletedAt?: Date;
-
-  // Virtual fields
-  get isActive(): boolean {
-    return this.status === ProposalStatus.PENDING && !this.deletedAt;
-  }
-
-  get totalMilestoneAmount(): number {
-    return this.proposedMilestones.reduce(
-      (total, milestone) => total + milestone.amount,
-      0,
-    );
-  }
-
-  get estimatedDurationInDays(): number {
-    if (!this.estimatedDuration) return 0;
-
-    const multipliers = { days: 1, weeks: 7, months: 30 };
-    return (
-      this.estimatedDuration.value * multipliers[this.estimatedDuration.unit]
-    );
-  }
 }
 
 export const ProposalSchema = SchemaFactory.createForClass(Proposal);
@@ -151,13 +128,6 @@ ProposalSchema.virtual('isActive').get(function () {
   return this.status === ProposalStatus.PENDING && !this.deletedAt;
 });
 
-ProposalSchema.virtual('totalMilestoneAmount').get(function () {
-  return this.proposedMilestones.reduce(
-    (total, milestone) => total + milestone.amount,
-    0,
-  );
-});
-
 ProposalSchema.virtual('estimatedDurationInDays').get(function () {
   if (!this.estimatedDuration) return 0;
 
@@ -167,25 +137,7 @@ ProposalSchema.virtual('estimatedDurationInDays').get(function () {
   );
 });
 
-// Pre-save middleware
-ProposalSchema.pre('save', function (next) {
-  // Set responded date when status changes from pending
-  if (
-    this.isModified('status') &&
-    this.status !== ProposalStatus.PENDING &&
-    !this.respondedAt
-  ) {
-    this.respondedAt = new Date();
-  }
-  next();
-});
-
-// Pre-find middleware to populate references
-ProposalSchema.pre(/^find/, function (next) {
-  // Populate will be handled at query level to avoid TypeScript issues
-  next();
-});
 
 // Ensure virtuals are included in JSON
-ProposalSchema.set('toJSON', { virtuals: true });
-ProposalSchema.set('toObject', { virtuals: true });
+ProposalSchema.set('toJSON', { virtuals: false });
+ProposalSchema.set('toObject', { virtuals: false });

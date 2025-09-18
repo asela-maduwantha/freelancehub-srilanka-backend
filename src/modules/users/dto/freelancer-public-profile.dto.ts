@@ -70,6 +70,44 @@ export class FreelancerPublicProfileDto {
   hourlyRate?: number;
 
   @ApiProperty({
+    description: 'Freelancer availability',
+    enum: ['full-time', 'part-time', 'contract'],
+    example: 'full-time',
+    required: false,
+  })
+  availability?: string;
+
+  @ApiProperty({
+    description: 'Freelancer experience level',
+    enum: ['beginner', 'intermediate', 'expert'],
+    example: 'intermediate',
+    required: false,
+  })
+  experience?: string;
+
+  @ApiProperty({
+    description: 'Professional title',
+    example: 'Full Stack Developer',
+    required: false,
+  })
+  title?: string;
+
+  @ApiProperty({
+    description: 'Freelancer overview/description',
+    example: 'Experienced developer with 5+ years in web development',
+    required: false,
+  })
+  overview?: string;
+
+  @ApiProperty({
+    description: 'Spoken languages',
+    type: [String],
+    example: ['English', 'Spanish'],
+    required: false,
+  })
+  languages?: string[];
+
+  @ApiProperty({
     description: 'Freelancer rating',
     example: 4.8,
     required: false,

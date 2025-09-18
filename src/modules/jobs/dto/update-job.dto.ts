@@ -198,6 +198,14 @@ export class UpdateJobDto {
   @Min(1)
   maxProposals?: number;
 
+  @ApiPropertyOptional({
+    enum: ['draft', 'open', 'in-progress', 'completed', 'cancelled'],
+    description: 'Job status',
+  })
+  @IsOptional()
+  @IsEnum(['draft', 'open', 'in-progress', 'completed', 'cancelled'])
+  status?: string;
+
   @ApiPropertyOptional({ description: 'Job expiration date' })
   @IsOptional()
   expiresAt?: Date;

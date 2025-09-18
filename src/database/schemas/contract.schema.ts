@@ -43,9 +43,6 @@ export class Contract extends Document {
   @Prop()
   endDate?: Date;
 
-  @Prop({ min: 1 })
-  estimatedHours?: number;
-
   @Prop({
     required: true,
     enum: ContractStatus,
@@ -82,31 +79,6 @@ export class Contract extends Document {
 
   @Prop()
   deletedAt?: Date;
-
-  get remainingAmount(): number {
-    return Math.max(0, this.totalAmount - this.totalPaid);
-  }
-
-  get completionPercentage(): number {
-    if (this.milestoneCount === 0) return 0;
-    return (this.completedMilestones / this.milestoneCount) * 100;
-  }
-
-  get isActive(): boolean {
-    return this.status === ContractStatus.ACTIVE && !this.deletedAt;
-  }
-
-  get isCompleted(): boolean {
-    return this.status === ContractStatus.COMPLETED;
-  }
-
-  get platformFee(): number {
-    return (this.totalAmount * this.platformFeePercentage) / 100;
-  }
-
-  get freelancerAmount(): number {
-    return this.totalAmount - this.platformFee;
-  }
 }
 
 export const ContractSchema = SchemaFactory.createForClass(Contract);
@@ -124,6 +96,7 @@ ContractSchema.index({ deletedAt: 1 }, { sparse: true });
 ContractSchema.index({ clientId: 1, status: 1 });
 ContractSchema.index({ freelancerId: 1, status: 1 });
 ContractSchema.index({ status: 1, createdAt: -1 });
+
 
 ContractSchema.virtual('remainingAmount').get(function () {
   return Math.max(0, this.totalAmount - this.totalPaid);
@@ -147,7 +120,7 @@ ContractSchema.virtual('platformFee').get(function () {
 });
 
 ContractSchema.virtual('freelancerAmount').get(function () {
-  return this.totalAmount - this.platformFee;
+  return this.totalAmount - ((this.totalAmount * this.platformFeePercentage) / 100);
 });
 
 ContractSchema.pre('save', function (next) {
@@ -176,3 +149,4 @@ ContractSchema.pre(/^find/, function (next) {
 
 ContractSchema.set('toJSON', { virtuals: true });
 ContractSchema.set('toObject', { virtuals: true });
+

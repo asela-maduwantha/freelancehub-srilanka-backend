@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ContractsController } from './contracts.controller';
-import { ContractsService } from './contracts.service';
+
 import {
   Contract,
   ContractSchema,
 } from '../../database/schemas/contract.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
+import { Proposal, ProposalSchema } from '../../database/schemas/proposal.schema';
 import { PdfModule } from '../../services/pdf/pdf.module';
 import { AuthModule } from '../auth/auth.module';
 
@@ -15,12 +15,13 @@ import { AuthModule } from '../auth/auth.module';
     MongooseModule.forFeature([
       { name: Contract.name, schema: ContractSchema },
       { name: User.name, schema: UserSchema },
+      { name: Proposal.name, schema: ProposalSchema },
     ]),
     PdfModule,
     AuthModule,
   ],
-  controllers: [ContractsController],
-  providers: [ContractsService],
-  exports: [ContractsService],
+  controllers: [],
+  providers: [],
+  exports: [],
 })
 export class ContractsModule {}

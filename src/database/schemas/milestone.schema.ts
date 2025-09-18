@@ -46,9 +46,6 @@ export class Milestone extends Document {
   @Prop()
   dueDate?: Date;
 
-  @Prop({ min: 1 })
-  estimatedHours?: number;
-
   @Prop({
     required: true,
     enum: MilestoneStatus,
@@ -64,12 +61,6 @@ export class Milestone extends Document {
 
   @Prop()
   clientFeedback?: string;
-
-  @Prop({ default: false })
-  revisionRequested: boolean;
-
-  @Prop()
-  revisionNote?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Payment' })
   paymentId?: Types.ObjectId;

@@ -28,9 +28,7 @@ export class PdfService {
       if (contract.hourlyRate) {
         doc.text(`Hourly Rate: ${contract.hourlyRate} ${contract.currency}`);
       }
-      if (contract.estimatedHours) {
-        doc.text(`Estimated Hours: ${contract.estimatedHours}`);
-      }
+    
       doc.text(`Start Date: ${contract.startDate.toDateString()}`);
       if (contract.endDate) {
         doc.text(`End Date: ${contract.endDate.toDateString()}`);

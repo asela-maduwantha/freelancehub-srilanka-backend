@@ -169,6 +169,7 @@ export class JobsService {
     addIfDefined('isFeatured', updateJobDto.isFeatured);
     addIfDefined('attachments', updateJobDto.attachments);
     addIfDefined('maxProposals', updateJobDto.maxProposals);
+    addIfDefined('status', updateJobDto.status);
     addIfDefined('expiresAt', updateJobDto.expiresAt);
 
     if (updateJobDto.budget !== undefined) {

@@ -67,6 +67,12 @@ export class FreelancerDataResponseDto {
   @ApiProperty({ type: Array })
   portfolio?: any[];
 
+  @ApiPropertyOptional()
+  title?: string;
+
+  @ApiPropertyOptional()
+  overview?: string;
+
   @ApiProperty()
   totalEarned: number;
 

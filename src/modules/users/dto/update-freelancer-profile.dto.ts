@@ -30,4 +30,14 @@ export class UpdateFreelancerProfileDto {
   @IsArray()
   @IsString({ each: true })
   languages?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  overview?: string;
 }

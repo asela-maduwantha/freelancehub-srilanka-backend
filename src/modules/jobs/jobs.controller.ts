@@ -58,7 +58,7 @@ export class JobsController {
     return this.jobsService.create(createJobDto, clientId);
   }
 
-  @Get()
+    @Get()
   @ApiOperation({ summary: 'Get all jobs' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -88,6 +88,84 @@ export class JobsController {
       search,
     );
   }
+
+  @Get('my-jobs')
+  @ApiOperation({ summary: 'Get all jobs posted by current client' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, enum: JobStatus })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Jobs retrieved successfully',
+    type: JobsListResponseDto,
+  })
+  async getMyJobs(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @CurrentUser('id') clientId: string,
+    @Query('status') status?: JobStatus,
+  ): Promise<JobsListResponseDto> {
+    return this.jobsService.findMyJobs(page, limit, clientId, status);
+  }
+
+  @Get('featured')
+  @ApiOperation({ summary: 'Get featured jobs' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Featured jobs retrieved successfully',
+    type: JobsListResponseDto,
+  })
+  async getFeaturedJobs(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<JobsListResponseDto> {
+    return this.jobsService.findFeaturedJobs(page, limit);
+  }
+
+  @Get('recent')
+  @ApiOperation({ summary: 'Get recently posted jobs' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    type: Number,
+    description: 'Number of days to look back (default: 7)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Recent jobs retrieved successfully',
+    type: JobsListResponseDto,
+  })
+  async getRecentJobs(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('days') days: number = 7,
+  ): Promise<JobsListResponseDto> {
+    return this.jobsService.findRecentJobs(page, limit, days);
+  }
+
+  @Get('categories/:category')
+  @ApiOperation({ summary: 'Get jobs by category' })
+  @ApiParam({ name: 'category', description: 'Job category' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Jobs by category retrieved successfully',
+    type: JobsListResponseDto,
+  })
+  async getJobsByCategory(
+    @Param('category') category: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<JobsListResponseDto> {
+    return this.jobsService.findJobsByCategory(category, page, limit);
+  }
+
+  @Get('recommended')
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a job by ID' })
@@ -165,25 +243,6 @@ export class JobsController {
     return this.jobsService.remove(id, clientId);
   }
 
-  @Get('my-jobs')
-  @ApiOperation({ summary: 'Get all jobs posted by current client' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'status', required: false, enum: JobStatus })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Jobs retrieved successfully',
-    type: JobsListResponseDto,
-  })
-  async getMyJobs(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @CurrentUser('id') clientId: string,
-    @Query('status') status?: JobStatus,
-  ): Promise<JobsListResponseDto> {
-    return this.jobsService.findMyJobs(page, limit, clientId, status);
-  }
-
   @Post(':id/close')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Close job to new proposals' })
@@ -238,80 +297,6 @@ export class JobsController {
     @CurrentUser('id') clientId: string,
   ): Promise<MessageResponseDto> {
     return this.jobsService.reopenJob(id, clientId);
-  }
-
-  @Get('featured')
-  @ApiOperation({ summary: 'Get featured jobs' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Featured jobs retrieved successfully',
-    type: JobsListResponseDto,
-  })
-  async getFeaturedJobs(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-  ): Promise<JobsListResponseDto> {
-    return this.jobsService.findFeaturedJobs(page, limit);
-  }
-
-  @Get('recent')
-  @ApiOperation({ summary: 'Get recently posted jobs' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({
-    name: 'days',
-    required: false,
-    type: Number,
-    description: 'Number of days to look back (default: 7)',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Recent jobs retrieved successfully',
-    type: JobsListResponseDto,
-  })
-  async getRecentJobs(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @Query('days') days: number = 7,
-  ): Promise<JobsListResponseDto> {
-    return this.jobsService.findRecentJobs(page, limit, days);
-  }
-
-  @Get('categories/:category')
-  @ApiOperation({ summary: 'Get jobs by category' })
-  @ApiParam({ name: 'category', description: 'Job category' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Jobs by category retrieved successfully',
-    type: JobsListResponseDto,
-  })
-  async getJobsByCategory(
-    @Param('category') category: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-  ): Promise<JobsListResponseDto> {
-    return this.jobsService.findJobsByCategory(category, page, limit);
-  }
-
-  @Get('recommended')
-  @ApiOperation({ summary: 'Get recommended jobs for freelancer' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Recommended jobs retrieved successfully',
-    type: JobsListResponseDto,
-  })
-  async getRecommendedJobs(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @CurrentUser('id') freelancerId: string,
-  ): Promise<JobsListResponseDto> {
-    return this.jobsService.findRecommendedJobs(freelancerId, page, limit);
   }
 
   @Get(':id/stats')
