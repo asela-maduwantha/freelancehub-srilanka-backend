@@ -7,8 +7,12 @@ import {
 } from '../../database/schemas/contract.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { Proposal, ProposalSchema } from '../../database/schemas/proposal.schema';
+import { Job, JobSchema } from '../../database/schemas/job.schema';
+import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
 import { PdfModule } from '../../services/pdf/pdf.module';
 import { AuthModule } from '../auth/auth.module';
+import { ContractsController } from './contracts.controller';
+import { ContractsService } from './contracts.service';
 
 @Module({
   imports: [
@@ -16,12 +20,14 @@ import { AuthModule } from '../auth/auth.module';
       { name: Contract.name, schema: ContractSchema },
       { name: User.name, schema: UserSchema },
       { name: Proposal.name, schema: ProposalSchema },
+      { name: Job.name, schema: JobSchema },
+      { name: Milestone.name, schema: MilestoneSchema },
     ]),
     PdfModule,
     AuthModule,
   ],
-  controllers: [],
-  providers: [],
-  exports: [],
+  controllers: [ContractsController],
+  providers: [ContractsService],
+  exports: [ContractsService],
 })
 export class ContractsModule {}

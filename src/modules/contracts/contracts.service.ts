@@ -5,6 +5,7 @@ import { Contract, Milestone, Proposal, User, Job } from "src/database/schemas";
 import { CreateContractDto } from "./dto";
 import { ContractStatus } from "src/common/enums";
 import { LoggerService } from "src/services/logger/logger.service";
+import { PdfService } from "src/services/pdf/pdf.service";
 import { PaginationDto, PaginationResult } from "src/common/dto";
 
 
@@ -17,6 +18,7 @@ export class ContractsService {
     @InjectModel(Proposal.name) private proposalModel: Model<Proposal>,
     @InjectModel(User.name) private userModel: Model<User>,
     private logger: LoggerService,
+    private pdfService: PdfService,
   ) {}
 
  async createContract(contractData: CreateContractDto, clientId: string): Promise<Contract> {
@@ -212,5 +214,38 @@ export class ContractsService {
     await contract.save();
     this.logger.log(`Contract cancelled successfully: ${contract._id}`, 'ContractsService');
     return contract;
+  }
+
+  async downloadContract(contractId: string, userId: string): Promise<Buffer> {
+    const contract = await this.contractModel.findById(contractId);
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+      throw new UnauthorizedException('Unauthorized: User is not part of this contract');
+    }
+
+    // Fetch related data
+    const [client, freelancer, job, proposal] = await Promise.all([
+      this.userModel.findById(contract.clientId),
+      this.userModel.findById(contract.freelancerId),
+      this.jobModel.findById(contract.jobId),
+      this.proposalModel.findById(contract.proposalId),
+    ]);
+
+    if (!client || !freelancer || !job || !proposal) {
+      throw new NotFoundException('Related data not found');
+    }
+
+    const pdfBuffer = await this.pdfService.generateComprehensiveContractPdf(
+      contract,
+      client,
+      freelancer,
+      job,
+      proposal,
+    );
+
+    this.logger.log(`Comprehensive contract PDF generated for contract: ${contract._id}`, 'ContractsService');
+    return pdfBuffer;
   }
 }
