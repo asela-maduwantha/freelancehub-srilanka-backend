@@ -38,26 +38,43 @@ export class AzureBlobService {
     const containerName = this.configService.get<string>('azure.storage.containerName');
 
     if (!containerName) {
-      throw new Error('Azure Storage container name is required.');
+      this.logger.warn('Azure Storage container name is not configured. File upload functionality will be disabled.');
+      return;
     }
 
-    if (connectionString) {
-      this.blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
-    } else if (accountName && accountKey) {
-      const accountUrl = `https://${accountName}.blob.core.windows.net`;
-      const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
-      this.blobServiceClient = new BlobServiceClient(accountUrl, sharedKeyCredential);
-    } else {
-      throw new Error('Azure Storage configuration is incomplete. Please provide either connection string or account name/key.');
+    if (!connectionString && (!accountName || !accountKey)) {
+      this.logger.warn('Azure Storage configuration is incomplete. Please provide either connection string or account name/key. File upload functionality will be disabled.');
+      return;
     }
 
-    this.containerClient = this.blobServiceClient.getContainerClient(containerName);
+    try {
+      if (connectionString && connectionString.trim() !== '') {
+        this.blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+      } else if (accountName && accountKey) {
+        const accountUrl = `https://${accountName}.blob.core.windows.net`;
+        const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+        this.blobServiceClient = new BlobServiceClient(accountUrl, sharedKeyCredential);
+      } else {
+        this.logger.warn('Azure Storage configuration is incomplete. File upload functionality will be disabled.');
+        return;
+      }
+
+      this.containerClient = this.blobServiceClient.getContainerClient(containerName);
+      this.logger.log('Azure Blob Storage service initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize Azure Blob Storage service:', error);
+      this.logger.warn('File upload functionality will be disabled due to configuration errors.');
+    }
   }
 
   async uploadFile(
     file: Express.Multer.File,
     options: UploadOptions = {}
   ): Promise<UploadResult> {
+    if (!this.blobServiceClient) {
+      throw new Error('Azure Blob Storage is not properly configured. Please check your Azure configuration.');
+    }
+
     try {
       const containerName = options.containerName || this.configService.get<string>('azure.storage.containerName');
       if (!containerName) {
@@ -107,6 +124,10 @@ export class AzureBlobService {
     filename: string,
     options: UploadOptions = {}
   ): Promise<UploadResult> {
+    if (!this.blobServiceClient) {
+      throw new Error('Azure Blob Storage is not properly configured. Please check your Azure configuration.');
+    }
+
     try {
       const containerName = options.containerName || this.configService.get<string>('azure.storage.containerName');
       if (!containerName) {

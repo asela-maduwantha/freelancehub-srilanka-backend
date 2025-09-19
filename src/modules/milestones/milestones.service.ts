@@ -65,23 +65,19 @@ export class MilestoneService {
   }
 
   async findById(id: string, userId: string): Promise<Milestone> {
-    const milestone = await this.milestoneModel
-      .findOne({ _id: id, deletedAt: null })
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId')
-      .exec();
+    const milestone = await this.milestoneModel.findOne({ _id: id, deletedAt: null });
 
     if (!milestone) {
       throw new NotFoundException('Milestone not found');
     }
 
     // Check if user has access to this milestone
-    const contract = milestone.contractId as any;
-    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+    const contract = await this.contractModel.findById(milestone.contractId);
+    if (!contract || (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId)) {
       throw new ForbiddenException('Access denied to this milestone');
     }
 
-    return milestone.toJSON();
+    return milestone;
   }
 
 
@@ -95,7 +91,7 @@ export class MilestoneService {
       if (!contract || (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId)) {
         throw new ForbiddenException('Access denied to this contract');
       }
-      query.contractId = filters.contractId;
+      query.contractId = new Types.ObjectId(filters.contractId);
     } else {
       // If no contract specified, get milestones for user's contracts
       const userContracts = await this.contractModel.find({
@@ -160,6 +156,100 @@ export class MilestoneService {
           foreignField: '_id',
           as: 'payment'
         }
+      },
+      {
+        $project: {
+          _id: { $toString: '$_id' },
+          contractId: { $toString: '$contractId' },
+          paymentId: { $toString: '$paymentId' },
+          contract: {
+            $map: {
+              input: '$contract',
+              as: 'c',
+              in: {
+                _id: { $toString: '$$c._id' },
+                jobId: { $toString: '$$c.jobId' },
+                clientId: { $toString: '$$c.clientId' },
+                freelancerId: { $toString: '$$c.freelancerId' },
+                proposalId: { $toString: '$$c.proposalId' },
+                title: '$$c.title',
+                description: '$$c.description',
+                contractType: '$$c.contractType',
+                totalAmount: '$$c.totalAmount',
+                currency: '$$c.currency',
+                hourlyRate: '$$c.hourlyRate',
+                startDate: '$$c.startDate',
+                endDate: '$$c.endDate',
+                status: '$$c.status',
+                totalPaid: '$$c.totalPaid',
+                platformFeePercentage: '$$c.platformFeePercentage',
+                milestoneCount: '$$c.milestoneCount',
+                completedMilestones: '$$c.completedMilestones',
+                terms: '$$c.terms',
+                isClientSigned: '$$c.isClientSigned',
+                isFreelancerSigned: '$$c.isFreelancerSigned',
+                completedAt: '$$c.completedAt',
+                cancelledAt: '$$c.cancelledAt',
+                deletedAt: '$$c.deletedAt',
+                createdAt: '$$c.createdAt',
+                updatedAt: '$$c.updatedAt',
+                __v: '$$c.__v'
+              }
+            }
+          },
+          payment: {
+            $map: {
+              input: '$payment',
+              as: 'p',
+              in: {
+                _id: { $toString: '$$p._id' },
+                contractId: { $toString: '$$p.contractId' },
+                milestoneId: { $toString: '$$p.milestoneId' },
+                payerId: { $toString: '$$p.payerId' },
+                payeeId: { $toString: '$$p.payeeId' },
+                amount: '$$p.amount',
+                currency: '$$p.currency',
+                paymentType: '$$p.paymentType',
+                stripePaymentIntentId: '$$p.stripePaymentIntentId',
+                stripeChargeId: '$$p.stripeChargeId',
+                stripeTransferId: '$$p.stripeTransferId',
+                platformFee: '$$p.platformFee',
+                stripeFee: '$$p.stripeFee',
+                freelancerAmount: '$$p.freelancerAmount',
+                status: '$$p.status',
+                description: '$$p.description',
+                metadata: '$$p.metadata',
+                processedAt: '$$p.processedAt',
+                failedAt: '$$p.failedAt',
+                refundedAt: '$$p.refundedAt',
+                errorMessage: '$$p.errorMessage',
+                retryCount: '$$p.retryCount',
+                deletedAt: '$$p.deletedAt',
+                createdAt: '$$p.createdAt',
+                updatedAt: '$$p.updatedAt',
+                __v: '$$p.__v'
+              }
+            }
+          },
+          title: 1,
+          description: 1,
+          amount: 1,
+          currency: 1,
+          order: 1,
+          dueDate: 1,
+          status: 1,
+          deliverables: 1,
+          submissionNote: 1,
+          clientFeedback: 1,
+          submittedAt: 1,
+          approvedAt: 1,
+          rejectedAt: 1,
+          paidAt: 1,
+          deletedAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          __v: 1
+        }
       }
     );
 
@@ -182,10 +272,10 @@ export class MilestoneService {
 
   async update(id: string, updateMilestoneDto: UpdateMilestoneDto, userId: string): Promise<Milestone> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Only client can update milestones and only if not submitted/approved/paid
-    if (contract.clientId.toString() !== userId) {
+    if (contract!.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can update milestones');
     }
 
@@ -208,19 +298,17 @@ export class MilestoneService {
     }
 
     const updatedMilestone = await this.milestoneModel
-      .findByIdAndUpdate(id, updateMilestoneDto, { new: true, runValidators: true })
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId');
+      .findByIdAndUpdate(id, updateMilestoneDto, { new: true, runValidators: true });
 
     return updatedMilestone!;
   }
 
   async submit(id: string, submitDto: SubmitMilestoneDto, userId: string): Promise<Milestone> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Only freelancer can submit milestones
-    if (contract.freelancerId.toString() !== userId) {
+    if (contract!.freelancerId.toString() !== userId) {
       throw new ForbiddenException('Only the freelancer can submit milestones');
     }
 
@@ -244,19 +332,17 @@ export class MilestoneService {
           submittedAt: new Date(),
         },
         { new: true, runValidators: true }
-      )
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId');
+      );
 
     return updatedMilestone!;
   }
 
   async approve(id: string, userId: string): Promise<Milestone> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Only client can approve milestones
-    if (contract.clientId.toString() !== userId) {
+    if (contract!.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can approve milestones');
     }
 
@@ -273,9 +359,7 @@ export class MilestoneService {
           approvedAt: new Date(),
         },
         { new: true, runValidators: true }
-      )
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId');
+      );
 
     // Update contract completed milestones count
     await this.contractModel.findByIdAndUpdate(
@@ -288,10 +372,10 @@ export class MilestoneService {
 
   async reject(id: string, feedback: string, userId: string): Promise<Milestone> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Only client can reject milestones
-    if (contract.clientId.toString() !== userId) {
+    if (contract!.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can reject milestones');
     }
 
@@ -313,19 +397,17 @@ export class MilestoneService {
           rejectedAt: new Date(),
         },
         { new: true, runValidators: true }
-      )
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId');
+      );
 
     return updatedMilestone!;
   }
 
   async markInProgress(id: string, userId: string): Promise<Milestone> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Only freelancer can mark milestone as in progress
-    if (contract.freelancerId.toString() !== userId) {
+    if (contract!.freelancerId.toString() !== userId) {
       throw new ForbiddenException('Only the freelancer can mark milestones as in progress');
     }
 
@@ -339,16 +421,14 @@ export class MilestoneService {
         id,
         { status: MilestoneStatus.IN_PROGRESS },
         { new: true, runValidators: true }
-      )
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId');
+      );
 
     return updatedMilestone!;
   }
 
   async processPayment(id: string, paymentId: string, userId: string): Promise<Milestone> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Verify the payment exists and is completed
     const payment = await this.paymentModel.findById(paymentId);
@@ -374,9 +454,7 @@ export class MilestoneService {
           paidAt: new Date(),
         },
         { new: true, runValidators: true }
-      )
-      .populate('contractId', 'clientId freelancerId title')
-      .populate('paymentId');
+      );
 
     // Update contract total paid amount
     await this.contractModel.findByIdAndUpdate(
@@ -406,7 +484,6 @@ export class MilestoneService {
 
     return this.milestoneModel
       .find(query)
-      .populate('contractId', 'clientId freelancerId title')
       .sort({ dueDate: 1 })
       .exec();
   }
@@ -475,10 +552,10 @@ export class MilestoneService {
 
   async delete(id: string, userId: string): Promise<void> {
     const milestone = await this.findById(id, userId);
-    const contract = milestone.contractId as any;
+    const contract = await this.contractModel.findById(milestone.contractId);
 
     // Only client can delete milestones and only if not submitted/approved/paid
-    if (contract.clientId.toString() !== userId) {
+    if (contract!.clientId.toString() !== userId) {
       throw new ForbiddenException('Only the client can delete milestones');
     }
 

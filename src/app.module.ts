@@ -25,6 +25,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { MilestonesModule } from './modules/milestones/milestones.module';
+import { FilesModule } from './modules/files/files.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { MilestonesModule } from './modules/milestones/milestones.module';
     ContractsModule,
     PaymentsModule,
     MilestonesModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
