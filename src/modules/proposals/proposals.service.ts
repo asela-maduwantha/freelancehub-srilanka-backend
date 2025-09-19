@@ -5,8 +5,12 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, ClientSession } from 'mongoose';
 import { Proposal } from '../../database/schemas/proposal.schema';
+import { Job } from '../../database/schemas/job.schema';
+import { Contract } from '../../database/schemas/contract.schema';
+import { Milestone } from '../../database/schemas/milestone.schema';
+import { User } from '../../database/schemas/user.schema';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { UpdateProposalDto } from './dto/update-proposal.dto';
 import {
@@ -15,11 +19,20 @@ import {
   MessageResponseDto,
 } from './dto/proposal-response.dto';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
+import { ContractStatus } from '../../common/enums/contract-status.enum';
+import { ContractsService } from '../contracts/contracts.service';
+import { LoggerService } from '../../services/logger/logger.service';
 
 @Injectable()
 export class ProposalsService {
   constructor(
     @InjectModel(Proposal.name) private readonly proposalModel: Model<Proposal>,
+    @InjectModel(Job.name) private readonly jobModel: Model<Job>,
+    @InjectModel(Contract.name) private readonly contractModel: Model<Contract>,
+    @InjectModel(Milestone.name) private readonly milestoneModel: Model<Milestone>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+    private readonly contractsService: ContractsService,
+    private readonly logger: LoggerService,
   ) {}
 
   async create(
@@ -46,6 +59,13 @@ export class ProposalsService {
     });
 
     const savedProposal = await proposal.save();
+
+    // Increment proposal count for the job
+    await this.jobModel.findByIdAndUpdate(
+      createProposalDto.jobId,
+      { $inc: { proposalCount: 1 } },
+      { new: true }
+    ).exec();
 
     // Populate freelancer and job data
     const populatedProposal = await this.proposalModel
@@ -231,6 +251,13 @@ export class ProposalsService {
     }
 
     await this.proposalModel.findByIdAndDelete(id).exec();
+
+    // Decrement proposal count for the job
+    await this.jobModel.findByIdAndUpdate(
+      proposal.jobId,
+      { $inc: { proposalCount: -1 } },
+      { new: true }
+    ).exec();
 
     return { message: 'Proposal deleted successfully' };
   }

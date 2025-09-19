@@ -60,7 +60,8 @@ export class MilestoneService {
       { $inc: { milestoneCount: 1 } }
     );
 
-    return savedMilestone;
+    // Return plain object to avoid serialization issues
+    return savedMilestone.toJSON();
   }
 
   async findById(id: string, userId: string): Promise<Milestone> {
@@ -80,7 +81,7 @@ export class MilestoneService {
       throw new ForbiddenException('Access denied to this milestone');
     }
 
-    return milestone;
+    return milestone.toJSON();
   }
 
 

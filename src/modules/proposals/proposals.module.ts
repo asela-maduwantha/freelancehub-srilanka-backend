@@ -8,7 +8,12 @@ import {
 } from '../../database/schemas/proposal.schema';
 import { Job, JobSchema } from '../../database/schemas/job.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
+import { Contract, ContractSchema } from '../../database/schemas/contract.schema';
+import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
 import { AuthModule } from '../auth/auth.module';
+import { ContractsService } from '../contracts/contracts.service';
+import { LoggerService } from '../../services/logger/logger.service';
+import { PdfService } from '../../services/pdf/pdf.service';
 
 @Module({
   imports: [
@@ -20,10 +25,12 @@ import { AuthModule } from '../auth/auth.module';
       { name: Proposal.name, schema: ProposalSchema },
       { name: Job.name, schema: JobSchema },
       { name: User.name, schema: UserSchema },
+      { name: Contract.name, schema: ContractSchema },
+      { name: Milestone.name, schema: MilestoneSchema },
     ]),
   ],
   controllers: [ProposalsController],
-  providers: [ProposalsService],
+  providers: [ProposalsService, ContractsService, LoggerService, PdfService],
   exports: [ProposalsService],
 })
 export class ProposalsModule {}

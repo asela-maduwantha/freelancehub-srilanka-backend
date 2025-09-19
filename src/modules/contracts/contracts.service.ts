@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, UnauthorizedExcepti
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types, ClientSession } from "mongoose";
 import { Contract, Milestone, Proposal, User, Job } from "src/database/schemas";
-import { CreateContractDto } from "./dto";
+import { CreateContractDto, ContractQueryDto } from "./dto";
 import { ContractStatus } from "src/common/enums";
 import { LoggerService } from "src/services/logger/logger.service";
 import { PdfService } from "src/services/pdf/pdf.service";
@@ -22,63 +22,55 @@ export class ContractsService {
   ) {}
 
  async createContract(contractData: CreateContractDto, clientId: string): Promise<Contract> {
-    const session: ClientSession = await this.contractModel.db.startSession();
-    session.startTransaction();
-
-    try {
-      const proposal = await this.proposalModel.findById(contractData.proposalId).session(session);
-      if (!proposal) {
-        throw new NotFoundException('Proposal not found');
-      }
-
-      const job = await this.jobModel.findById(proposal.jobId).session(session);
-      if (!job) {
-        throw new NotFoundException('Job not found');
-      }
-      if (job.clientId.toString() !== clientId) {
-        throw new BadRequestException('Unauthorized: Client does not own this job');
-      }
-
-      const contract = new this.contractModel();
-
-      contract.proposalId = proposal._id as Types.ObjectId;
-      contract.jobId = job._id as Types.ObjectId;
-      contract.clientId = job.clientId;
-      contract.freelancerId = proposal.freelancerId;
-      contract.title = job.title;
-      contract.description = job.description;
-      contract.contractType = job.projectType;
-      contract.totalAmount = proposal.proposedRate.amount;
-      contract.currency = proposal.proposedRate.currency;
-      contract.hourlyRate = proposal.proposedRate.type === 'hourly' ? proposal.proposedRate.amount : 0;
-      contract.startDate = contractData.startDate;
-      contract.endDate = contractData.endDate;
-      contract.status = ContractStatus.PENDING;
-      contract.platformFeePercentage = 10;
-      contract.totalPaid = 0;
-      contract.milestoneCount = 0;
-      contract.terms = contractData.terms || '';
-      contract.isClientSigned = false;
-      contract.isFreelancerSigned = false;
-
-      await contract.save({ session });
-
-      job.contractId = contract._id as Types.ObjectId;
-      await job.save({ session });
-
-      await session.commitTransaction();
-
-      this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
-
-      return contract.toObject();
-    } catch (error) {
-      await session.abortTransaction();
-      this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
-      throw error;
-    } finally {
-      session.endSession();
+  try {
+    const proposal = await this.proposalModel.findById(contractData.proposalId);
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
     }
+
+    const job = await this.jobModel.findById(proposal.jobId);
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+    if (job.clientId.toString() !== clientId) {
+      throw new BadRequestException('Unauthorized: Client does not own this job');
+    }
+
+    const contract = new this.contractModel();
+
+    contract.proposalId = proposal._id as Types.ObjectId;
+    contract.jobId = job._id as Types.ObjectId;
+    contract.clientId = job.clientId;
+    contract.freelancerId = proposal.freelancerId;
+    contract.title = job.title;
+    contract.description = job.description;
+    contract.contractType = job.projectType;
+    contract.totalAmount = proposal.proposedRate.amount;
+    contract.currency = proposal.proposedRate.currency;
+    contract.hourlyRate = proposal.proposedRate.type === 'hourly' ? proposal.proposedRate.amount : 0;
+    contract.startDate = contractData.startDate;
+    contract.endDate = contractData.endDate;
+    contract.status = ContractStatus.ACTIVE;
+    contract.platformFeePercentage = 10;
+    contract.totalPaid = 0;
+    contract.milestoneCount = 0;
+    contract.terms = contractData.terms || '';
+    contract.isClientSigned = true;
+    contract.isFreelancerSigned = false;
+
+    await contract.save();
+
+    job.contractId = contract._id as Types.ObjectId;
+    await job.save();
+
+    this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
+
+    return contract.toObject();
+  } catch (error) {
+    this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
+    throw error;
   }
+}
 
   async startContract(contractId: string, userId: string): Promise<Contract> {
     const contract = await this.contractModel.findById(contractId);
@@ -122,7 +114,6 @@ export class ContractsService {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
 
-    // Convert ObjectIds to strings to avoid Buffer serialization issues
     if (contract._id && typeof contract._id !== 'string') {
       (contract as any)._id = contract._id.toString();
     }
@@ -133,13 +124,30 @@ export class ContractsService {
     return contract;
   }
 
-  async getContractsForUser(userId: string, pagination: PaginationDto): Promise<PaginationResult<Contract>> {
-    const { page = 1, limit = 10 } = pagination;
+  async getContractsForUser(userId: string, query: ContractQueryDto): Promise<PaginationResult<Contract>> {
+    const { page = 1, limit = 10, status, contractType, clientId, freelancerId, jobId } = query;
     const skip = (page - 1) * limit;
 
-    const filter = {
+    const filter: any = {
       $or: [{ clientId: userId }, { freelancerId: userId }],
     };
+
+    // Apply additional filters
+    if (status) {
+      filter.status = status;
+    }
+    if (contractType) {
+      filter.contractType = contractType;
+    }
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    if (freelancerId) {
+      filter.freelancerId = freelancerId;
+    }
+    if (jobId) {
+      filter.jobId = jobId;
+    }
 
     const [contracts, total] = await Promise.all([
       this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }).lean(),
@@ -150,6 +158,15 @@ export class ContractsService {
     contracts.forEach((contract: any) => {
       if (contract._id && typeof contract._id !== 'string') {
         contract._id = contract._id.toString();
+      }
+      if (contract.jobId && typeof contract.jobId !== 'string') {
+        contract.jobId = contract.jobId.toString();
+      }
+      if (contract.clientId && typeof contract.clientId !== 'string') {
+        contract.clientId = contract.clientId.toString();
+      }
+      if (contract.freelancerId && typeof contract.freelancerId !== 'string') {
+        contract.freelancerId = contract.freelancerId.toString();
       }
       if (contract.proposalId && typeof contract.proposalId !== 'string') {
         contract.proposalId = contract.proposalId.toString();

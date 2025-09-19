@@ -79,48 +79,6 @@ export class Milestone extends Document {
 
   @Prop()
   deletedAt?: Date;
-
-  get isOverdue(): boolean {
-    return !!(
-      this.dueDate &&
-      new Date() > this.dueDate &&
-      ![MilestoneStatus.APPROVED, MilestoneStatus.PAID].includes(this.status)
-    );
-  }
-
-  get daysUntilDue(): number {
-    if (!this.dueDate) return 0;
-    const diff = this.dueDate.getTime() - Date.now();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  }
-
-  get hasDeliverables(): boolean {
-    return this.deliverables && this.deliverables.length > 0;
-  }
-
-  get isPending(): boolean {
-    return this.status === MilestoneStatus.PENDING;
-  }
-
-  get isInProgress(): boolean {
-    return this.status === MilestoneStatus.IN_PROGRESS;
-  }
-
-  get isSubmitted(): boolean {
-    return this.status === MilestoneStatus.SUBMITTED;
-  }
-
-  get isApproved(): boolean {
-    return this.status === MilestoneStatus.APPROVED;
-  }
-
-  get isRejected(): boolean {
-    return this.status === MilestoneStatus.REJECTED;
-  }
-
-  get isPaid(): boolean {
-    return this.status === MilestoneStatus.PAID;
-  }
 }
 
 export const MilestoneSchema = SchemaFactory.createForClass(Milestone);
@@ -206,5 +164,16 @@ MilestoneSchema.pre(/^find/, function (next) {
   next();
 });
 
-MilestoneSchema.set('toJSON', { virtuals: true });
-MilestoneSchema.set('toObject', { virtuals: true });
+MilestoneSchema.set('toJSON', {
+  transform: function(doc: any, ret: any) {
+    const { __v, _id, ...cleanRet } = ret;
+    return { id: doc._id, ...cleanRet };
+  }
+});
+
+MilestoneSchema.set('toObject', {
+  transform: function(doc: any, ret: any) {
+    const { __v, _id, ...cleanRet } = ret;
+    return { id: doc._id, ...cleanRet };
+  }
+});

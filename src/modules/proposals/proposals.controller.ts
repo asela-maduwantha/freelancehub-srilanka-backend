@@ -23,6 +23,7 @@ import {
 import { ProposalsService } from './proposals.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { UpdateProposalDto } from './dto/update-proposal.dto';
+
 import {
   ProposalResponseDto,
   ProposalsListResponseDto,

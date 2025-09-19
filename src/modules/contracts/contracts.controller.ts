@@ -133,6 +133,33 @@ export class ContractsController {
     };
   }
 
+  @Get()
+  @ApiOperation({ summary: 'Get contracts for current user' })
+  @ApiQuery({ type: ContractQueryDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Contracts retrieved successfully',
+    type: ContractListResponseDto,
+  })
+  async getContractsForUser(
+    @Query(new ValidationPipe({ transform: true })) query: ContractQueryDto,
+    @CurrentUser('id') userId: string,
+  ): Promise<ContractListResponseDto> {
+    const result = await this.contractsService.getContractsForUser(userId, query);
+    return {
+      success: true,
+      data: {
+        contracts: result.data,
+        pagination: {
+          page: result.pagination.page,
+          limit: result.pagination.limit,
+          total: result.pagination.total,
+          pages: result.pagination.totalPages,
+        },
+      },
+    };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get contract by ID' })
   @ApiParam({ name: 'id', description: 'Contract ID' })
@@ -158,33 +185,6 @@ export class ContractsController {
       success: true,
       message: 'Contract retrieved successfully',
       data: contract,
-    };
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Get contracts for current user' })
-  @ApiQuery({ type: PaginationDto })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Contracts retrieved successfully',
-    type: ContractListResponseDto,
-  })
-  async getContractsForUser(
-    @Query(new ValidationPipe({ transform: true })) pagination: PaginationDto,
-    @CurrentUser('id') userId: string,
-  ): Promise<ContractListResponseDto> {
-    const result = await this.contractsService.getContractsForUser(userId, pagination);
-    return {
-      success: true,
-      data: {
-        contracts: result.data,
-        pagination: {
-          page: result.pagination.page,
-          limit: result.pagination.limit,
-          total: result.pagination.total,
-          pages: result.pagination.totalPages,
-        },
-      },
     };
   }
 

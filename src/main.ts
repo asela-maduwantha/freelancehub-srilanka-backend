@@ -104,6 +104,7 @@ async function bootstrap() {
       .addTag('Jobs', 'Job posting and management endpoints')
       .addTag('Proposals', 'Proposal management endpoints')
       .addTag('Contracts', 'Contract management endpoints')
+      .addTag('Milestones', 'Milestone management endpoints')
       .addTag('Payments', 'Payment processing endpoints')
       .addTag('Messages', 'Messaging system endpoints')
       .addTag('Reviews', 'Review and rating endpoints')
