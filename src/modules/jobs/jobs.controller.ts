@@ -165,8 +165,6 @@ export class JobsController {
     return this.jobsService.findJobsByCategory(category, page, limit);
   }
 
-  @Get('recommended')
-
   @Get(':id')
   @ApiOperation({ summary: 'Get a job by ID' })
   @ApiParam({ name: 'id', description: 'Job ID' })

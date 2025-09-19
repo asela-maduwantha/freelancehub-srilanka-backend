@@ -23,6 +23,8 @@ import { ProposalsModule } from './modules/proposals/proposals.module';
 import { SkillsModule } from './modules/skills/skills.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { MilestonesModule } from './modules/milestones/milestones.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { ContractsModule } from './modules/contracts/contracts.module';
     SkillsModule,
     CategoriesModule,
     ContractsModule,
+    PaymentsModule,
+    MilestonesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

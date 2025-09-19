@@ -70,7 +70,7 @@ export class ContractsService {
 
       this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
 
-      return contract;
+      return contract.toObject();
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
@@ -95,7 +95,7 @@ export class ContractsService {
     contract.isClientSigned = true;
     await contract.save();
     this.logger.log(`Contract started successfully: ${contract._id}`, 'ContractsService');
-    return contract;
+    return contract.toObject();
   }
 
   async freelancerSignContract(contractId: string, userId: string): Promise<Contract> {
@@ -110,16 +110,24 @@ export class ContractsService {
     contract.isFreelancerSigned = true;
     await contract.save();
     this.logger.log(`Contract signed by freelancer: ${contract._id}`, 'ContractsService');
-    return contract;
+    return contract.toObject();
   }
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findById(contractId);
+    const contract = await this.contractModel.findById(contractId).lean();
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
     if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
+    }
+
+    // Convert ObjectIds to strings to avoid Buffer serialization issues
+    if (contract._id && typeof contract._id !== 'string') {
+      (contract as any)._id = contract._id.toString();
+    }
+    if (contract.proposalId && typeof contract.proposalId !== 'string') {
+      (contract as any).proposalId = contract.proposalId.toString();
     }
 
     return contract;
@@ -134,9 +142,19 @@ export class ContractsService {
     };
 
     const [contracts, total] = await Promise.all([
-      this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }).lean(),
       this.contractModel.countDocuments(filter),
     ]);
+
+   
+    contracts.forEach((contract: any) => {
+      if (contract._id && typeof contract._id !== 'string') {
+        contract._id = contract._id.toString();
+      }
+      if (contract.proposalId && typeof contract.proposalId !== 'string') {
+        contract.proposalId = contract.proposalId.toString();
+      }
+    });
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
@@ -191,7 +209,7 @@ export class ContractsService {
       await session.commitTransaction();
 
       this.logger.log(`Contract completed successfully: ${contract._id} by user: ${userId}`, 'ContractsService');
-      return contract;
+      return contract.toObject();
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(`Failed to complete contract ${contractId}: ${error.message}`, error.stack, 'ContractsService');
@@ -213,7 +231,7 @@ export class ContractsService {
     contract.status = ContractStatus.CANCELLED;
     await contract.save();
     this.logger.log(`Contract cancelled successfully: ${contract._id}`, 'ContractsService');
-    return contract;
+    return contract.toObject();
   }
 
   async downloadContract(contractId: string, userId: string): Promise<Buffer> {
