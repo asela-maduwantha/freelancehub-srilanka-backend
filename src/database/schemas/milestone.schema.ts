@@ -165,15 +165,21 @@ MilestoneSchema.pre(/^find/, function (next) {
 });
 
 MilestoneSchema.set('toJSON', {
+  virtuals: true,
   transform: function(doc: any, ret: any) {
-    const { __v, _id, ...cleanRet } = ret;
-    return { id: doc._id, ...cleanRet };
+    delete ret._id;
+    delete ret.__v;
+    ret.id = doc._id;
+    return ret;
   }
 });
 
 MilestoneSchema.set('toObject', {
+  virtuals: true,
   transform: function(doc: any, ret: any) {
-    const { __v, _id, ...cleanRet } = ret;
-    return { id: doc._id, ...cleanRet };
+    delete ret._id;
+    delete ret.__v;
+    ret.id = doc._id;
+    return ret;
   }
 });

@@ -77,7 +77,7 @@ export class MilestoneService {
       throw new ForbiddenException('Access denied to this milestone');
     }
 
-    return milestone;
+    return milestone.toJSON();
   }
 
 
@@ -300,7 +300,7 @@ export class MilestoneService {
     const updatedMilestone = await this.milestoneModel
       .findByIdAndUpdate(id, updateMilestoneDto, { new: true, runValidators: true });
 
-    return updatedMilestone!;
+    return updatedMilestone!.toJSON();
   }
 
   async submit(id: string, submitDto: SubmitMilestoneDto, userId: string): Promise<Milestone> {
@@ -334,7 +334,7 @@ export class MilestoneService {
         { new: true, runValidators: true }
       );
 
-    return updatedMilestone!;
+    return updatedMilestone!.toJSON();
   }
 
   async approve(id: string, userId: string): Promise<Milestone> {
@@ -367,7 +367,7 @@ export class MilestoneService {
       { $inc: { completedMilestones: 1 } }
     );
 
-    return updatedMilestone!;
+    return updatedMilestone!.toJSON();
   }
 
   async reject(id: string, feedback: string, userId: string): Promise<Milestone> {
@@ -399,7 +399,7 @@ export class MilestoneService {
         { new: true, runValidators: true }
       );
 
-    return updatedMilestone!;
+    return updatedMilestone!.toJSON();
   }
 
   async markInProgress(id: string, userId: string): Promise<Milestone> {
@@ -423,7 +423,7 @@ export class MilestoneService {
         { new: true, runValidators: true }
       );
 
-    return updatedMilestone!;
+    return updatedMilestone!.toJSON();
   }
 
   async processPayment(id: string, paymentId: string, userId: string): Promise<Milestone> {
@@ -462,7 +462,7 @@ export class MilestoneService {
       { $inc: { totalPaid: milestone.amount } }
     );
 
-    return updatedMilestone!;
+    return updatedMilestone!.toJSON();
   }
 
   async getOverdueMilestones(userId?: string): Promise<Milestone[]> {
@@ -482,10 +482,12 @@ export class MilestoneService {
       query.contractId = { $in: userContracts.map(c => c._id) };
     }
 
-    return this.milestoneModel
+    const milestones = await this.milestoneModel
       .find(query)
       .sort({ dueDate: 1 })
       .exec();
+
+    return milestones.map(milestone => milestone.toJSON());
   }
 
   async getContractMilestoneStats(contractId: string, userId: string): Promise<any> {
