@@ -62,6 +62,9 @@ export class Job extends Document {
   @Prop({ required: true })
   category: string;
 
+  @Prop()
+  subcategory?: string;
+
   @Prop({ required: true, enum: ['fixed-price', 'hourly'] })
   projectType: string;
 
@@ -182,11 +185,7 @@ JobSchema.virtual('canReceiveProposals').get(function () {
   );
 });
 
-// Populate references automatically
-JobSchema.pre(/^find/, function (next) {
-  // Populate will be handled at query level to avoid TypeScript issues
-  next();
-});
+
 
 // Ensure virtuals are included in JSON
 JobSchema.set('toJSON', { virtuals: true });

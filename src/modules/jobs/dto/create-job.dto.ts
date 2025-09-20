@@ -6,9 +6,9 @@ import {
   IsOptional,
   IsNumber,
   Min,
-  IsIn,
+  IsBoolean,
   ValidateNested,
-  IsObject,
+  IsDateString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -39,28 +39,17 @@ class BudgetDto {
 }
 
 class DurationDto {
-  @ApiProperty({
-    enum: [
-      'less-than-1-month',
-      '1-3-months',
-      '3-6-months',
-      'more-than-6-months',
-    ],
-    description: 'Project duration type',
-  })
-  @IsEnum([
-    'less-than-1-month',
-    '1-3-months',
-    '3-6-months',
-    'more-than-6-months',
-  ])
-  type: string;
-
-  @ApiPropertyOptional({ description: 'Estimated hours', minimum: 1 })
-  @IsOptional()
+  @ApiProperty({ description: 'Duration value', minimum: 1 })
   @IsNumber()
   @Min(1)
-  estimatedHours?: number;
+  value: number;
+
+  @ApiProperty({
+    enum: ['days', 'weeks', 'months'],
+    description: 'Duration unit',
+  })
+  @IsEnum(['days', 'weeks', 'months'])
+  unit: string;
 }
 
 class AttachmentDto {
@@ -85,25 +74,7 @@ class AttachmentDto {
   type: string;
 }
 
-class JobLocationDto {
-  @ApiProperty({
-    enum: ['remote', 'onsite', 'hybrid'],
-    description: 'Job location type',
-  })
-  @IsEnum(['remote', 'onsite', 'hybrid'])
-  type: string;
 
-  @ApiPropertyOptional({ description: 'Allowed countries', type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  countries?: string[];
-
-  @ApiPropertyOptional({ description: 'Timezone' })
-  @IsOptional()
-  @IsString()
-  timezone?: string;
-}
 
 export class CreateJobDto {
   @ApiProperty({ description: 'Job title' })
@@ -162,7 +133,7 @@ export class CreateJobDto {
     default: false,
   })
   @IsOptional()
-  @IsIn([true, false])
+  @IsBoolean()
   isUrgent?: boolean = false;
 
   @ApiPropertyOptional({
@@ -170,7 +141,7 @@ export class CreateJobDto {
     default: false,
   })
   @IsOptional()
-  @IsIn([true, false])
+  @IsBoolean()
   isFeatured?: boolean = false;
 
   @ApiPropertyOptional({
@@ -183,11 +154,7 @@ export class CreateJobDto {
   @Type(() => AttachmentDto)
   attachments?: AttachmentDto[];
 
-  @ApiPropertyOptional({ description: 'Job location', type: JobLocationDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => JobLocationDto)
-  location?: JobLocationDto;
+
 
   @ApiPropertyOptional({
     description: 'Maximum number of proposals',
@@ -200,5 +167,6 @@ export class CreateJobDto {
 
   @ApiPropertyOptional({ description: 'Job expiration date' })
   @IsOptional()
+  @IsDateString()
   expiresAt?: Date;
 }

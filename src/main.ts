@@ -62,8 +62,7 @@ async function bootstrap() {
     }),
   );
 
-  // Global guards - Use the Passport JWT guard instead
-  // Guards are applied at the module level in AuthModule
+
   const reflector = app.get(Reflector);
 
   // Global interceptors
@@ -126,7 +125,7 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(
-    `🚀 Application is running on: http://localhost:${port}/${apiPrefix}`,
+    ` Application is running on: http://localhost:${port}/${apiPrefix}`,
   );
   console.log(
     ' API Documentation: http://localhost:' + port + `/${apiPrefix}/docs`,
