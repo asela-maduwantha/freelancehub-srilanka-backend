@@ -147,6 +147,29 @@ ContractSchema.pre(/^find/, function (next) {
   next();
 });
 
-ContractSchema.set('toJSON', { virtuals: true });
-ContractSchema.set('toObject', { virtuals: true });
+ContractSchema.set('toJSON', { 
+  virtuals: true,
+  transform: function(doc, ret) {
+    // Convert ObjectId fields to strings
+    if (ret._id) (ret as any)._id = ret._id.toString();
+    if (ret.jobId) (ret as any).jobId = ret.jobId.toString();
+    if (ret.clientId) (ret as any).clientId = ret.clientId.toString();
+    if (ret.freelancerId) (ret as any).freelancerId = ret.freelancerId.toString();
+    if (ret.proposalId) (ret as any).proposalId = ret.proposalId.toString();
+    return ret;
+  }
+});
+
+ContractSchema.set('toObject', { 
+  virtuals: true,
+  transform: function(doc, ret) {
+    // Convert ObjectId fields to strings
+    if (ret._id) (ret as any)._id = ret._id.toString();
+    if (ret.jobId) (ret as any).jobId = ret.jobId.toString();
+    if (ret.clientId) (ret as any).clientId = ret.clientId.toString();
+    if (ret.freelancerId) (ret as any).freelancerId = ret.freelancerId.toString();
+    if (ret.proposalId) (ret as any).proposalId = ret.proposalId.toString();
+    return ret;
+  }
+});
 

@@ -22,17 +22,37 @@ export class ContractsService {
   ) {}
 
   /**
-   * Converts ObjectId fields to strings to avoid Buffer serialization issues
-   * when using .lean() queries
+   * Safely converts ObjectId fields to strings to prevent Buffer serialization issues
    */
-  private convertObjectIdsToStrings(contract: any): void {
-    const objectIdFields = ['_id', 'jobId', 'clientId', 'freelancerId', 'proposalId'];
+  private sanitizeContract(contract: any): any {
+    if (!contract) return contract;
+    
+    const sanitized = JSON.parse(JSON.stringify(contract));
+    
+    // List of ObjectId fields that need conversion
+    const objectIdFields = ['_id', 'id', 'jobId', 'clientId', 'freelancerId', 'proposalId'];
     
     objectIdFields.forEach(field => {
-      if (contract[field] && typeof contract[field] !== 'string') {
-        contract[field] = contract[field].toString();
+      if (sanitized[field]) {
+        if (typeof sanitized[field] === 'string') {
+          // Already a string, keep as is
+          return;
+        } else if (sanitized[field]._id) {
+          // Mongoose document with _id
+          sanitized[field] = sanitized[field]._id.toString();
+        } else if (sanitized[field].toString) {
+          // ObjectId instance
+          sanitized[field] = sanitized[field].toString();
+        } else if (sanitized[field].buffer && sanitized[field].buffer.data) {
+          // Buffer object - convert back to ObjectId string
+          const bytes = sanitized[field].buffer.data;
+          const hex = bytes.map((b: number) => b.toString(16).padStart(2, '0')).join('');
+          sanitized[field] = hex;
+        }
       }
     });
+    
+    return sanitized;
   }
 
  async createContract(contractData: CreateContractDto, clientId: string): Promise<Contract> {
@@ -79,7 +99,7 @@ export class ContractsService {
 
     this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
 
-    return contract.toObject();
+    return this.sanitizeContract(contract.toObject());
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
     throw error;
@@ -101,7 +121,7 @@ export class ContractsService {
     contract.isClientSigned = true;
     await contract.save();
     this.logger.log(`Contract started successfully: ${contract._id}`, 'ContractsService');
-    return contract.toObject();
+    return this.sanitizeContract(contract.toObject());
   }
 
   async freelancerSignContract(contractId: string, userId: string): Promise<Contract> {
@@ -120,7 +140,7 @@ export class ContractsService {
   }
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findById(contractId).lean();
+    const contract = await this.contractModel.findById(contractId);
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
@@ -128,10 +148,8 @@ export class ContractsService {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
 
-    // Convert all ObjectId fields to strings to avoid Buffer serialization issues
-    this.convertObjectIdsToStrings(contract);
-
-    return contract;
+    const contractObject = contract.toObject();
+    return this.sanitizeContract(contractObject);
   }
 
   async getContractsForUser(userId: string, query: ContractQueryDto): Promise<PaginationResult<Contract>> {
@@ -159,15 +177,13 @@ export class ContractsService {
       filter.jobId = jobId;
     }
 
-    const [contracts, total] = await Promise.all([
-      this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }).lean(),
+    const [contractDocs, total] = await Promise.all([
+      this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
       this.contractModel.countDocuments(filter),
     ]);
 
-   
-    contracts.forEach((contract: any) => {
-      this.convertObjectIdsToStrings(contract);
-    });
+    // Convert to plain objects and sanitize to avoid serialization issues
+    const contracts = contractDocs.map(contract => this.sanitizeContract(contract.toObject()));
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
