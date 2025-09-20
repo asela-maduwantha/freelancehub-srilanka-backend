@@ -21,6 +21,20 @@ export class ContractsService {
     private pdfService: PdfService,
   ) {}
 
+  /**
+   * Converts ObjectId fields to strings to avoid Buffer serialization issues
+   * when using .lean() queries
+   */
+  private convertObjectIdsToStrings(contract: any): void {
+    const objectIdFields = ['_id', 'jobId', 'clientId', 'freelancerId', 'proposalId'];
+    
+    objectIdFields.forEach(field => {
+      if (contract[field] && typeof contract[field] !== 'string') {
+        contract[field] = contract[field].toString();
+      }
+    });
+  }
+
  async createContract(contractData: CreateContractDto, clientId: string): Promise<Contract> {
   try {
     const proposal = await this.proposalModel.findById(contractData.proposalId);
@@ -114,12 +128,8 @@ export class ContractsService {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
 
-    if (contract._id && typeof contract._id !== 'string') {
-      (contract as any)._id = contract._id.toString();
-    }
-    if (contract.proposalId && typeof contract.proposalId !== 'string') {
-      (contract as any).proposalId = contract.proposalId.toString();
-    }
+    // Convert all ObjectId fields to strings to avoid Buffer serialization issues
+    this.convertObjectIdsToStrings(contract);
 
     return contract;
   }
@@ -156,21 +166,7 @@ export class ContractsService {
 
    
     contracts.forEach((contract: any) => {
-      if (contract._id && typeof contract._id !== 'string') {
-        contract._id = contract._id.toString();
-      }
-      if (contract.jobId && typeof contract.jobId !== 'string') {
-        contract.jobId = contract.jobId.toString();
-      }
-      if (contract.clientId && typeof contract.clientId !== 'string') {
-        contract.clientId = contract.clientId.toString();
-      }
-      if (contract.freelancerId && typeof contract.freelancerId !== 'string') {
-        contract.freelancerId = contract.freelancerId.toString();
-      }
-      if (contract.proposalId && typeof contract.proposalId !== 'string') {
-        contract.proposalId = contract.proposalId.toString();
-      }
+      this.convertObjectIdsToStrings(contract);
     });
 
     const totalPages = Math.ceil(total / limit);
