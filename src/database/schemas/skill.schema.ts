@@ -101,7 +101,6 @@ SkillSchema.virtual('hasRelatedSkills').get(function () {
 
 // Pre-save middleware
 SkillSchema.pre('save', function (next) {
-  // Auto-generate slug from name if not provided
   if (this.isModified('name') && !this.slug) {
     this.slug = this.name
       .toLowerCase()
