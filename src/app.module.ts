@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CacheModule } from '@nestjs/cache-manager';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -35,6 +36,13 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
       isGlobal: true,
       load: [appConfig, databaseConfig, jwtConfig, mailConfig, azureConfig, stripeConfig],
       envFilePath: ['.env.local', '.env'],
+    }),
+
+    // Cache module for performance optimization
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 300, // 5 minutes default TTL
+      max: 1000, // Maximum number of items in cache
     }),
 
     ThrottlerModule.forRoot([

@@ -2,9 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Skill } from '../../database/schemas/skill.schema';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
@@ -21,6 +24,7 @@ import slugify from 'slugify';
 export class SkillsService {
   constructor(
     @InjectModel(Skill.name) private readonly skillModel: Model<Skill>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(createSkillDto: CreateSkillDto): Promise<SkillResponseDto> {
@@ -33,6 +37,11 @@ export class SkillsService {
 
     const skill = new this.skillModel(createSkillDto);
     const savedSkill = await skill.save();
+
+    // Clear cache after creating new skill
+    await this.cacheManager.del('skills');
+    await this.cacheManager.del('popular_skills');
+
     return this.mapToSkillResponseDto(savedSkill);
   }
 
@@ -48,6 +57,10 @@ export class SkillsService {
       });
 
       await Promise.all(skills.map((skill) => skill.save()));
+
+      // Clear cache after batch creating skills
+      await this.cacheManager.del('skills');
+      await this.cacheManager.del('popular_skills');
 
       return { message: `${skills.length} skills created successfully` };
     } catch (error) {
@@ -68,6 +81,15 @@ export class SkillsService {
     search?: string,
     isActive?: boolean,
   ): Promise<SkillsListResponseDto> {
+    // Create cache key based on parameters
+    const cacheKey = `skills:${page}:${limit}:${category}:${difficulty}:${search}:${isActive}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<SkillsListResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skip = (page - 1) * limit;
 
     const filter: any = {};
@@ -92,16 +114,29 @@ export class SkillsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       skills: skills.map((skill) => this.mapToSkillResponseDto(skill)),
       total,
       page,
       limit,
       totalPages,
     };
+
+    // Cache the result for 10 minutes
+    await this.cacheManager.set(cacheKey, result, 600000);
+
+    return result;
   }
 
   async findOne(id: string): Promise<SkillResponseDto> {
+    const cacheKey = `skill:${id}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<SkillResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skill = await this.skillModel.findById(id).exec();
 
     if (!skill) {
@@ -112,10 +147,23 @@ export class SkillsService {
       throw new NotFoundException(RESPONSE_MESSAGES.SKILL.NOT_FOUND);
     }
 
-    return this.mapToSkillResponseDto(skill);
+    const result = this.mapToSkillResponseDto(skill);
+
+    // Cache the result for 5 minutes
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async findBySlug(slug: string): Promise<SkillResponseDto> {
+    const cacheKey = `skill_slug:${slug}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<SkillResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skill = await this.skillModel
       .findOne({ slug, deletedAt: { $exists: false } })
       .exec();
@@ -124,7 +172,12 @@ export class SkillsService {
       throw new NotFoundException(RESPONSE_MESSAGES.SKILL.NOT_FOUND);
     }
 
-    return this.mapToSkillResponseDto(skill);
+    const result = this.mapToSkillResponseDto(skill);
+
+    // Cache the result for 5 minutes
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async update(
@@ -170,6 +223,11 @@ export class SkillsService {
       throw new NotFoundException(RESPONSE_MESSAGES.SKILL.NOT_FOUND);
     }
 
+    // Clear cache after updating skill
+    await this.cacheManager.del('skills');
+    await this.cacheManager.del('popular_skills');
+    await this.cacheManager.del(`skill_${id}`);
+
     return this.mapToSkillResponseDto(updatedSkill);
   }
 
@@ -185,6 +243,11 @@ export class SkillsService {
       .findByIdAndUpdate(id, { deletedAt: new Date() })
       .exec();
 
+    // Clear cache after removing skill
+    await this.cacheManager.del('skills');
+    await this.cacheManager.del('popular_skills');
+    await this.cacheManager.del(`skill_${id}`);
+
     return { message: RESPONSE_MESSAGES.SKILL.DELETED };
   }
 
@@ -197,13 +260,26 @@ export class SkillsService {
   }
 
   async findPopular(limit: number = 20): Promise<SkillResponseDto[]> {
+    const cacheKey = `popular_skills:${limit}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<SkillResponseDto[]>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skills = await this.skillModel
       .find({ deletedAt: { $exists: false }, isActive: true })
       .sort({ usageCount: -1 })
       .limit(limit)
       .exec();
 
-    return skills.map((skill) => this.mapToSkillResponseDto(skill));
+    const result = skills.map((skill) => this.mapToSkillResponseDto(skill));
+
+    // Cache the result for 15 minutes (popular skills change moderately)
+    await this.cacheManager.set(cacheKey, result, 900000);
+
+    return result;
   }
 
   // Search skills with text search
@@ -211,6 +287,14 @@ export class SkillsService {
     query: string,
     limit: number = 10,
   ): Promise<SkillResponseDto[]> {
+    const cacheKey = `search_skills:${query}:${limit}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<SkillResponseDto[]>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skills = await this.skillModel
       .find({
         $text: { $search: query },
@@ -221,7 +305,12 @@ export class SkillsService {
       .limit(limit)
       .exec();
 
-    return skills.map((skill) => this.mapToSkillResponseDto(skill));
+    const result = skills.map((skill) => this.mapToSkillResponseDto(skill));
+
+    // Cache the result for 5 minutes (search results can be cached briefly)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   // Increment usage count for a skill

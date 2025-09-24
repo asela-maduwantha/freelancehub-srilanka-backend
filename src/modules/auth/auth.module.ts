@@ -15,7 +15,7 @@ import {
   OtpVerificationSchema,
 } from '../../database/schemas/otp-verification.schema';
 
-import { EmailService } from '../../services/email/email.service';
+import { EmailModule } from '../../services/email/email.module';
 
 @Module({
   imports: [
@@ -42,9 +42,12 @@ import { EmailService } from '../../services/email/email.service';
 
     // Config module for environment variables
     ConfigModule,
+
+    // Email module
+    EmailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy, EmailService],
+  providers: [AuthService, JwtStrategy, LocalStrategy],
   exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
 })
 export class AuthModule {}

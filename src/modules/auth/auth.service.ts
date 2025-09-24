@@ -4,11 +4,14 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
+import { CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { User } from '../../database/schemas/user.schema';
 import { OtpVerification } from '../../database/schemas/otp-verification.schema';
 import { RegisterDto } from './dto/register.dto';
@@ -43,6 +46,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   // Register new user
@@ -315,6 +319,7 @@ export class AuthService {
     }
   }
 
+  @CacheTTL(180) // 3 minutes for user profiles
   async getProfile(userId: string): Promise<UserResponseDto> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
