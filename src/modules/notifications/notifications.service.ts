@@ -255,4 +255,15 @@ export class NotificationsService {
       relatedType: "contract",
     });
   }
+
+  async notifyReviewReceived(reviewId: string, rating: number, userId: string): Promise<Notification> {
+    return this.create({
+      userId,
+      type: NotificationType.REVIEW_RECEIVED,
+      title: "New Review Received",
+      message: `You received a ${rating}-star review.`,
+      relatedId: reviewId,
+      relatedType: "review",
+    });
+  }
 }
