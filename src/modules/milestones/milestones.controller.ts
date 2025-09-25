@@ -29,12 +29,13 @@ import {
   MilestoneFilters,
 } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Milestone } from 'src/database/schemas';
 
 @ApiTags('Milestones')
 @Controller('milestones')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ThrottlerGuard)
 @ApiBearerAuth()
 export class MilestonesController {
   constructor(private readonly milestoneService: MilestoneService) {}

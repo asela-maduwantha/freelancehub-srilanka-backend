@@ -32,10 +32,11 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Proposals')
 @Controller('proposals')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ThrottlerGuard)
 @ApiBearerAuth()
 export class ProposalsController {
   constructor(private readonly proposalsService: ProposalsService) {}
@@ -51,6 +52,10 @@ export class ProposalsController {
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Validation error or duplicate proposal',
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
   })
   async create(
     @Body(ValidationPipe) createProposalDto: CreateProposalDto,
@@ -68,6 +73,10 @@ export class ProposalsController {
     status: HttpStatus.OK,
     description: 'Proposals retrieved successfully',
     type: ProposalsListResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
   })
   async findByJobId(
     @Param('jobId') jobId: string,

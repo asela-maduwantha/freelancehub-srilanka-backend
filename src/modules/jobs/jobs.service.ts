@@ -6,6 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Job } from '../../database/schemas/job.schema';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
@@ -38,6 +41,7 @@ export class JobsService {
     @InjectModel(SavedJob.name) private readonly savedJobModel: Model<SavedJob>,
     @InjectModel(JobReport.name)
     private readonly jobReportModel: Model<JobReport>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(
@@ -70,6 +74,22 @@ export class JobsService {
     clientId?: string,
     search?: string,
   ): Promise<JobsListResponseDto> {
+    // Create cache key from search parameters
+    const cacheKey = `jobs_list:${JSON.stringify({
+      page,
+      limit,
+      status,
+      category,
+      clientId,
+      search,
+    })}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<JobsListResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skip = (page - 1) * limit;
 
     const filter: any = {};
@@ -77,19 +97,16 @@ export class JobsService {
     if (category) filter.category = category;
     if (clientId) filter.clientId = clientId;
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { skills: { $regex: search, $options: 'i' } },
-      ];
+      // Use MongoDB text search for better performance
+      filter.$text = { $search: search };
     }
 
     const [jobs, total] = await Promise.all([
       this.jobModel
-        .find(filter)
+        .find(filter, search ? { score: { $meta: 'textScore' } } : {})
         .populate('clientId', 'email profile.firstName profile.lastName')
         .lean()
-        .sort({ postedAt: -1 })
+        .sort(search ? { score: { $meta: 'textScore' }, postedAt: -1 } : { postedAt: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
@@ -98,16 +115,29 @@ export class JobsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       jobs: jobs.map((job) => this.mapToJobResponseDto(job)),
       total,
       page,
       limit,
       totalPages,
     };
+
+    // Cache for 5 minutes (job listings change moderately frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async findOne(id: string, clientId?: string): Promise<JobResponseDto> {
+    // Try to get from cache first
+    const cacheKey = `job_${id}`;
+    const cachedJob = await this.cacheManager.get<JobResponseDto>(cacheKey);
+
+    if (cachedJob) {
+      return cachedJob;
+    }
+
     const job = await this.jobModel
       .findById(id)
       .populate('clientId', 'email profile.firstName profile.lastName')
@@ -129,7 +159,12 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    return this.mapToJobResponseDto(job);
+    const jobResponse = this.mapToJobResponseDto(job);
+
+    // Cache for 10 minutes (individual jobs change less frequently)
+    await this.cacheManager.set(cacheKey, jobResponse, 600000);
+
+    return jobResponse;
   }
 
   async update(
@@ -231,7 +266,16 @@ export class JobsService {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
-    return this.mapToJobResponseDto(updatedJob);
+    const updatedJobResponse = this.mapToJobResponseDto(updatedJob);
+
+    // Clear cache after updating job
+    await this.cacheManager.del(`job_${id}`);
+    // Clear job listings cache (since job might appear in various listings)
+    await this.cacheManager.del('jobs_list:all');
+    await this.cacheManager.del('jobs_list:featured');
+    await this.cacheManager.del('jobs_list:recent');
+
+    return updatedJobResponse;
   }
 
   async remove(id: string, clientId: string): Promise<MessageResponseDto> {
@@ -250,6 +294,13 @@ export class JobsService {
     }
 
     await this.jobModel.findByIdAndDelete(id).exec();
+
+    // Clear cache after deleting job
+    await this.cacheManager.del(`job_${id}`);
+    // Clear job listings cache (since job was removed from listings)
+    await this.cacheManager.del('jobs_list:all');
+    await this.cacheManager.del('jobs_list:featured');
+    await this.cacheManager.del('jobs_list:recent');
 
     return { message: RESPONSE_MESSAGES.JOB.DELETED };
   }
@@ -307,6 +358,12 @@ export class JobsService {
       .findByIdAndUpdate(id, { status: JobStatus.COMPLETED })
       .exec();
 
+    // Clear cache after closing job
+    await this.cacheManager.del(`job_${id}`);
+    await this.cacheManager.del('jobs_list:all');
+    await this.cacheManager.del('jobs_list:featured');
+    await this.cacheManager.del('jobs_list:recent');
+
     return { message: 'Job closed successfully' };
   }
 
@@ -329,6 +386,12 @@ export class JobsService {
       .findByIdAndUpdate(id, { status: JobStatus.OPEN })
       .exec();
 
+    // Clear cache after reopening job
+    await this.cacheManager.del(`job_${id}`);
+    await this.cacheManager.del('jobs_list:all');
+    await this.cacheManager.del('jobs_list:featured');
+    await this.cacheManager.del('jobs_list:recent');
+
     return { message: 'Job reopened successfully' };
   }
 
@@ -336,6 +399,15 @@ export class JobsService {
     page: number = 1,
     limit: number = 10,
   ): Promise<JobsListResponseDto> {
+    // Create cache key
+    const cacheKey = `featured_jobs:${page}:${limit}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<JobsListResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skip = (page - 1) * limit;
 
     const filter = {
@@ -358,13 +430,18 @@ export class JobsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       jobs: jobs.map((job) => this.mapToJobResponseDto(job)),
       total,
       page,
       limit,
       totalPages,
     };
+
+    // Cache for 10 minutes (featured jobs change less frequently)
+    await this.cacheManager.set(cacheKey, result, 600000);
+
+    return result;
   }
 
   async findRecentJobs(
@@ -372,6 +449,15 @@ export class JobsService {
     limit: number = 10,
     days: number = 7,
   ): Promise<JobsListResponseDto> {
+    // Create cache key
+    const cacheKey = `recent_jobs:${page}:${limit}:${days}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<JobsListResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skip = (page - 1) * limit;
 
     const dateThreshold = new Date();
@@ -397,13 +483,18 @@ export class JobsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       jobs: jobs.map((job) => this.mapToJobResponseDto(job)),
       total,
       page,
       limit,
       totalPages,
     };
+
+    // Cache for 5 minutes (recent jobs change more frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async findJobsByCategory(

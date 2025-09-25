@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Milestone, Contract, Payment } from 'src/database/schemas';
@@ -9,6 +9,8 @@ import {
   SubmitMilestoneDto,
   MilestoneFilters
 } from './dto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class MilestoneService {
@@ -16,6 +18,7 @@ export class MilestoneService {
     @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(createMilestoneDto: CreateMilestoneDto, userId: string): Promise<Milestone> {
@@ -60,12 +63,28 @@ export class MilestoneService {
       { $inc: { milestoneCount: 1 } }
     );
 
+    // Invalidate cache for this contract's milestones
+    await this.invalidateContractMilestoneCache(createMilestoneDto.contractId);
+
     // Return plain object to avoid serialization issues
     return savedMilestone.toJSON();
   }
 
   async findById(id: string, userId: string): Promise<Milestone> {
-    const milestone = await this.milestoneModel.findOne({ _id: id, deletedAt: null });
+    // Create cache key
+    const cacheKey = `milestone:${id}_user:${userId}`;
+
+    // Try to get from cache first
+    const cachedMilestone = await this.cacheManager.get<Milestone>(cacheKey);
+    if (cachedMilestone) {
+      return cachedMilestone;
+    }
+
+    const milestone = await this.milestoneModel
+      .findOne({ _id: id, deletedAt: null })
+      .populate('contractId', 'title description contractType totalAmount currency clientId freelancerId')
+      .populate('paymentId', 'amount currency status processedAt')
+      .exec();
 
     if (!milestone) {
       throw new NotFoundException('Milestone not found');
@@ -77,11 +96,24 @@ export class MilestoneService {
       throw new ForbiddenException('Access denied to this milestone');
     }
 
-    return milestone.toJSON();
+    const result = milestone.toObject();
+
+    // Cache for 10 minutes (milestones change frequently)
+    await this.cacheManager.set(cacheKey, result, 600000);
+
+    return result;
   }
 
-
   async findAll(filters: MilestoneFilters, userId: string): Promise<{ milestones: Milestone[]; total: number }> {
+    // Create cache key from search parameters
+    const cacheKey = `milestones_user:${userId}:${JSON.stringify(filters)}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<{ milestones: Milestone[]; total: number }>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const query: any = { deletedAt: null };
 
     // Build query based on filters
@@ -106,168 +138,48 @@ export class MilestoneService {
       query.status = filters.status;
     }
 
+    // Add search functionality
+    if (filters.search) {
+      query.$or = [
+        { title: { $regex: filters.search, $options: 'i' } },
+        { description: { $regex: filters.search, $options: 'i' } },
+      ];
+    }
+
+    // Handle overdue filter
+    if (filters.isOverdue !== undefined) {
+      if (filters.isOverdue) {
+        query.dueDate = { $lt: new Date() };
+        query.status = { $nin: [MilestoneStatus.APPROVED, MilestoneStatus.PAID] };
+      }
+    }
+
     const page = filters.page || 1;
     const limit = filters.limit || 10;
     const skip = (page - 1) * limit;
 
-    let aggregationPipeline: any[] = [
-      { $match: query },
-    ];
+    // Use populate instead of complex aggregation
+    const [milestones, total] = await Promise.all([
+      this.milestoneModel
+        .find(query)
+        .populate('contractId', 'title description contractType totalAmount currency clientId freelancerId')
+        .populate('paymentId', 'amount currency status processedAt')
+        .sort({ order: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.milestoneModel.countDocuments(query),
+    ]);
 
-    // Handle overdue filter
-    if (filters.isOverdue !== undefined) {
-      aggregationPipeline.push({
-        $addFields: {
-          isOverdue: {
-            $and: [
-              { $ne: ['$dueDate', null] },
-              { $gt: [new Date(), '$dueDate'] },
-              { $not: { $in: ['$status', [MilestoneStatus.APPROVED, MilestoneStatus.PAID]] } }
-            ]
-          }
-        }
-      });
-      aggregationPipeline.push({
-        $match: { isOverdue: filters.isOverdue }
-      });
-    }
+    const result = {
+      milestones: milestones.map(milestone => milestone.toObject()),
+      total
+    };
 
-    // Add sorting, pagination
-    aggregationPipeline.push(
-      { $sort: { order: 1, createdAt: -1 } },
-      { $skip: skip },
-      { $limit: limit }
-    );
+    // Cache for 5 minutes (milestones change moderately frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
 
-    // Add population
-    aggregationPipeline.push(
-      {
-        $lookup: {
-          from: 'contracts',
-          localField: 'contractId',
-          foreignField: '_id',
-          as: 'contract'
-        }
-      },
-      {
-        $lookup: {
-          from: 'payments',
-          localField: 'paymentId',
-          foreignField: '_id',
-          as: 'payment'
-        }
-      },
-      {
-        $project: {
-          _id: { $toString: '$_id' },
-          contractId: { $toString: '$contractId' },
-          paymentId: { $toString: '$paymentId' },
-          contract: {
-            $map: {
-              input: '$contract',
-              as: 'c',
-              in: {
-                _id: { $toString: '$$c._id' },
-                jobId: { $toString: '$$c.jobId' },
-                clientId: { $toString: '$$c.clientId' },
-                freelancerId: { $toString: '$$c.freelancerId' },
-                proposalId: { $toString: '$$c.proposalId' },
-                title: '$$c.title',
-                description: '$$c.description',
-                contractType: '$$c.contractType',
-                totalAmount: '$$c.totalAmount',
-                currency: '$$c.currency',
-                hourlyRate: '$$c.hourlyRate',
-                startDate: '$$c.startDate',
-                endDate: '$$c.endDate',
-                status: '$$c.status',
-                totalPaid: '$$c.totalPaid',
-                platformFeePercentage: '$$c.platformFeePercentage',
-                milestoneCount: '$$c.milestoneCount',
-                completedMilestones: '$$c.completedMilestones',
-                terms: '$$c.terms',
-                isClientSigned: '$$c.isClientSigned',
-                isFreelancerSigned: '$$c.isFreelancerSigned',
-                completedAt: '$$c.completedAt',
-                cancelledAt: '$$c.cancelledAt',
-                deletedAt: '$$c.deletedAt',
-                createdAt: '$$c.createdAt',
-                updatedAt: '$$c.updatedAt',
-                __v: '$$c.__v'
-              }
-            }
-          },
-          payment: {
-            $map: {
-              input: '$payment',
-              as: 'p',
-              in: {
-                _id: { $toString: '$$p._id' },
-                contractId: { $toString: '$$p.contractId' },
-                milestoneId: { $toString: '$$p.milestoneId' },
-                payerId: { $toString: '$$p.payerId' },
-                payeeId: { $toString: '$$p.payeeId' },
-                amount: '$$p.amount',
-                currency: '$$p.currency',
-                paymentType: '$$p.paymentType',
-                stripePaymentIntentId: '$$p.stripePaymentIntentId',
-                stripeChargeId: '$$p.stripeChargeId',
-                stripeTransferId: '$$p.stripeTransferId',
-                platformFee: '$$p.platformFee',
-                stripeFee: '$$p.stripeFee',
-                freelancerAmount: '$$p.freelancerAmount',
-                status: '$$p.status',
-                description: '$$p.description',
-                metadata: '$$p.metadata',
-                processedAt: '$$p.processedAt',
-                failedAt: '$$p.failedAt',
-                refundedAt: '$$p.refundedAt',
-                errorMessage: '$$p.errorMessage',
-                retryCount: '$$p.retryCount',
-                deletedAt: '$$p.deletedAt',
-                createdAt: '$$p.createdAt',
-                updatedAt: '$$p.updatedAt',
-                __v: '$$p.__v'
-              }
-            }
-          },
-          title: 1,
-          description: 1,
-          amount: 1,
-          currency: 1,
-          order: 1,
-          dueDate: 1,
-          status: 1,
-          deliverables: 1,
-          submissionNote: 1,
-          clientFeedback: 1,
-          submittedAt: 1,
-          approvedAt: 1,
-          rejectedAt: 1,
-          paidAt: 1,
-          deletedAt: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          __v: 1
-        }
-      }
-    );
-
-    const milestones = await this.milestoneModel.aggregate(aggregationPipeline);
-
-    // Get total count
-    const totalPipeline = [...aggregationPipeline];
-    // Remove pagination stages for count
-    const paginationStages = ['$skip', '$limit'];
-    const countPipeline = totalPipeline.filter(stage =>
-      !paginationStages.some(ps => ps in stage)
-    );
-    countPipeline.push({ $count: 'total' });
-
-    const totalResult = await this.milestoneModel.aggregate(countPipeline);
-    const total = totalResult[0]?.total || 0;
-
-    return { milestones, total };
+    return result;
   }
 
   async update(id: string, updateMilestoneDto: UpdateMilestoneDto, userId: string): Promise<Milestone> {
@@ -299,6 +211,10 @@ export class MilestoneService {
 
     const updatedMilestone = await this.milestoneModel
       .findByIdAndUpdate(id, updateMilestoneDto, { new: true, runValidators: true });
+
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -334,6 +250,10 @@ export class MilestoneService {
         { new: true, runValidators: true }
       );
 
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+
     return updatedMilestone!.toJSON();
   }
 
@@ -367,6 +287,10 @@ export class MilestoneService {
       { $inc: { completedMilestones: 1 } }
     );
 
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+
     return updatedMilestone!.toJSON();
   }
 
@@ -399,6 +323,10 @@ export class MilestoneService {
         { new: true, runValidators: true }
       );
 
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+
     return updatedMilestone!.toJSON();
   }
 
@@ -422,6 +350,10 @@ export class MilestoneService {
         { status: MilestoneStatus.IN_PROGRESS },
         { new: true, runValidators: true }
       );
+
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -462,10 +394,23 @@ export class MilestoneService {
       { $inc: { totalPaid: milestone.amount } }
     );
 
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+
     return updatedMilestone!.toJSON();
   }
 
   async getOverdueMilestones(userId?: string): Promise<Milestone[]> {
+    // Create cache key
+    const cacheKey = `overdue_milestones${userId ? `_user:${userId}` : '_all'}`;
+
+    // Try to get from cache first
+    const cachedMilestones = await this.cacheManager.get<Milestone[]>(cacheKey);
+    if (cachedMilestones) {
+      return cachedMilestones;
+    }
+
     const query: any = {
       deletedAt: null,
       dueDate: { $lt: new Date() },
@@ -484,10 +429,17 @@ export class MilestoneService {
 
     const milestones = await this.milestoneModel
       .find(query)
+      .populate('contractId', 'title description contractType totalAmount currency clientId freelancerId')
+      .populate('paymentId', 'amount currency status processedAt')
       .sort({ dueDate: 1 })
       .exec();
 
-    return milestones.map(milestone => milestone.toJSON());
+    const result = milestones.map(milestone => milestone.toObject());
+
+    // Cache for 5 minutes (overdue milestones change moderately frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async getContractMilestoneStats(contractId: string, userId: string): Promise<any> {
@@ -572,6 +524,10 @@ export class MilestoneService {
       milestone.contractId,
       { $inc: { milestoneCount: -1 } }
     );
+
+    // Invalidate cache for this milestone and contract
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
   }
 
   async reorderMilestones(contractId: string, milestoneOrders: { id: string; order: number }[], userId: string): Promise<void> {
@@ -610,5 +566,56 @@ export class MilestoneService {
     }));
 
     await this.milestoneModel.bulkWrite(bulkOps);
+
+    // Invalidate cache for this contract's milestones
+    await this.invalidateContractMilestoneCache(contractId);
+  }
+
+  // Cache invalidation helper method
+  private async invalidateMilestoneCache(milestoneId: string): Promise<void> {
+    // Get the milestone to find associated users
+    const milestone = await this.milestoneModel.findById(milestoneId).select('contractId');
+    if (!milestone) return;
+
+    // Get contract to find users
+    const contract = await this.contractModel.findById(milestone.contractId).select('clientId freelancerId');
+    if (!contract) return;
+
+    const userIds = [contract.clientId.toString(), contract.freelancerId.toString()];
+
+    // Invalidate individual milestone cache keys
+    const milestoneCacheKeys = userIds.map(userId => `milestone:${milestoneId}_user:${userId}`);
+
+    await Promise.all(
+      milestoneCacheKeys.map(key => this.cacheManager.del(key).catch(() => {}))
+    );
+  }
+
+  private async invalidateContractMilestoneCache(contractId: string): Promise<void> {
+    // Get all users who have access to this contract (client and freelancer)
+    const contract = await this.contractModel.findById(contractId).select('clientId freelancerId');
+    if (!contract) return;
+
+    const userIds = [contract.clientId.toString(), contract.freelancerId.toString()];
+
+    // Invalidate all milestone-related cache keys for these users
+    const cacheKeysToDelete = [
+      // Individual milestone cache keys (we can't predict all, so we'll use a pattern)
+      // Overdue milestones cache
+      `overdue_milestones_user:${contract.clientId}`,
+      `overdue_milestones_user:${contract.freelancerId}`,
+      `overdue_milestones_all`,
+      // Contract milestone stats
+      `milestone_stats_contract:${contractId}_user:${contract.clientId}`,
+      `milestone_stats_contract:${contractId}_user:${contract.freelancerId}`,
+    ];
+
+    // Delete known cache keys
+    await Promise.all(
+      cacheKeysToDelete.map(key => this.cacheManager.del(key).catch(() => {})) // Ignore errors for non-existent keys
+    );
+
+    // Note: For findAll cache keys with filters, we can't predict all combinations,
+    // so they will expire naturally based on TTL
   }
 }

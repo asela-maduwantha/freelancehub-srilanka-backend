@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -6,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Proposal } from '../../database/schemas/proposal.schema';
 import { Job } from '../../database/schemas/job.schema';
 import { Contract } from '../../database/schemas/contract.schema';
@@ -17,6 +20,9 @@ import {
   ProposalResponseDto,
   ProposalsListResponseDto,
   MessageResponseDto,
+  ProposalJobResponseDto,
+  ProposalFreelancerResponseDto,
+  ProposalClientResponseDto,
 } from './dto/proposal-response.dto';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
 import { ContractStatus } from '../../common/enums/contract-status.enum';
@@ -33,6 +39,7 @@ export class ProposalsService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly contractsService: ContractsService,
     private readonly logger: LoggerService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(
@@ -67,11 +74,18 @@ export class ProposalsService {
       { new: true }
     ).exec();
 
-    // Populate freelancer and job data
+    // Populate freelancer, job, and client data
     const populatedProposal = await this.proposalModel
       .findById(savedProposal._id)
-      .populate('freelancerId', 'email profile.firstName profile.lastName')
-      .populate('jobId', 'title clientId')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate({
+        path: 'jobId',
+        select: 'title category subcategory projectType budget clientId',
+        populate: {
+          path: 'clientId',
+          select: 'email profile.firstName profile.lastName profile.avatar'
+        }
+      })
       .lean()
       .exec();
 
@@ -84,13 +98,29 @@ export class ProposalsService {
     page: number = 1,
     limit: number = 10,
   ): Promise<ProposalsListResponseDto> {
+    // Create cache key from search parameters
+    const cacheKey = `proposals_job:${jobId}:${page}:${limit}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<ProposalsListResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skip = (page - 1) * limit;
 
     const [proposals, total] = await Promise.all([
       this.proposalModel
         .find({ jobId })
-        .populate('freelancerId', 'email profile.firstName profile.lastName')
-        .populate('jobId', 'title')
+        .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+        .populate({
+          path: 'jobId',
+          select: 'title category subcategory projectType budget clientId',
+          populate: {
+            path: 'clientId',
+            select: 'email profile.firstName profile.lastName profile.avatar'
+          }
+        })
         .lean()
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -101,7 +131,7 @@ export class ProposalsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       proposals: proposals.map((proposal) =>
         this.mapToProposalResponseDto(proposal),
       ),
@@ -110,6 +140,11 @@ export class ProposalsService {
       limit,
       totalPages,
     };
+
+    // Cache for 5 minutes (proposals change moderately frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async findMyProposals(
@@ -118,6 +153,15 @@ export class ProposalsService {
     limit: number = 10,
     status?: ProposalStatus,
   ): Promise<ProposalsListResponseDto> {
+    // Create cache key from search parameters
+    const cacheKey = `proposals_freelancer:${freelancerId}:${page}:${limit}:${status || 'all'}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<ProposalsListResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const skip = (page - 1) * limit;
 
     const filter: any = { freelancerId };
@@ -126,7 +170,15 @@ export class ProposalsService {
     const [proposals, total] = await Promise.all([
       this.proposalModel
         .find(filter)
-        .populate('jobId', 'title status budget category')
+        .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+        .populate({
+          path: 'jobId',
+          select: 'title category subcategory projectType budget clientId',
+          populate: {
+            path: 'clientId',
+            select: 'email profile.firstName profile.lastName profile.avatar'
+          }
+        })
         .lean()
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -137,7 +189,7 @@ export class ProposalsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       proposals: proposals.map((proposal) =>
         this.mapToProposalResponseDto(proposal),
       ),
@@ -146,13 +198,34 @@ export class ProposalsService {
       limit,
       totalPages,
     };
+
+    // Cache for 5 minutes (proposals change moderately frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async findOne(id: string, userId: string): Promise<ProposalResponseDto> {
+    // Create cache key
+    const cacheKey = `proposal:${id}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<ProposalResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const proposal = await this.proposalModel
       .findById(id)
-      .populate('freelancerId', 'email profile.firstName profile.lastName')
-      .populate('jobId', 'title clientId')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate({
+        path: 'jobId',
+        select: 'title category subcategory projectType budget clientId',
+        populate: {
+          path: 'clientId',
+          select: 'email profile.firstName profile.lastName profile.avatar'
+        }
+      })
       .lean()
       .exec();
 
@@ -170,7 +243,12 @@ export class ProposalsService {
       );
     }
 
-    return this.mapToProposalResponseDto(proposal);
+    const proposalResponse = this.mapToProposalResponseDto(proposal);
+
+    // Cache for 10 minutes (individual proposals change less frequently)
+    await this.cacheManager.set(cacheKey, proposalResponse, 600000);
+
+    return proposalResponse;
   }
 
   async update(
@@ -222,15 +300,29 @@ export class ProposalsService {
         { $set: updateData },
         { new: true, runValidators: true },
       )
-      .populate('freelancerId', 'email profile.firstName profile.lastName')
-      .populate('jobId', 'title clientId')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate({
+        path: 'jobId',
+        select: 'title category subcategory projectType budget clientId',
+        populate: {
+          path: 'clientId',
+          select: 'email profile.firstName profile.lastName profile.avatar'
+        }
+      })
       .exec();
 
     if (!updatedProposal) {
       throw new NotFoundException('Proposal not found');
     }
 
-    return this.mapToProposalResponseDto(updatedProposal);
+    const updatedProposalResponse = this.mapToProposalResponseDto(updatedProposal);
+
+    // Clear cache after updating proposal
+    await this.cacheManager.del(`proposal_${id}`);
+    // Note: We can't efficiently clear all related list caches without knowing all possible combinations
+    // The cache will naturally expire in 5 minutes
+
+    return updatedProposalResponse;
   }
 
   async remove(id: string, freelancerId: string): Promise<MessageResponseDto> {
@@ -259,6 +351,11 @@ export class ProposalsService {
       { new: true }
     ).exec();
 
+    // Clear cache after deleting proposal
+    await this.cacheManager.del(`proposal_${id}`);
+    // Note: We can't efficiently clear all related list caches without knowing all possible combinations
+    // The cache will naturally expire in 5 minutes
+
     return { message: 'Proposal deleted successfully' };
   }
 
@@ -268,7 +365,15 @@ export class ProposalsService {
   ): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
       .findById(id)
-      .populate('jobId', 'clientId status')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate({
+        path: 'jobId',
+        select: 'title category subcategory projectType budget clientId status',
+        populate: {
+          path: 'clientId',
+          select: 'email profile.firstName profile.lastName profile.avatar'
+        }
+      })
       .exec();
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -283,7 +388,12 @@ export class ProposalsService {
     proposal.status = ProposalStatus.ACCEPTED;
     await proposal.save();
 
-    return this.mapToProposalResponseDto(proposal);
+    const proposalResponse = this.mapToProposalResponseDto(proposal);
+
+    // Clear cache after accepting proposal
+    await this.cacheManager.del(`proposal_${id}`);
+
+    return proposalResponse;
   }
 
   async rejectProposal(
@@ -292,7 +402,15 @@ export class ProposalsService {
   ): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
       .findById(id)
-      .populate('jobId', 'clientId status')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate({
+        path: 'jobId',
+        select: 'title category subcategory projectType budget clientId status',
+        populate: {
+          path: 'clientId',
+          select: 'email profile.firstName profile.lastName profile.avatar'
+        }
+      })
       .exec();
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -305,16 +423,54 @@ export class ProposalsService {
     }
     proposal.status = ProposalStatus.REJECTED;
     await proposal.save();
-    return this.mapToProposalResponseDto(proposal);
+
+    const proposalResponse = this.mapToProposalResponseDto(proposal);
+
+    // Clear cache after rejecting proposal
+    await this.cacheManager.del(`proposal_${id}`);
+
+    return proposalResponse;
   }
 
   private mapToProposalResponseDto(proposal: any): ProposalResponseDto {
+    const freelancer = proposal.freelancerId;
+    const freelancerProfile = freelancer?.profile || {};
+
+    const job = proposal.jobId;
+    const jobClient = job?.clientId;
+    const jobClientProfile = jobClient?.profile || {};
+
+    const jobDto = new ProposalJobResponseDto();
+    jobDto.id = job?._id?.toString() || '';
+    jobDto.title = job?.title || '';
+    jobDto.category = job?.category || '';
+    jobDto.subcategory = job?.subcategory;
+    jobDto.projectType = job?.projectType || '';
+    jobDto.budget = job?.budget;
+
+    const jobClientDto = new ProposalClientResponseDto();
+    jobClientDto.id = jobClient?._id?.toString() || '';
+    jobClientDto.email = jobClient?.email || '';
+    jobClientDto.fullName = jobClient
+      ? `${jobClientProfile.firstName || ''} ${jobClientProfile.lastName || ''}`.trim()
+      : '';
+    jobClientDto.avatar = jobClientProfile.avatar;
+    jobDto.client = jobClientDto;
+
+    const freelancerDto = new ProposalFreelancerResponseDto();
+    freelancerDto.id = freelancer?._id?.toString() || '';
+    freelancerDto.email = freelancer?.email || '';
+    freelancerDto.fullName = freelancer
+      ? `${freelancerProfile.firstName || ''} ${freelancerProfile.lastName || ''}`.trim()
+      : '';
+    freelancerDto.avatar = freelancerProfile.avatar;
+    freelancerDto.title = freelancerProfile.title;
+    freelancerDto.skills = freelancerProfile.skills;
+
     return {
       _id: proposal._id?.toString(),
-      jobId: proposal.jobId?._id?.toString() || proposal.jobId?.toString(),
-      freelancerId:
-        proposal.freelancerId?._id?.toString() ||
-        proposal.freelancerId?.toString(),
+      job: jobDto,
+      freelancer: freelancerDto,
       coverLetter: proposal.coverLetter,
       proposedRate: {
         amount: proposal.proposedRate?.amount,

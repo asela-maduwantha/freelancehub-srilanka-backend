@@ -58,6 +58,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { UserRole } from '../../common/enums/user-role.enum';
 
 @ApiTags('Users')
@@ -108,6 +109,7 @@ export class UsersController {
   }
 
   @Get('freelancers')
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Search and filter freelancers' })
   @ApiResponse({
@@ -119,6 +121,10 @@ export class UsersController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Validation error',
   })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
+  })
   async searchFreelancers(
     @Query() searchFreelancersDto: SearchFreelancersDto,
   ): Promise<FreelancersSearchResponseDto> {
@@ -126,6 +132,7 @@ export class UsersController {
   }
 
   @Get('freelancers/:id')
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get freelancer public profile' })
   @ApiParam({ name: 'id', description: 'Freelancer ID' })
@@ -138,6 +145,10 @@ export class UsersController {
     status: HttpStatus.NOT_FOUND,
     description: 'Freelancer not found',
   })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
+  })
   async getFreelancerPublicProfile(
     @Param('id') freelancerId: string,
   ): Promise<FreelancerPublicProfileDto> {
@@ -145,7 +156,9 @@ export class UsersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get user by ID' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.FREELANCER, UserRole.CLIENT)
+  @ApiOperation({ summary: 'Get user by ID (own profile or admin)' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -156,9 +169,13 @@ export class UsersController {
     status: HttpStatus.NOT_FOUND,
     description: 'User not found',
   })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Access denied',
+  })
   async getUserById(
     @Param('id') id: string,
-    @CurrentUser('id') currentUserId?: string,
+    @CurrentUser('id') currentUserId: string,
   ): Promise<UserResponseDto> {
     return this.usersService.getUserById(id, currentUserId);
   }

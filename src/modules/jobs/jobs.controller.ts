@@ -31,6 +31,8 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JobStatus } from '../../common/enums/job-status.enum';
+import { Public } from '../../common/decorators/public.decorator';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Jobs')
 @Controller('jobs')
@@ -59,6 +61,8 @@ export class JobsController {
   }
 
     @Get()
+  @Public()
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Get all jobs' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -70,6 +74,10 @@ export class JobsController {
     status: HttpStatus.OK,
     description: 'Jobs retrieved successfully',
     type: JobsListResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
   })
   async findAll(
     @Query('page') page: number = 1,
@@ -109,6 +117,8 @@ export class JobsController {
   }
 
   @Get('featured')
+  @Public()
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Get featured jobs' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -116,6 +126,10 @@ export class JobsController {
     status: HttpStatus.OK,
     description: 'Featured jobs retrieved successfully',
     type: JobsListResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
   })
   async getFeaturedJobs(
     @Query('page') page: number = 1,
@@ -125,6 +139,8 @@ export class JobsController {
   }
 
   @Get('recent')
+  @Public()
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Get recently posted jobs' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -139,6 +155,10 @@ export class JobsController {
     description: 'Recent jobs retrieved successfully',
     type: JobsListResponseDto,
   })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
+  })
   async getRecentJobs(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
@@ -148,6 +168,8 @@ export class JobsController {
   }
 
   @Get('categories/:category')
+  @Public()
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Get jobs by category' })
   @ApiParam({ name: 'category', description: 'Job category' })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -156,6 +178,10 @@ export class JobsController {
     status: HttpStatus.OK,
     description: 'Jobs by category retrieved successfully',
     type: JobsListResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
   })
   async getJobsByCategory(
     @Param('category') category: string,
@@ -166,6 +192,8 @@ export class JobsController {
   }
 
   @Get(':id')
+  @Public()
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Get a job by ID' })
   @ApiParam({ name: 'id', description: 'Job ID' })
   @ApiResponse({
@@ -176,6 +204,10 @@ export class JobsController {
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Job not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Too many requests',
   })
   async findOne(
     @Param('id') id: string,

@@ -14,6 +14,11 @@ export class MilestoneFilters {
   @IsEnum(MilestoneStatus)
   status?: MilestoneStatus;
 
+  @ApiPropertyOptional({ description: 'Search in title and description' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ description: 'Filter by overdue status' })
   @IsOptional()
   @IsBoolean()

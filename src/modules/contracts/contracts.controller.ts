@@ -22,6 +22,8 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { Response } from 'express';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { ContractsService } from './contracts.service';
 import {
   CreateContractDto,
@@ -39,13 +41,14 @@ import { UserRole } from '../../common/enums/user-role.enum';
 
 @ApiTags('Contracts')
 @Controller('contracts')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 @ApiBearerAuth()
 export class ContractsController {
   constructor(private readonly contractsService: ContractsService) {}
 
   @Post()
   @Roles(UserRole.CLIENT)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 contract creations per minute
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new contract from a proposal' })
   @ApiResponse({
@@ -252,6 +255,7 @@ export class ContractsController {
   }
 
   @Get(':id/download')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 PDF downloads per minute
   @ApiOperation({ summary: 'Download contract as PDF' })
   @ApiParam({ name: 'id', description: 'Contract ID' })
   @ApiResponse({

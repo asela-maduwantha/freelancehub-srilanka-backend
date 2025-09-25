@@ -236,6 +236,21 @@ UserSchema.index(
   { sparse: true },
 );
 
+// Text index for search functionality
+UserSchema.index({
+  'profile.firstName': 'text',
+  'profile.lastName': 'text',
+  'freelancerData.skills': 'text',
+  'freelancerData.title': 'text',
+  'freelancerData.overview': 'text',
+});
+
+// Compound indexes for common search filters
+UserSchema.index({ role: 1, isActive: 1, 'freelancerData.rating': -1 });
+UserSchema.index({ 'freelancerData.availability': 1, 'freelancerData.experience': 1 });
+UserSchema.index({ 'freelancerData.hourlyRate': 1, 'freelancerData.rating': -1 });
+UserSchema.index({ 'profile.location.country': 1, 'profile.location.state': 1 });
+
 // Add virtual fields
 UserSchema.virtual('fullName').get(function () {
   return `${this.profile?.firstName} ${this.profile?.lastName}`.trim();

@@ -6,6 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import {
   User,
   UserProfile,
@@ -47,9 +50,18 @@ import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async getCurrentUser(userId: string): Promise<UserResponseDto> {
+    // Try to get from cache first
+    const cacheKey = `user_${userId}`;
+    const cachedUser = await this.cacheManager.get<UserResponseDto>(cacheKey);
+
+    if (cachedUser) {
+      return cachedUser;
+    }
+
     const user = await this.userModel
       .findById(userId)
       .select('-password -deletedAt')
@@ -59,7 +71,12 @@ export class UsersService {
       throw new NotFoundException(RESPONSE_MESSAGES.USER.NOT_FOUND);
     }
 
-    return this.mapToUserResponseDto(user);
+    const userResponse = this.mapToUserResponseDto(user);
+
+    // Cache for 5 minutes
+    await this.cacheManager.set(cacheKey, userResponse, 300000);
+
+    return userResponse;
   }
 
   async updateCurrentUser(
@@ -125,13 +142,37 @@ export class UsersService {
       throw new NotFoundException(RESPONSE_MESSAGES.USER.NOT_FOUND);
     }
 
-    return this.mapToUserResponseDto(updatedUser);
+    const userResponse = this.mapToUserResponseDto(updatedUser);
+
+    // Clear cache after updating user
+    await this.cacheManager.del(`user_${userId}`);
+
+    return userResponse;
   }
 
   async getUserById(
     id: string,
-    currentUserId?: string,
+    currentUserId: string,
   ): Promise<UserResponseDto> {
+    // Check if user is accessing their own profile or is admin
+    const currentUser = await this.userModel.findById(currentUserId).exec();
+    if (!currentUser) {
+      throw new ForbiddenException('Authentication required');
+    }
+
+    // Only allow users to view their own profile or admins to view any profile
+    if (currentUser.role !== UserRole.ADMIN && currentUserId !== id) {
+      throw new ForbiddenException('Access denied: can only view own profile');
+    }
+
+    // Try to get from cache first
+    const cacheKey = `user_${id}`;
+    const cachedUser = await this.cacheManager.get<UserResponseDto>(cacheKey);
+
+    if (cachedUser) {
+      return cachedUser;
+    }
+
     const user = await this.userModel
       .findById(id)
       .select('-password -deletedAt')
@@ -142,14 +183,16 @@ export class UsersService {
     }
 
     // If user is not active and requester is not admin, don't show
-    if (!user.isActive && currentUserId) {
-      const currentUser = await this.userModel.findById(currentUserId).exec();
-      if (!currentUser || currentUser.role !== UserRole.ADMIN) {
-        throw new NotFoundException(RESPONSE_MESSAGES.USER.NOT_FOUND);
-      }
+    if (!user.isActive && currentUser.role !== UserRole.ADMIN) {
+      throw new NotFoundException(RESPONSE_MESSAGES.USER.NOT_FOUND);
     }
 
-    return this.mapToUserResponseDto(user);
+    const userResponse = this.mapToUserResponseDto(user);
+
+    // Cache for 5 minutes
+    await this.cacheManager.set(cacheKey, userResponse, 300000);
+
+    return userResponse;
   }
 
   async getUsers(
@@ -217,6 +260,9 @@ export class UsersService {
 
     user.isActive = updateStatusDto.isActive;
     await user.save();
+
+    // Clear cache after updating user status
+    await this.cacheManager.del(`user_${id}`);
 
     return {
       message: updateStatusDto.isActive
@@ -363,7 +409,12 @@ export class UsersService {
       throw new NotFoundException(RESPONSE_MESSAGES.USER.NOT_FOUND);
     }
 
-    return this.mapToUserResponseDto(updatedUser);
+    const userResponse = this.mapToUserResponseDto(updatedUser);
+
+    // Clear cache after updating freelancer profile
+    await this.cacheManager.del(`user_${userId}`);
+
+    return userResponse;
   }
 
   async addFreelancerSkills(
@@ -402,6 +453,9 @@ export class UsersService {
     user.freelancerData.skills.push(...newSkills);
     await user.save();
 
+    // Clear cache after adding skills
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: `Successfully added ${newSkills.length} skill(s) to freelancer profile`,
     };
@@ -433,6 +487,9 @@ export class UsersService {
 
     user.freelancerData.skills.splice(skillIndex, 1);
     await user.save();
+
+    // Clear cache after removing skill
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Skill removed successfully from freelancer profile',
@@ -480,6 +537,9 @@ export class UsersService {
 
     user.freelancerData.portfolio.push(portfolioItem);
     await user.save();
+
+    // Clear cache after adding portfolio item
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Portfolio item added successfully to freelancer profile',
@@ -535,6 +595,9 @@ export class UsersService {
 
     await user.save();
 
+    // Clear cache after updating portfolio item
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: 'Portfolio item updated successfully',
     };
@@ -569,6 +632,9 @@ export class UsersService {
 
     user.freelancerData.portfolio.splice(portfolioItemIndex, 1);
     await user.save();
+
+    // Clear cache after deleting portfolio item
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Portfolio item deleted successfully',
@@ -614,6 +680,9 @@ export class UsersService {
 
     user.freelancerData.education.push(educationRecord);
     await user.save();
+
+    // Clear cache after adding education record
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Education record added successfully to freelancer profile',
@@ -663,6 +732,9 @@ export class UsersService {
 
     await user.save();
 
+    // Clear cache after updating education record
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: 'Education record updated successfully',
     };
@@ -697,6 +769,9 @@ export class UsersService {
 
     user.freelancerData.education.splice(educationRecordIndex, 1);
     await user.save();
+
+    // Clear cache after deleting education record
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Education record deleted successfully',
@@ -743,6 +818,9 @@ export class UsersService {
 
     user.freelancerData.certifications.push(certification);
     await user.save();
+
+    // Clear cache after adding certification
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Certification added successfully to freelancer profile',
@@ -796,6 +874,9 @@ export class UsersService {
 
     await user.save();
 
+    // Clear cache after updating certification
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: 'Certification updated successfully',
     };
@@ -831,6 +912,9 @@ export class UsersService {
     // Remove the certification from the array
     user.freelancerData.certifications.splice(certificationIndex, 1);
     await user.save();
+
+    // Clear cache after deleting certification
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Certification deleted successfully',
@@ -875,6 +959,9 @@ export class UsersService {
 
     await user.save();
 
+    // Clear cache after updating client profile
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: 'Client profile updated successfully',
     };
@@ -897,19 +984,35 @@ export class UsersService {
       limit = 10,
     } = searchDto;
 
+    // Create cache key from search parameters
+    const cacheKey = `freelancers_search:${JSON.stringify({
+      query,
+      skills: skills?.sort(),
+      minRating,
+      location,
+      experienceLevel,
+      availability,
+      minHourlyRate,
+      maxHourlyRate,
+      page,
+      limit,
+    })}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<FreelancersSearchResponseDto>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     // Build the query filter
     const filter: any = {
       role: UserRole.FREELANCER,
       isActive: true, 
     };
 
-    // Text search on name or skills
+    // Text search using MongoDB text index (much faster than regex)
     if (query) {
-      filter.$or = [
-        { firstName: { $regex: query, $options: 'i' } },
-        { lastName: { $regex: query, $options: 'i' } },
-        { 'freelancerData.skills': { $regex: query, $options: 'i' } },
-      ];
+      filter.$text = { $search: query };
     }
 
     // Skills filter
@@ -922,9 +1025,13 @@ export class UsersService {
       filter['freelancerData.rating'] = { $gte: minRating };
     }
 
-    // Location filter
+    // Location filter - use indexed fields for better performance
     if (location) {
-      filter.location = { $regex: location, $options: 'i' };
+      filter.$or = [
+        { 'profile.location.country': { $regex: location, $options: 'i' } },
+        { 'profile.location.state': { $regex: location, $options: 'i' } },
+        { 'profile.location.city': { $regex: location, $options: 'i' } },
+      ];
     }
 
     // Availability filter
@@ -954,11 +1061,11 @@ export class UsersService {
     // Execute the query with pagination
     const [freelancers, total] = await Promise.all([
       this.userModel
-        .find(filter)
+        .find(filter, query ? { score: { $meta: 'textScore' } } : undefined)
         .select(
           '_id email role profile.firstName profile.lastName profile.avatar profile.location profile.bio freelancerData',
         )
-        .sort({
+        .sort(query ? { score: { $meta: 'textScore' }, 'freelancerData.rating': -1, 'freelancerData.completedJobs': -1 } : {
           'freelancerData.rating': -1,
           'freelancerData.completedJobs': -1,
         })
@@ -1010,13 +1117,18 @@ export class UsersService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       freelancers: freelancerProfiles,
       total,
       page,
       limit,
       totalPages,
     };
+
+    // Cache for 10 minutes (search results change less frequently)
+    await this.cacheManager.set(cacheKey, result, 600000);
+
+    return result;
   }
 
   async getFreelancerPublicProfile(
@@ -1174,6 +1286,9 @@ export class UsersService {
     user.isActive = false;
     await user.save();
 
+    // Clear cache after deactivating account
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: 'Account deactivated successfully',
     };
@@ -1194,6 +1309,9 @@ export class UsersService {
     user.isActive = true;
     await user.save();
 
+    // Clear cache after reactivating account
+    await this.cacheManager.del(`user_${userId}`);
+
     return {
       message: 'Account reactivated successfully',
     };
@@ -1209,6 +1327,9 @@ export class UsersService {
 
     // Permanently delete the user account
     await this.userModel.findByIdAndDelete(userId).exec();
+
+    // Clear cache after deleting account
+    await this.cacheManager.del(`user_${userId}`);
 
     return {
       message: 'Account permanently deleted successfully',

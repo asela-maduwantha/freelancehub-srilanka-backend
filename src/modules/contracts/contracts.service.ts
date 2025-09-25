@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, Inject } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types, ClientSession } from "mongoose";
 import { Contract, Milestone, Proposal, User, Job } from "src/database/schemas";
@@ -7,6 +7,9 @@ import { ContractStatus } from "src/common/enums";
 import { LoggerService } from "src/services/logger/logger.service";
 import { PdfService } from "src/services/pdf/pdf.service";
 import { PaginationDto, PaginationResult } from "src/common/dto";
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { JobStatus } from '../../common/enums/job-status.enum';
 
 
 @Injectable()
@@ -19,6 +22,7 @@ export class ContractsService {
     @InjectModel(User.name) private userModel: Model<User>,
     private logger: LoggerService,
     private pdfService: PdfService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
@@ -62,12 +66,43 @@ export class ContractsService {
       throw new NotFoundException('Proposal not found');
     }
 
+    // Validate proposal status
+    if (proposal.status !== 'accepted') {
+      throw new BadRequestException('Can only create contract from accepted proposal');
+    }
+
     const job = await this.jobModel.findById(proposal.jobId);
     if (!job) {
       throw new NotFoundException('Job not found');
     }
+
+    // Validate job status
+    if (job.status !== JobStatus.OPEN) {
+      throw new BadRequestException('Can only create contract for open jobs');
+    }
+
     if (job.clientId.toString() !== clientId) {
       throw new BadRequestException('Unauthorized: Client does not own this job');
+    }
+
+    // Validate date ranges
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    if (contractData.startDate < tomorrow) {
+      throw new BadRequestException('Contract start date must be at least tomorrow');
+    }
+
+    if (contractData.endDate <= contractData.startDate) {
+      throw new BadRequestException('Contract end date must be after start date');
+    }
+
+    const maxEndDate = new Date(contractData.startDate);
+    maxEndDate.setFullYear(maxEndDate.getFullYear() + 2);
+    if (contractData.endDate > maxEndDate) {
+      throw new BadRequestException('Contract duration cannot exceed 2 years');
     }
 
     const contract = new this.contractModel();
@@ -99,7 +134,20 @@ export class ContractsService {
 
     this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
 
-    return this.sanitizeContract(contract.toObject());
+    // Populate related data before returning
+    const populatedContract = await this.contractModel
+      .findById(contract._id)
+      .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate('jobId', 'title category subcategory projectType budget')
+      .populate('proposalId', 'proposedRate status')
+      .exec();
+
+    if (!populatedContract) {
+      throw new NotFoundException('Contract not found after creation');
+    }
+
+    return populatedContract.toObject();
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
     throw error;
@@ -121,7 +169,26 @@ export class ContractsService {
     contract.isClientSigned = true;
     await contract.save();
     this.logger.log(`Contract started successfully: ${contract._id}`, 'ContractsService');
-    return this.sanitizeContract(contract.toObject());
+
+    // Populate related data before returning
+    const populatedContract = await this.contractModel
+      .findById(contract._id)
+      .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate('jobId', 'title category subcategory projectType budget')
+      .populate('proposalId', 'proposedRate status')
+      .exec();
+
+    if (!populatedContract) {
+      throw new NotFoundException('Contract not found after update');
+    }
+
+    const result = populatedContract.toObject();
+
+    // Clear cache after starting contract
+    await this.cacheManager.del(`contract:${contractId}`);
+
+    return result;
   }
 
   async freelancerSignContract(contractId: string, userId: string): Promise<Contract> {
@@ -136,11 +203,46 @@ export class ContractsService {
     contract.isFreelancerSigned = true;
     await contract.save();
     this.logger.log(`Contract signed by freelancer: ${contract._id}`, 'ContractsService');
-    return contract.toObject();
+
+    // Populate related data before returning
+    const populatedContract = await this.contractModel
+      .findById(contract._id)
+      .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate('jobId', 'title category subcategory projectType budget')
+      .populate('proposalId', 'proposedRate status')
+      .exec();
+
+    if (!populatedContract) {
+      throw new NotFoundException('Contract not found after update');
+    }
+
+    const result = populatedContract.toObject();
+
+    // Clear cache after signing contract
+    await this.cacheManager.del(`contract:${contractId}`);
+
+    return result;
   }
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
-    const contract = await this.contractModel.findById(contractId);
+    // Create cache key
+    const cacheKey = `contract:${contractId}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<Contract>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    const contract = await this.contractModel
+      .findById(contractId)
+      .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate('jobId', 'title category subcategory projectType budget')
+      .populate('proposalId', 'proposedRate status')
+      .exec();
+
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
@@ -149,12 +251,25 @@ export class ContractsService {
     }
 
     const contractObject = contract.toObject();
-    return this.sanitizeContract(contractObject);
+
+    // Cache for 10 minutes (contracts don't change frequently)
+    await this.cacheManager.set(cacheKey, contractObject, 600000);
+
+    return contractObject;
   }
 
   async getContractsForUser(userId: string, query: ContractQueryDto): Promise<PaginationResult<Contract>> {
-    const { page = 1, limit = 10, status, contractType, clientId, freelancerId, jobId } = query;
+    const { page = 1, limit = 10, status, contractType, clientId, freelancerId, jobId, search } = query;
     const skip = (page - 1) * limit;
+
+    // Create cache key from search parameters
+    const cacheKey = `contracts_user:${userId}:${JSON.stringify(query)}`;
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheManager.get<PaginationResult<Contract>>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
 
     const filter: any = {
       $or: [{ clientId: userId }, { freelancerId: userId }],
@@ -177,19 +292,37 @@ export class ContractsService {
       filter.jobId = jobId;
     }
 
+    // Add search functionality
+    if (search) {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ]
+      });
+    }
+
     const [contractDocs, total] = await Promise.all([
-      this.contractModel.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      this.contractModel
+        .find(filter)
+        .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+        .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+        .populate('jobId', 'title category subcategory projectType budget')
+        .populate('proposalId', 'proposedRate status')
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
       this.contractModel.countDocuments(filter),
     ]);
 
-    // Convert to plain objects and sanitize to avoid serialization issues
-    const contracts = contractDocs.map(contract => this.sanitizeContract(contract.toObject()));
+    const contracts = contractDocs.map(contract => contract.toObject());
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
     const hasPrev = page > 1;
 
-    return {
+    const result = {
       data: contracts,
       pagination: {
         page,
@@ -200,6 +333,11 @@ export class ContractsService {
         hasPrev,
       },
     };
+
+    // Cache for 5 minutes (contract lists change moderately frequently)
+    await this.cacheManager.set(cacheKey, result, 300000);
+
+    return result;
   }
 
   async completeContract(contractId: string, userId: string): Promise<Contract> {
@@ -238,7 +376,26 @@ export class ContractsService {
       await session.commitTransaction();
 
       this.logger.log(`Contract completed successfully: ${contract._id} by user: ${userId}`, 'ContractsService');
-      return contract.toObject();
+
+      // Populate related data before returning
+      const populatedContract = await this.contractModel
+        .findById(contract._id)
+        .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+        .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+        .populate('jobId', 'title category subcategory projectType budget')
+        .populate('proposalId', 'proposedRate status')
+        .exec();
+
+      if (!populatedContract) {
+        throw new NotFoundException('Contract not found after completion');
+      }
+
+      const result = populatedContract.toObject();
+
+      // Clear cache after completing contract
+      await this.cacheManager.del(`contract:${contractId}`);
+
+      return result;
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(`Failed to complete contract ${contractId}: ${error.message}`, error.stack, 'ContractsService');
@@ -260,7 +417,26 @@ export class ContractsService {
     contract.status = ContractStatus.CANCELLED;
     await contract.save();
     this.logger.log(`Contract cancelled successfully: ${contract._id}`, 'ContractsService');
-    return contract.toObject();
+
+    // Populate related data before returning
+    const populatedContract = await this.contractModel
+      .findById(contract._id)
+      .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
+      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+      .populate('jobId', 'title category subcategory projectType budget')
+      .populate('proposalId', 'proposedRate status')
+      .exec();
+
+    if (!populatedContract) {
+      throw new NotFoundException('Contract not found after cancellation');
+    }
+
+    const result = populatedContract.toObject();
+
+    // Clear cache after cancelling contract
+    await this.cacheManager.del(`contract:${contractId}`);
+
+    return result;
   }
 
   async downloadContract(contractId: string, userId: string): Promise<Buffer> {

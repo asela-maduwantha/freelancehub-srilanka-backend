@@ -49,15 +49,75 @@ export class ProposalAttachmentResponseDto {
   type: string;
 }
 
+export class ProposalClientResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  email: string;
+
+  @ApiPropertyOptional()
+  fullName?: string;
+
+  @ApiPropertyOptional()
+  avatar?: string;
+}
+
+export class ProposalFreelancerResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  email: string;
+
+  @ApiPropertyOptional()
+  fullName?: string;
+
+  @ApiPropertyOptional()
+  avatar?: string;
+
+  @ApiPropertyOptional()
+  title?: string;
+
+  @ApiPropertyOptional()
+  skills?: string[];
+}
+
+export class ProposalJobResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  title: string;
+
+  @ApiProperty()
+  category: string;
+
+  @ApiPropertyOptional()
+  subcategory?: string;
+
+  @ApiProperty({ enum: ['fixed-price', 'hourly'] })
+  projectType: string;
+
+  @ApiPropertyOptional()
+  budget?: any;
+
+  @ApiProperty({ type: ProposalClientResponseDto })
+  @Type(() => ProposalClientResponseDto)
+  client: ProposalClientResponseDto;
+}
+
 export class ProposalResponseDto {
   @ApiProperty({ example: '507f1f77bcf86cd799439011' })
   _id: string;
 
-  @ApiProperty({ example: '507f1f77bcf86cd799439011' })
-  jobId: string;
+  @ApiProperty({ type: ProposalJobResponseDto })
+  @Type(() => ProposalJobResponseDto)
+  job: ProposalJobResponseDto;
 
-  @ApiProperty({ example: '507f1f77bcf86cd799439011' })
-  freelancerId: string;
+  @ApiProperty({ type: ProposalFreelancerResponseDto })
+  @Type(() => ProposalFreelancerResponseDto)
+  freelancer: ProposalFreelancerResponseDto;
 
   @ApiProperty()
   coverLetter: string;
