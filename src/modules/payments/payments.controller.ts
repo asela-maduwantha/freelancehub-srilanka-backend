@@ -8,6 +8,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { StripeWebhookDto } from './dto/stripe-webhook.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -302,5 +304,12 @@ export class PaymentsController {
   @Roles(UserRole.ADMIN, UserRole.CLIENT, UserRole.FREELANCER)
   async getUserBalance(@Param('userId') userId: string) {
     return this.transactionLogService.getTransactionBalance(userId);
+  }
+
+  // Stripe webhook endpoint
+  @Post('webhook')
+  @Public()
+  async handleStripeWebhook(@Body() webhookData: StripeWebhookDto) {
+    return this.paymentService.handleStripeWebhook(webhookData);
   }
 }

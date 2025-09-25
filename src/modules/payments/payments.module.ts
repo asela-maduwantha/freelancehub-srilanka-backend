@@ -6,7 +6,10 @@ import { TransactionLogService } from './transaction-log.service';
 import { Payment, PaymentSchema } from '../../database/schemas/payment.schema';
 import { TransactionLog, TransactionLogSchema } from '../../database/schemas/transaction-log.schema';
 import { User, UserSchema } from '../../database/schemas/user.schema';
+import { Contract, ContractSchema } from '../../database/schemas/contract.schema';
+import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
 import { AuthModule } from '../auth/auth.module';
+import { StripeService } from '../../services/stripe/stripe.service';
 
 @Module({
   imports: [
@@ -14,11 +17,13 @@ import { AuthModule } from '../auth/auth.module';
       { name: Payment.name, schema: PaymentSchema },
       { name: TransactionLog.name, schema: TransactionLogSchema },
       { name: User.name, schema: UserSchema },
+      { name: Contract.name, schema: ContractSchema },
+      { name: Milestone.name, schema: MilestoneSchema },
     ]),
     AuthModule,
   ],
   controllers: [PaymentsController],
-  providers: [PaymentService, TransactionLogService],
+  providers: [PaymentService, TransactionLogService, StripeService],
   exports: [PaymentService, TransactionLogService],
 })
 export class PaymentsModule {}

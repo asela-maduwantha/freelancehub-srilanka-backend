@@ -1,11 +1,14 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Payment } from '../../database/schemas/payment.schema';
+import { Contract } from '../../database/schemas/contract.schema';
+import { Milestone } from '../../database/schemas/milestone.schema';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentFilters } from '../../common/filters/payment.filters';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 import { TransactionLogService } from './transaction-log.service';
+import { StripeService } from '../../services/stripe/stripe.service';
 
 @Injectable()
 export class PaymentService {
@@ -13,20 +16,82 @@ export class PaymentService {
 
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
+    @InjectModel(Contract.name) private contractModel: Model<Contract>,
+    @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
     private transactionLogService: TransactionLogService,
+    private stripeService: StripeService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
     try {
+      // Validate contract exists and user has access
+      const contract = await this.contractModel.findById(createPaymentDto.contractId);
+      if (!contract) {
+        throw new BadRequestException('Contract not found');
+      }
+
+      // Check if user is authorized (client should be the payer)
+      if (contract.clientId.toString() !== createPaymentDto.payerId.toString()) {
+        throw new ForbiddenException('Only the contract client can initiate payments');
+      }
+
+      // Check if freelancer is the payee
+      if (contract.freelancerId.toString() !== createPaymentDto.payeeId.toString()) {
+        throw new BadRequestException('Payee must be the contract freelancer');
+      }
+
+      // Validate milestone if provided
+      if (createPaymentDto.milestoneId) {
+        const milestone = await this.milestoneModel.findById(createPaymentDto.milestoneId);
+        if (!milestone) {
+          throw new BadRequestException('Milestone not found');
+        }
+        if (milestone.contractId.toString() !== createPaymentDto.contractId.toString()) {
+          throw new BadRequestException('Milestone does not belong to the specified contract');
+        }
+      }
+
+      // Check for existing pending payment for this milestone
+      if (createPaymentDto.milestoneId) {
+        const existingPayment = await this.paymentModel.findOne({
+          milestoneId: createPaymentDto.milestoneId,
+          status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
+          deletedAt: null,
+        });
+        if (existingPayment) {
+          throw new BadRequestException('A payment is already pending for this milestone');
+        }
+      }
+
+      // Validate amount is positive
+      if (createPaymentDto.amount <= 0) {
+        throw new BadRequestException('Payment amount must be positive');
+      }
+
       // Calculate platform fee and freelancer amount
       const platformFee = (createPaymentDto.amount * createPaymentDto.platformFeePercentage) / 100;
       const freelancerAmount = createPaymentDto.amount - platformFee;
+
+      // Create Stripe Payment Intent
+      const paymentIntent = await this.stripeService.createPaymentIntent(
+        createPaymentDto.amount,
+        createPaymentDto.currency || 'usd',
+        {
+          contractId: createPaymentDto.contractId.toString(),
+          milestoneId: createPaymentDto.milestoneId?.toString() || '',
+          payerId: createPaymentDto.payerId.toString(),
+          payeeId: createPaymentDto.payeeId.toString(),
+          paymentType: createPaymentDto.paymentType,
+          platformFeePercentage: createPaymentDto.platformFeePercentage.toString(),
+        }
+      );
 
       const payment = new this.paymentModel({
         ...createPaymentDto,
         platformFee,
         freelancerAmount,
         currency: createPaymentDto.currency || 'USD',
+        stripePaymentIntentId: paymentIntent.id,
       });
 
       const savedPayment = await payment.save();
@@ -43,6 +108,7 @@ export class PaymentService {
           netAmount: freelancerAmount,
           relatedId: createPaymentDto.contractId || createPaymentDto.milestoneId,
           relatedType: createPaymentDto.contractId ? 'contract' : 'milestone',
+          stripeId: paymentIntent.id,
           description: `Payment for ${createPaymentDto.contractId ? 'contract' : 'milestone'}`,
           metadata: {
             paymentId: savedPayment._id,
@@ -55,7 +121,7 @@ export class PaymentService {
         // Don't fail the payment creation if logging fails
       }
 
-      this.logger.log(`Payment created: ${savedPayment._id}`);
+      this.logger.log(`Payment created: ${savedPayment._id} with Stripe PaymentIntent: ${paymentIntent.id}`);
       return savedPayment;
     } catch (error) {
       this.logger.error(`Failed to create payment: ${error.message}`, error.stack);
@@ -417,5 +483,86 @@ export class PaymentService {
       default:
         return 'pending';
     }
+  }
+
+  // Stripe webhook handling
+  async handleStripeWebhook(webhookData: any): Promise<{ received: boolean }> {
+    try {
+      const { type, data } = webhookData;
+
+      this.logger.log(`Received Stripe webhook: ${type}`);
+
+      switch (type) {
+        case 'payment_intent.succeeded':
+          await this.handlePaymentIntentSucceeded(data.object);
+          break;
+
+        case 'payment_intent.payment_failed':
+          await this.handlePaymentIntentFailed(data.object);
+          break;
+
+        case 'charge.dispute.created':
+          await this.handleChargeDispute(data.object);
+          break;
+
+        default:
+          this.logger.log(`Unhandled webhook type: ${type}`);
+      }
+
+      return { received: true };
+    } catch (error) {
+      this.logger.error(`Webhook processing failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  private async handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
+    const payment = await this.paymentModel.findOne({
+      stripePaymentIntentId: paymentIntent.id
+    });
+
+    if (!payment) {
+      this.logger.warn(`Payment not found for PaymentIntent: ${paymentIntent.id}`);
+      return;
+    }
+
+    if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+      await this.completePayment(
+        (payment._id as any).toString(),
+        paymentIntent.id,
+        paymentIntent.charges.data[0]?.id,
+        paymentIntent.transfer_data?.destination,
+        paymentIntent.charges.data[0]?.fee_details?.[0]?.amount || 0
+      );
+    }
+  }
+
+  private async handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
+    const payment = await this.paymentModel.findOne({
+      stripePaymentIntentId: paymentIntent.id
+    });
+
+    if (!payment) {
+      this.logger.warn(`Payment not found for PaymentIntent: ${paymentIntent.id}`);
+      return;
+    }
+
+    if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+      await this.failPayment(
+        (payment._id as any).toString(),
+        paymentIntent.last_payment_error?.message || 'Payment failed'
+      );
+    }
+  }
+
+  private async handleChargeDispute(dispute: any): Promise<void> {
+    // Handle charge disputes - could mark payment as disputed
+    this.logger.log(`Charge dispute created: ${dispute.id} for charge: ${dispute.charge}`);
+
+    // Update transaction log status
+    await this.transactionLogService.updateByStripeId(dispute.charge, {
+      status: 'failed',
+      description: `Dispute created: ${dispute.reason}`,
+    });
   }
 }

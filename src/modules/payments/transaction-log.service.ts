@@ -222,6 +222,32 @@ export class TransactionLogService {
     return transactionLog;
   }
 
+  async updateByStripeId(stripeId: string, updateTransactionLogDto: UpdateTransactionLogDto): Promise<TransactionLog> {
+    const updateData: any = { ...updateTransactionLogDto };
+
+    // Set processedAt timestamp if status is being updated to completed
+    if (updateTransactionLogDto.status === 'completed') {
+      updateData.processedAt = new Date();
+    }
+
+    const transactionLog = await this.transactionLogModel
+      .findOneAndUpdate(
+        { stripeId, deletedAt: null },
+        updateData,
+        { new: true }
+      )
+      .populate('fromUserId', 'firstName lastName email')
+      .populate('toUserId', 'firstName lastName email')
+      .exec();
+
+    if (!transactionLog) {
+      throw new NotFoundException('Transaction log not found');
+    }
+
+    this.logger.log(`Transaction log updated by Stripe ID: ${transactionLog.transactionId}`);
+    return transactionLog;
+  }
+
   async deleteById(id: string): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid transaction log ID');
