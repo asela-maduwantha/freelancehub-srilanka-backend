@@ -27,12 +27,12 @@ import { UpdateProposalDto } from './dto/update-proposal.dto';
 import {
   ProposalResponseDto,
   ProposalsListResponseDto,
-  MessageResponseDto,
 } from './dto/proposal-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { MessageResponseDto } from 'src/common/dto';
 
 @ApiTags('Proposals')
 @Controller('proposals')

@@ -19,7 +19,6 @@ import { UpdateProposalDto } from './dto/update-proposal.dto';
 import {
   ProposalResponseDto,
   ProposalsListResponseDto,
-  MessageResponseDto,
   ProposalJobResponseDto,
   ProposalFreelancerResponseDto,
   ProposalClientResponseDto,
@@ -29,6 +28,7 @@ import { ContractStatus } from '../../common/enums/contract-status.enum';
 import { ContractsService } from '../contracts/contracts.service';
 import { LoggerService } from '../../services/logger/logger.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MessageResponseDto } from 'src/common/dto';
 
 @Injectable()
 export class ProposalsService {
@@ -337,8 +337,6 @@ export class ProposalsService {
 
     // Clear cache after updating proposal
     await this.cacheManager.del(`proposal_${id}`);
-    // Note: We can't efficiently clear all related list caches without knowing all possible combinations
-    // The cache will naturally expire in 5 minutes
 
     return updatedProposalResponse;
   }

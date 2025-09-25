@@ -26,13 +26,13 @@ import { UpdateJobDto } from './dto/update-job.dto';
 import {
   JobResponseDto,
   JobsListResponseDto,
-  MessageResponseDto,
 } from './dto/job-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JobStatus } from '../../common/enums/job-status.enum';
 import { Public } from '../../common/decorators/public.decorator';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { MessageResponseDto } from 'src/common/dto';
 
 @ApiTags('Jobs')
 @Controller('jobs')

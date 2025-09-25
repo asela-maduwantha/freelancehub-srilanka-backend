@@ -44,10 +44,3 @@ export class AuthResponseDto {
   expiresIn: string;
 }
 
-export class MessageResponseDto {
-  @ApiProperty()
-  message: string;
-
-  @ApiProperty({ required: false })
-  data?: any;
-}

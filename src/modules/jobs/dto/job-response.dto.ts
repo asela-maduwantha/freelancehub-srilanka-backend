@@ -180,7 +180,3 @@ export class JobsListResponseDto {
   totalPages: number;
 }
 
-export class MessageResponseDto {
-  @ApiProperty()
-  message: string;
-}

@@ -14,11 +14,11 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import {
   CategoryResponseDto,
   CategoriesListResponseDto,
-  MessageResponseDto,
 } from './dto/category-response.dto';
 import { BatchCreateCategoryDto } from './dto/batch-create-category.dto';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import slugify from 'slugify';
+import { MessageResponseDto } from 'src/common/dto';
 
 @Injectable()
 export class CategoriesService {

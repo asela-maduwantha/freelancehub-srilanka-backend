@@ -15,7 +15,6 @@ import { UpdateJobDto } from './dto/update-job.dto';
 import {
   JobResponseDto,
   JobsListResponseDto,
-  MessageResponseDto,
   ClientResponseDto,
   BudgetResponseDto,
   DurationResponseDto,
@@ -32,6 +31,7 @@ import {
   JobReport,
   ReportReason,
 } from '../../database/schemas/job-report.schema';
+import { MessageResponseDto } from 'src/common/dto';
 
 @Injectable()
 export class JobsService {

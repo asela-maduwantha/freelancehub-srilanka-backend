@@ -15,10 +15,10 @@ import { BatchCreateSkillDto } from './dto/batch-create-skill.dto';
 import {
   SkillResponseDto,
   SkillsListResponseDto,
-  MessageResponseDto,
 } from './dto/skill-response.dto';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import slugify from 'slugify';
+import { MessageResponseDto } from 'src/common/dto';
 
 @Injectable()
 export class SkillsService {

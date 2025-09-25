@@ -64,7 +64,4 @@ export class CategoriesListResponseDto {
   totalPages: number;
 }
 
-export class MessageResponseDto {
-  @ApiProperty()
-  message: string;
-}
+

@@ -109,7 +109,7 @@ export class ClientDataResponseDto {
   reviewCount: number;
 }
 
-export class UserResponseDto {
+export class CompleteUserResponseDto {
   @ApiProperty()
   id: string;
 
@@ -145,8 +145,8 @@ export class UserResponseDto {
 }
 
 export class UsersListResponseDto {
-  @ApiProperty({ type: [UserResponseDto] })
-  users: UserResponseDto[];
+  @ApiProperty({ type: [CompleteUserResponseDto] })
+  users: CompleteUserResponseDto[];
 
   @ApiProperty()
   total: number;
@@ -161,7 +161,3 @@ export class UsersListResponseDto {
   totalPages: number;
 }
 
-export class MessageResponseDto {
-  @ApiProperty()
-  message: string;
-}

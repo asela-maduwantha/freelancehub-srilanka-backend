@@ -27,13 +27,14 @@ import { BatchCreateCategoryDto } from './dto/batch-create-category.dto';
 import {
   CategoryResponseDto,
   CategoriesListResponseDto,
-  MessageResponseDto,
 } from './dto/category-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { Public } from '../../common/decorators/public.decorator';
+import { Message } from 'src/database/schemas';
+import { MessageResponseDto } from 'src/common/dto';
 
 @ApiTags('Categories')
 @Controller('categories')

@@ -31,13 +31,13 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import {
   AuthResponseDto,
   UserResponseDto,
-  MessageResponseDto,
 } from './dto/auth-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../../common/guards/email-verified.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { User } from '../../database/schemas/user.schema';
+import { MessageResponseDto } from 'src/common/dto';
 
 @ApiTags('Authentication')
 @Controller('auth')

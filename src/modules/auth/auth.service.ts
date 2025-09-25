@@ -27,7 +27,6 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import {
   AuthResponseDto,
   UserResponseDto,
-  MessageResponseDto,
 } from './dto/auth-response.dto';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { OtpPurpose } from '../../common/enums/otp-purpose.enum';
@@ -36,6 +35,7 @@ import { AUTH_CONSTANTS } from '../../common/constants/auth.constants';
 import { HashUtil } from '../../common/utils/hash.util';
 import { OtpUtil } from '../../common/utils/otp.util';
 import { EmailService } from '../../services/email/email.service';
+import { MessageResponseDto } from 'src/common/dto';
 
 @Injectable()
 export class AuthService {

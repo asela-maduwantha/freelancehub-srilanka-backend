@@ -27,13 +27,13 @@ import { BatchCreateSkillDto } from './dto/batch-create-skill.dto';
 import {
   SkillResponseDto,
   SkillsListResponseDto,
-  MessageResponseDto,
 } from './dto/skill-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { Public } from '../../common/decorators/public.decorator';
+import { MessageResponseDto } from 'src/common/dto';
 
 @ApiTags('Skills')
 @Controller('skills')

@@ -20,9 +20,8 @@ import {
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import {
-  UserResponseDto,
+  CompleteUserResponseDto,
   UsersListResponseDto,
-  MessageResponseDto,
 } from './dto/user-response.dto';
 import { UploadAvatarResponseDto } from './dto/upload-avatar.dto';
 import { UpdateFreelancerProfileDto } from './dto/update-freelancer-profile.dto';
@@ -46,6 +45,7 @@ import {
 } from './dto/user-settings.dto';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
+import { MessageResponseDto } from 'src/common/dto';
 @Injectable()
 export class UsersService {
   constructor(
@@ -53,10 +53,10 @@ export class UsersService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async getCurrentUser(userId: string): Promise<UserResponseDto> {
+  async getCurrentUser(userId: string): Promise<CompleteUserResponseDto> {
     // Try to get from cache first
     const cacheKey = `user_${userId}`;
-    const cachedUser = await this.cacheManager.get<UserResponseDto>(cacheKey);
+    const cachedUser = await this.cacheManager.get<CompleteUserResponseDto>(cacheKey);
 
     if (cachedUser) {
       return cachedUser;
@@ -82,7 +82,7 @@ export class UsersService {
   async updateCurrentUser(
     userId: string,
     updateProfileDto: UpdateProfileDto,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     const user = await this.userModel.findById(userId).exec();
 
     if (!user) {
@@ -153,7 +153,7 @@ export class UsersService {
   async getUserById(
     id: string,
     currentUserId: string,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     // Check if user is accessing their own profile or is admin
     const currentUser = await this.userModel.findById(currentUserId).exec();
     if (!currentUser) {
@@ -167,7 +167,7 @@ export class UsersService {
 
     // Try to get from cache first
     const cacheKey = `user_${id}`;
-    const cachedUser = await this.cacheManager.get<UserResponseDto>(cacheKey);
+    const cachedUser = await this.cacheManager.get<CompleteUserResponseDto>(cacheKey);
 
     if (cachedUser) {
       return cachedUser;
@@ -271,7 +271,7 @@ export class UsersService {
     };
   }
 
-  private mapToUserResponseDto(user: any): UserResponseDto {
+  private mapToUserResponseDto(user: any): CompleteUserResponseDto {
     const plainUser = user.toObject ? user.toObject() : user;
 
     return {
@@ -343,7 +343,7 @@ export class UsersService {
   async updateFreelancerProfile(
     userId: string,
     updateFreelancerProfileDto: UpdateFreelancerProfileDto,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     const user = await this.userModel.findById(userId).exec();
 
     if (!user) {

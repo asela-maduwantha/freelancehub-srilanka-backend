@@ -30,9 +30,8 @@ import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import {
-  UserResponseDto,
+  CompleteUserResponseDto,
   UsersListResponseDto,
-  MessageResponseDto,
 } from './dto/user-response.dto';
 import { UploadAvatarResponseDto } from './dto/upload-avatar.dto';
 import { UpdateFreelancerProfileDto } from './dto/update-freelancer-profile.dto';
@@ -60,6 +59,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { MessageResponseDto } from 'src/common/dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -73,7 +73,7 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'User profile retrieved successfully',
-    type: UserResponseDto,
+    type: CompleteUserResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -81,7 +81,7 @@ export class UsersController {
   })
   async getCurrentUser(
     @CurrentUser('id') userId: string,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     return this.usersService.getCurrentUser(userId);
   }
 
@@ -91,7 +91,7 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Profile updated successfully',
-    type: UserResponseDto,
+    type: CompleteUserResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -104,7 +104,7 @@ export class UsersController {
   async updateCurrentUser(
     @CurrentUser('id') userId: string,
     @Body(ValidationPipe) updateProfileDto: UpdateProfileDto,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     return this.usersService.updateCurrentUser(userId, updateProfileDto);
   }
 
@@ -163,7 +163,7 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'User retrieved successfully',
-    type: UserResponseDto,
+    type: CompleteUserResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -176,7 +176,7 @@ export class UsersController {
   async getUserById(
     @Param('id') id: string,
     @CurrentUser('id') currentUserId: string,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     return this.usersService.getUserById(id, currentUserId);
   }
 
@@ -300,7 +300,7 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Freelancer profile updated successfully',
-    type: UserResponseDto,
+    type: CompleteUserResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -318,7 +318,7 @@ export class UsersController {
     @CurrentUser('id') userId: string,
     @Body(ValidationPipe)
     updateFreelancerProfileDto: UpdateFreelancerProfileDto,
-  ): Promise<UserResponseDto> {
+  ): Promise<CompleteUserResponseDto> {
     return this.usersService.updateFreelancerProfile(
       userId,
       updateFreelancerProfileDto,
