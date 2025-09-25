@@ -26,6 +26,7 @@ import { JobStatus } from '../../common/enums/job-status.enum';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import { ProposalsService } from '../proposals/proposals.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { SavedJob } from '../../database/schemas/saved-job.schema';
 import {
   JobReport,
@@ -38,6 +39,7 @@ export class JobsService {
     @InjectModel(Job.name) private readonly jobModel: Model<Job>,
     private readonly proposalsService: ProposalsService,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
     @InjectModel(SavedJob.name) private readonly savedJobModel: Model<SavedJob>,
     @InjectModel(JobReport.name)
     private readonly jobReportModel: Model<JobReport>,
@@ -274,6 +276,19 @@ export class JobsService {
     await this.cacheManager.del('jobs_list:all');
     await this.cacheManager.del('jobs_list:featured');
     await this.cacheManager.del('jobs_list:recent');
+
+    // Send notification if job status changed to OPEN (published)
+    if (updateJobDto.status === JobStatus.OPEN && job.status !== JobStatus.OPEN) {
+      try {
+        // Notify relevant freelancers about the new job
+        // For now, we'll create a notification that can be broadcast to interested freelancers
+        // In a real implementation, you might want to notify freelancers with matching skills
+        await this.notificationsService.notifyJobPosted(id, updatedJob.title, clientId);
+      } catch (error) {
+        // Log error but don't fail the job update
+        console.error('Failed to send job posted notification:', error);
+      }
+    }
 
     return updatedJobResponse;
   }

@@ -9,6 +9,7 @@ import { PaymentFilters } from '../../common/filters/payment.filters';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 import { TransactionLogService } from './transaction-log.service';
 import { StripeService } from '../../services/stripe/stripe.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PaymentService {
@@ -20,6 +21,7 @@ export class PaymentService {
     @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
     private transactionLogService: TransactionLogService,
     private stripeService: StripeService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
@@ -122,6 +124,19 @@ export class PaymentService {
       }
 
       this.logger.log(`Payment created: ${savedPayment._id} with Stripe PaymentIntent: ${paymentIntent.id}`);
+
+      // Send notification to freelancer about payment sent
+      try {
+        await this.notificationsService.notifyPaymentSent(
+          (savedPayment._id as Types.ObjectId).toString(),
+          savedPayment.amount,
+          savedPayment.payeeId.toString()
+        );
+      } catch (notificationError) {
+        this.logger.error(`Failed to send payment sent notification: ${notificationError.message}`, notificationError.stack);
+        // Don't throw - notification failure shouldn't break payment creation
+      }
+
       return savedPayment;
     } catch (error) {
       this.logger.error(`Failed to create payment: ${error.message}`, error.stack);
@@ -226,6 +241,34 @@ export class PaymentService {
       //   `payment_${payment._id}`,
       //   { status: this.mapPaymentStatusToTransactionStatus(updateData.status) }
       // );
+    }
+
+    // Send notification when payment is completed
+    if (updateData.status === PaymentStatus.COMPLETED) {
+      try {
+        await this.notificationsService.notifyPaymentReceived(
+          (payment._id as Types.ObjectId).toString(),
+          payment.amount,
+          payment.payeeId.toString()
+        );
+      } catch (notificationError) {
+        this.logger.error(`Failed to send payment received notification: ${notificationError.message}`, notificationError.stack);
+        // Don't throw - notification failure shouldn't break payment completion
+      }
+    }
+
+    // Send notification when payment is refunded
+    if (updateData.status === PaymentStatus.REFUNDED) {
+      try {
+        await this.notificationsService.notifyPaymentRefunded(
+          (payment._id as Types.ObjectId).toString(),
+          payment.amount,
+          payment.payeeId.toString()
+        );
+      } catch (notificationError) {
+        this.logger.error(`Failed to send payment refunded notification: ${notificationError.message}`, notificationError.stack);
+        // Don't throw - notification failure shouldn't break payment refund
+      }
     }
 
     this.logger.log(`Payment updated: ${payment._id}`);

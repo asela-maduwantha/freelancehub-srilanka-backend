@@ -14,11 +14,15 @@ import { AuthModule } from '../auth/auth.module';
 import { ContractsService } from '../contracts/contracts.service';
 import { LoggerService } from '../../services/logger/logger.service';
 import { PdfService } from '../../services/pdf/pdf.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     // Auth module for JWT services
     AuthModule,
+
+    // Notifications module for real-time notifications
+    NotificationsModule,
 
     // Mongoose models
     MongooseModule.forFeature([

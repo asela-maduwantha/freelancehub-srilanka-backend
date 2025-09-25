@@ -14,19 +14,21 @@ import { LoggerModule } from '../../services/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Contract.name, schema: ContractSchema },
-      { name: User.name, schema: UserSchema },
-      { name: Proposal.name, schema: ProposalSchema },
       { name: Job.name, schema: JobSchema },
+      { name: Proposal.name, schema: ProposalSchema },
+      { name: User.name, schema: UserSchema },
       { name: Milestone.name, schema: MilestoneSchema },
     ]),
-    PdfModule,
     LoggerModule,
     AuthModule,
+    PdfModule,
+    NotificationsModule,
   ],
   controllers: [ContractsController],
   providers: [ContractsService],

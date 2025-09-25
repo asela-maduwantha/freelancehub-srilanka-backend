@@ -11,6 +11,7 @@ import { User, UserSchema } from '../../database/schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 import { MilestonesController } from './milestones.controller';
 import { MilestoneService } from './milestones.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { MilestoneService } from './milestones.service';
       { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [MilestonesController],
   providers: [MilestoneService],

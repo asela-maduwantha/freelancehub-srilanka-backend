@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession } from 'mongoose';
+import { Model, ClientSession, Types } from 'mongoose';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Proposal } from '../../database/schemas/proposal.schema';
@@ -28,6 +28,7 @@ import { ProposalStatus } from '../../common/enums/proposal-status.enum';
 import { ContractStatus } from '../../common/enums/contract-status.enum';
 import { ContractsService } from '../contracts/contracts.service';
 import { LoggerService } from '../../services/logger/logger.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ProposalsService {
@@ -39,6 +40,7 @@ export class ProposalsService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly contractsService: ContractsService,
     private readonly logger: LoggerService,
+    private readonly notificationsService: NotificationsService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -88,6 +90,22 @@ export class ProposalsService {
       })
       .lean()
       .exec();
+
+    // Send notification to client about new proposal
+    try {
+      if (populatedProposal) {
+        const job = populatedProposal.jobId as any;
+        const clientId = job.clientId._id || job.clientId;
+        await this.notificationsService.notifyProposalReceived(
+          (savedProposal._id as Types.ObjectId).toString(),
+          job.title,
+          clientId.toString()
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail proposal creation
+      console.error('Failed to send proposal received notification:', error);
+    }
 
     return this.mapToProposalResponseDto(populatedProposal);
   }
@@ -389,6 +407,19 @@ export class ProposalsService {
     await proposal.save();
 
     const proposalResponse = this.mapToProposalResponseDto(proposal);
+
+    // Send notification to freelancer about proposal acceptance
+    try {
+      const job = proposal.jobId as any;
+      await this.notificationsService.notifyProposalAccepted(
+        id,
+        job.title,
+        proposal.freelancerId.toString()
+      );
+    } catch (error) {
+      // Log error but don't fail proposal acceptance
+      console.error('Failed to send proposal accepted notification:', error);
+    }
 
     // Clear cache after accepting proposal
     await this.cacheManager.del(`proposal_${id}`);

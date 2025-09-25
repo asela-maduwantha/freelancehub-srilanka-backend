@@ -10,6 +10,7 @@ import { PaginationDto, PaginationResult } from "src/common/dto";
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { JobStatus } from '../../common/enums/job-status.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 
 @Injectable()
@@ -23,6 +24,7 @@ export class ContractsService {
     private logger: LoggerService,
     private pdfService: PdfService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -128,6 +130,18 @@ export class ContractsService {
     contract.isFreelancerSigned = false;
 
     await contract.save();
+
+    // Send notification to freelancer about contract creation
+    try {
+      await this.notificationsService.notifyContractCreated(
+        (contract._id as Types.ObjectId).toString(),
+        job.title,
+        proposal.freelancerId.toString()
+      );
+    } catch (notificationError) {
+      this.logger.error(`Failed to send contract creation notification: ${notificationError.message}`, notificationError.stack, 'ContractsService');
+      // Don't throw - notification failure shouldn't break contract creation
+    }
 
     job.contractId = contract._id as Types.ObjectId;
     await job.save();
@@ -375,6 +389,18 @@ export class ContractsService {
 
       await session.commitTransaction();
 
+      // Send notification to freelancer about contract completion
+      try {
+        await this.notificationsService.notifyContractCompleted(
+          (contract._id as Types.ObjectId).toString(),
+          contract.title,
+          contract.freelancerId.toString()
+        );
+      } catch (notificationError) {
+        this.logger.error(`Failed to send contract completion notification: ${notificationError.message}`, notificationError.stack, 'ContractsService');
+        // Don't throw - notification failure shouldn't break contract completion
+      }
+
       this.logger.log(`Contract completed successfully: ${contract._id} by user: ${userId}`, 'ContractsService');
 
       // Populate related data before returning
@@ -416,6 +442,26 @@ export class ContractsService {
     }
     contract.status = ContractStatus.CANCELLED;
     await contract.save();
+
+    // Send notifications to both client and freelancer about contract cancellation
+    try {
+      await Promise.all([
+        this.notificationsService.notifyContractCancelled(
+          (contract._id as Types.ObjectId).toString(),
+          contract.title,
+          contract.clientId.toString()
+        ),
+        this.notificationsService.notifyContractCancelled(
+          (contract._id as Types.ObjectId).toString(),
+          contract.title,
+          contract.freelancerId.toString()
+        )
+      ]);
+    } catch (notificationError) {
+      this.logger.error(`Failed to send contract cancellation notifications: ${notificationError.message}`, notificationError.stack, 'ContractsService');
+      // Don't throw - notification failure shouldn't break contract cancellation
+    }
+
     this.logger.log(`Contract cancelled successfully: ${contract._id}`, 'ContractsService');
 
     // Populate related data before returning

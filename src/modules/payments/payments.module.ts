@@ -10,6 +10,7 @@ import { Contract, ContractSchema } from '../../database/schemas/contract.schema
 import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
 import { AuthModule } from '../auth/auth.module';
 import { StripeService } from '../../services/stripe/stripe.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { StripeService } from '../../services/stripe/stripe.service';
       { name: Milestone.name, schema: MilestoneSchema },
     ]),
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentService, TransactionLogService, StripeService],

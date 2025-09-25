@@ -15,6 +15,7 @@ import {
   JobReport,
   JobReportSchema,
 } from '../../database/schemas/job-report.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,9 @@ import {
 
     // Users module for accessing user data
     UsersModule,
+
+    // Notifications module for real-time notifications
+    NotificationsModule,
 
     // Mongoose models
     MongooseModule.forFeature([

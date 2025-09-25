@@ -11,6 +11,7 @@ import {
 } from './dto';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class MilestoneService {
@@ -19,6 +20,7 @@ export class MilestoneService {
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private notificationsService: NotificationsService,
   ) {}
 
   async create(createMilestoneDto: CreateMilestoneDto, userId: string): Promise<Milestone> {
@@ -56,6 +58,18 @@ export class MilestoneService {
     });
 
     const savedMilestone = await milestone.save();
+
+    // Send notification to freelancer about milestone creation
+    try {
+      await this.notificationsService.notifyMilestoneCreated(
+        (savedMilestone._id as Types.ObjectId).toString(),
+        savedMilestone.title,
+        contract.freelancerId.toString()
+      );
+    } catch (notificationError) {
+      console.error('Failed to send milestone created notification:', notificationError);
+      // Don't fail milestone creation if notification fails
+    }
 
     // Update contract milestone count
     await this.contractModel.findByIdAndUpdate(
@@ -250,6 +264,18 @@ export class MilestoneService {
         { new: true, runValidators: true }
       );
 
+    // Send notification to client about milestone submission
+    try {
+      await this.notificationsService.notifyMilestoneSubmitted(
+        (updatedMilestone!._id as Types.ObjectId).toString(),
+        updatedMilestone!.title,
+        contract!.clientId.toString()
+      );
+    } catch (notificationError) {
+      console.error('Failed to send milestone submitted notification:', notificationError);
+      // Don't fail milestone submission if notification fails
+    }
+
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
     await this.invalidateContractMilestoneCache(milestone.contractId.toString());
@@ -280,6 +306,18 @@ export class MilestoneService {
         },
         { new: true, runValidators: true }
       );
+
+    // Send notification to freelancer about milestone approval
+    try {
+      await this.notificationsService.notifyMilestoneCompleted(
+        (updatedMilestone!._id as Types.ObjectId).toString(),
+        updatedMilestone!.title,
+        contract!.freelancerId.toString()
+      );
+    } catch (notificationError) {
+      console.error('Failed to send milestone approved notification:', notificationError);
+      // Don't fail milestone approval if notification fails
+    }
 
     // Update contract completed milestones count
     await this.contractModel.findByIdAndUpdate(
