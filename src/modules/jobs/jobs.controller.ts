@@ -192,7 +192,6 @@ export class JobsController {
   }
 
   @Get(':id')
-  @Public()
   @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Get a job by ID' })
   @ApiParam({ name: 'id', description: 'Job ID' })

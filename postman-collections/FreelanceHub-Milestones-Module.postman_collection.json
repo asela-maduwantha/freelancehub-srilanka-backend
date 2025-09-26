@@ -1,0 +1,760 @@
+{
+  "info": {
+    "name": "FreelanceHub Milestones Module",
+    "description": "Postman collection for testing milestone lifecycle and management endpoints in FreelanceHub backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "freelancehub-backend"
+  },
+  "item": [
+    {
+      "name": "Milestone Creation & Management",
+      "item": [
+        {
+          "name": "Create Milestone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data._id) {",
+                  "        pm.collectionVariables.set('milestone_id', response.data._id);",
+                  "        console.log('Milestone created with ID:', response.data._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"title\": \"Website Design & Wireframes\",\n  \"description\": \"Complete design phase including wireframes, mockups, and design specifications for the e-commerce website. Includes user research, competitor analysis, and responsive design considerations.\",\n  \"amount\": 1500,\n  \"currency\": \"USD\",\n  \"order\": 1,\n  \"dueDate\": \"2025-10-15T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones"
+              ]
+            },
+            "description": "Create a new milestone (client only). Includes all optional fields like currency and due date. Saves milestone ID to collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Milestone (Minimal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"title\": \"Frontend Development\",\n  \"description\": \"Implement the frontend components using React and TypeScript\",\n  \"amount\": 2500,\n  \"order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones"
+              ]
+            },
+            "description": "Create a milestone with only required fields (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Milestone",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated: Website Design & Wireframes\",\n  \"description\": \"Complete design phase including wireframes, mockups, and design specifications for the e-commerce website. Includes user research, competitor analysis, responsive design considerations, and updated branding guidelines.\",\n  \"amount\": 1800,\n  \"dueDate\": \"2025-10-20T23:59:59.000Z\",\n  \"order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}"
+              ]
+            },
+            "description": "Update milestone details (client only). Can update title, description, amount, due date, and order."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Milestone",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}"
+              ]
+            },
+            "description": "Delete a milestone (client only). Can only delete milestones that haven't been submitted, approved, or paid."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Milestone Workflow",
+      "item": [
+        {
+          "name": "Mark Milestone In Progress",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/in-progress",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "in-progress"
+              ]
+            },
+            "description": "Mark milestone as in progress (freelancer only). Only pending or rejected milestones can be marked as in progress."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Milestone for Review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliverables\": [\n    {\n      \"title\": \"Design Wireframes\",\n      \"description\": \"Complete set of wireframes for all pages\",\n      \"fileUrl\": \"https://example.com/wireframes.zip\",\n      \"fileType\": \"application/zip\"\n    },\n    {\n      \"title\": \"High-Fidelity Mockups\",\n      \"description\": \"Final design mockups with branding applied\",\n      \"fileUrl\": \"https://example.com/mockups.pdf\",\n      \"fileType\": \"application/pdf\"\n    },\n    {\n      \"title\": \"Design System Documentation\",\n      \"description\": \"Complete design system with colors, typography, and components\",\n      \"fileUrl\": \"https://example.com/design-system.fig\",\n      \"fileType\": \"application/octet-stream\"\n    }\n  ],\n  \"submissionNote\": \"All deliverables are complete and ready for review. The design system includes comprehensive documentation for colors, typography, spacing, and reusable components. Please review the wireframes first, then the mockups, and finally the design system documentation.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "submit"
+              ]
+            },
+            "description": "Submit milestone for client review (freelancer only). Includes deliverables and optional submission note."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Milestone (Minimal)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliverables\": [\n    {\n      \"title\": \"Source Code\",\n      \"description\": \"Complete frontend implementation\",\n      \"fileUrl\": \"https://example.com/code.zip\",\n      \"fileType\": \"application/zip\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "submit"
+              ]
+            },
+            "description": "Submit milestone with minimal deliverables (freelancer only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Milestone",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "approve"
+              ]
+            },
+            "description": "Approve submitted milestone (client only). Only submitted milestones can be approved."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Milestone",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feedback\": \"The wireframes need more detail on the user flow. Please add annotations showing the navigation paths and include more edge cases. The color scheme doesn't match our brand guidelines - please refer to the brand document for the correct hex codes.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "reject"
+              ]
+            },
+            "description": "Reject submitted milestone with feedback (client only). Feedback is required for rejection."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Milestone Payment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "payment"
+              ]
+            },
+            "description": "Mark milestone as paid with payment reference. Only approved milestones can be marked as paid."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Milestone Retrieval & Search",
+      "item": [
+        {
+          "name": "Get My Milestones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones?page=1&limit=10&status=pending&sortBy=createdAt&sortOrder=desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of milestones per page"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by milestone status (pending, in-progress, submitted, approved, rejected, paid)"
+                },
+                {
+                  "key": "contractId",
+                  "value": "{{contract_id}}",
+                  "description": "Filter by contract ID"
+                },
+                {
+                  "key": "search",
+                  "value": "design",
+                  "description": "Search in title and description"
+                },
+                {
+                  "key": "isOverdue",
+                  "value": "false",
+                  "description": "Filter by overdue status"
+                }
+              ]
+            },
+            "description": "Get milestones for the current user with extensive filtering options"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Milestone Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}"
+              ]
+            },
+            "description": "Get detailed information about a specific milestone"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contract Milestones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/contract/{{contract_id}}/milestones?page=1&limit=20&status=submitted",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "contract",
+                "{{contract_id}}",
+                "milestones"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "submitted"
+                },
+                {
+                  "key": "isOverdue",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Get all milestones for a specific contract with filtering"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contract Milestone Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/contract/{{contract_id}}/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "contract",
+                "{{contract_id}}",
+                "stats"
+              ]
+            },
+            "description": "Get milestone statistics for a contract (counts by status, total amounts, etc.)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Overdue Milestones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/overdue",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "overdue"
+              ]
+            },
+            "description": "Get all overdue milestones for the current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Advanced Milestone Search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones?page=1&limit=5&status=approved&isOverdue=false&search=development",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "status",
+                  "value": "approved"
+                },
+                {
+                  "key": "isOverdue",
+                  "value": "false"
+                },
+                {
+                  "key": "search",
+                  "value": "development"
+                }
+              ]
+            },
+            "description": "Advanced search with multiple filters combined"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Milestone Organization",
+      "item": [
+        {
+          "name": "Reorder Milestones",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"milestoneOrders\": [\n    {\n      \"id\": \"{{milestone_id}}\",\n      \"order\": 2\n    },\n    {\n      \"id\": \"{{milestone_id_2}}\",\n      \"order\": 1\n    },\n    {\n      \"id\": \"{{milestone_id_3}}\",\n      \"order\": 3\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/contract/{{contract_id}}/reorder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "contract",
+                "{{contract_id}}",
+                "reorder"
+              ]
+            },
+            "description": "Reorder milestones within a contract (client only). Can only reorder milestones that haven't been submitted, approved, or paid."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Milestone Examples",
+      "item": [
+        {
+          "name": "Create Complex Milestone",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"title\": \"Full-Stack E-commerce Platform Development\",\n  \"description\": \"Complete development of a full-stack e-commerce platform including:\\n- Backend API with Node.js/Express\\n- MongoDB database design and implementation\\n- Frontend with React and TypeScript\\n- Payment integration with Stripe\\n- User authentication and authorization\\n- Product catalog management\\n- Shopping cart and checkout flow\\n- Order management system\\n- Admin dashboard\\n- Responsive design for mobile and desktop\\n- Performance optimization and security hardening\",\n  \"amount\": 5000,\n  \"currency\": \"USD\",\n  \"order\": 3,\n  \"dueDate\": \"2025-11-15T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contracts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ]
+            },
+            "description": "Create a complex milestone with detailed requirements and specifications"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit with Multiple Deliverables",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliverables\": [\n    {\n      \"title\": \"Source Code Repository\",\n      \"description\": \"Complete source code with documentation\",\n      \"fileUrl\": \"https://github.com/example/ecommerce-platform\",\n      \"fileType\": \"text/plain\"\n    },\n    {\n      \"title\": \"API Documentation\",\n      \"description\": \"Swagger/OpenAPI documentation for all endpoints\",\n      \"fileUrl\": \"https://example.com/api-docs.pdf\",\n      \"fileType\": \"application/pdf\"\n    },\n    {\n      \"title\": \"Deployment Guide\",\n      \"description\": \"Step-by-step deployment and setup instructions\",\n      \"fileUrl\": \"https://example.com/deployment-guide.md\",\n      \"fileType\": \"text/markdown\"\n    },\n    {\n      \"title\": \"Database Schema\",\n      \"description\": \"Database design and schema documentation\",\n      \"fileUrl\": \"https://example.com/database-schema.sql\",\n      \"fileType\": \"application/sql\"\n    },\n    {\n      \"title\": \"Testing Report\",\n      \"description\": \"Unit and integration test results\",\n      \"fileUrl\": \"https://example.com/test-report.pdf\",\n      \"fileType\": \"application/pdf\"\n    }\n  ],\n  \"submissionNote\": \"The e-commerce platform is now complete and ready for deployment. All features have been implemented according to the specifications. The codebase includes comprehensive documentation, unit tests with 95% coverage, and a detailed deployment guide. The platform has been tested across multiple browsers and devices.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}",
+                "submit"
+              ]
+            },
+            "description": "Submit milestone with comprehensive deliverables and detailed submission note"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Pending Milestones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones?page=1&limit=10&status=pending&isOverdue=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "isOverdue",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Search for all pending milestones that are not overdue"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default base URL if not set",
+          "if (!pm.collectionVariables.get('base_url')) {",
+          "    pm.collectionVariables.set('base_url', 'http://localhost:8000/api');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contract_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestone_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestone_id_2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestone_id_3",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

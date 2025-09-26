@@ -1,0 +1,543 @@
+{
+  "info": {
+    "name": "FreelanceHub Contracts Module",
+    "description": "Postman collection for testing contract lifecycle and management endpoints in FreelanceHub backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "freelancehub-backend"
+  },
+  "item": [
+    {
+      "name": "Contract Creation & Setup",
+      "item": [
+        {
+          "name": "Create Contract from Proposal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data._id) {",
+                  "        pm.collectionVariables.set('contract_id', response.data._id);",
+                  "        console.log('Contract created with ID:', response.data._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposalId\": \"{{proposal_id}}\",\n  \"startDate\": \"2025-10-01T00:00:00.000Z\",\n  \"endDate\": \"2025-10-26T23:59:59.000Z\",\n  \"terms\": \"1. Freelancer agrees to deliver the project according to the agreed specifications.\\n2. Client agrees to make payments according to the milestone schedule.\\n3. Any changes to scope must be agreed upon in writing.\\n4. Intellectual property rights will be transferred upon final payment.\\n5. Both parties agree to communicate regularly and provide feedback promptly.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contracts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ]
+            },
+            "description": "Create a new contract from an accepted proposal (client only). Includes all optional fields like terms and conditions. Saves contract ID to collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Contract (Minimal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposalId\": \"{{proposal_id}}\",\n  \"startDate\": \"2025-10-01T00:00:00.000Z\",\n  \"endDate\": \"2025-10-26T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contracts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ]
+            },
+            "description": "Create a contract with only required fields (client only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contract Lifecycle Management",
+      "item": [
+        {
+          "name": "Start Contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}",
+                "start"
+              ]
+            },
+            "description": "Start a contract after both parties have signed (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Sign Contract as Freelancer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}/sign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}",
+                "sign"
+              ]
+            },
+            "description": "Sign the contract as a freelancer (freelancer only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}/complete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}",
+                "complete"
+              ]
+            },
+            "description": "Mark contract as completed (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancel a contract (both client and freelancer can cancel)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contract Retrieval & Search",
+      "item": [
+        {
+          "name": "Get My Contracts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts?page=1&limit=10&status=active&sortBy=createdAt&sortOrder=desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of contracts per page"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "Filter by contract status (draft, pending_signature, active, completed, cancelled)"
+                },
+                {
+                  "key": "contractType",
+                  "value": "fixed-price",
+                  "description": "Filter by contract type"
+                },
+                {
+                  "key": "search",
+                  "value": "React web application",
+                  "description": "Search in contract title and description"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Sort field"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Sort order"
+                },
+                {
+                  "key": "minAmount",
+                  "value": "1000",
+                  "description": "Filter by minimum contract amount"
+                },
+                {
+                  "key": "maxAmount",
+                  "value": "5000",
+                  "description": "Filter by maximum contract amount"
+                },
+                {
+                  "key": "signedOnly",
+                  "value": "true",
+                  "description": "Include only signed contracts"
+                }
+              ]
+            },
+            "description": "Get contracts for the current user with extensive filtering options"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contract Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}"
+              ]
+            },
+            "description": "Get detailed information about a specific contract"
+          },
+          "response": []
+        },
+        {
+          "name": "Advanced Contract Search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts?page=1&limit=5&status=completed&startDateFrom=2025-01-01&startDateTo=2025-12-31&minAmount=500&maxAmount=10000&includeDeleted=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "startDateFrom",
+                  "value": "2025-01-01",
+                  "description": "Filter contracts starting from this date"
+                },
+                {
+                  "key": "startDateTo",
+                  "value": "2025-12-31",
+                  "description": "Filter contracts starting to this date"
+                },
+                {
+                  "key": "minAmount",
+                  "value": "500",
+                  "description": "Minimum contract amount"
+                },
+                {
+                  "key": "maxAmount",
+                  "value": "10000",
+                  "description": "Maximum contract amount"
+                },
+                {
+                  "key": "includeDeleted",
+                  "value": "false",
+                  "description": "Include deleted contracts"
+                }
+              ]
+            },
+            "description": "Advanced search with date ranges, amount filters, and status filtering"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contract Documents",
+      "item": [
+        {
+          "name": "Download Contract PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}/download",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}",
+                "download"
+              ]
+            },
+            "description": "Download contract as PDF document (both client and freelancer can download)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contract Examples",
+      "item": [
+        {
+          "name": "Create Hourly Contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposalId\": \"{{proposal_id}}\",\n  \"startDate\": \"2025-10-01T00:00:00.000Z\",\n  \"endDate\": \"2025-11-30T23:59:59.000Z\",\n  \"terms\": \"Hourly Contract Terms:\\n1. Freelancer will be paid $45 per hour.\\n2. Minimum billing increment is 15 minutes.\\n3. Client will provide detailed requirements before work begins.\\n4. Weekly progress reports required.\\n5. Payment terms: Net 15 days after invoice submission.\\n6. Either party may terminate with 7 days written notice.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contracts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ]
+            },
+            "description": "Create an hourly-based contract with detailed terms"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Long-term Contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposalId\": \"{{proposal_id}}\",\n  \"startDate\": \"2025-11-01T00:00:00.000Z\",\n  \"endDate\": \"2026-04-30T23:59:59.000Z\",\n  \"terms\": \"Long-term Maintenance Contract:\\n1. Monthly retainer of $2000 for ongoing support and maintenance.\\n2. Includes up to 40 hours of development work per month.\\n3. Additional hours billed at $50/hour.\\n4. 24/7 emergency support included.\\n5. Monthly status reports and performance metrics.\\n6. 90-day termination notice required.\\n7. SLA: 99.9% uptime guarantee.\\n8. Includes security updates and patches.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contracts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ]
+            },
+            "description": "Create a long-term maintenance contract with comprehensive terms"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Active Contracts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts?page=1&limit=20&status=active&sortBy=startDate&sortOrder=asc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "startDate"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Search for all active contracts sorted by start date"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default base URL if not set",
+          "if (!pm.collectionVariables.get('base_url')) {",
+          "    pm.collectionVariables.set('base_url', 'http://localhost:8000/api');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "proposal_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contract_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

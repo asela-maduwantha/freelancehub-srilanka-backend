@@ -1,0 +1,410 @@
+{
+  "info": {
+    "name": "FreelanceHub Proposals Module",
+    "description": "Postman collection for testing proposal creation and management endpoints in FreelanceHub backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "freelancehub-backend"
+  },
+  "item": [
+    {
+      "name": "Freelancer Proposal Actions",
+      "item": [
+        {
+          "name": "Create New Proposal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data._id) {",
+                  "        pm.collectionVariables.set('proposal_id', response.data._id);",
+                  "        console.log('Proposal created with ID:', response.data._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobId\": \"{{job_id}}\",\n  \"coverLetter\": \"I am excited to work on this React web application project. With over 5 years of experience in React development, I have successfully delivered multiple similar projects. I understand your requirements for a modern, responsive web application with user authentication and payment integration.\",\n  \"proposedRate\": {\n    \"amount\": 2500,\n    \"type\": \"fixed\",\n    \"currency\": \"USD\"\n  },\n  \"estimatedDuration\": {\n    \"value\": 25,\n    \"unit\": \"days\"\n  },\n  \"proposedMilestones\": [\n    {\n      \"title\": \"Project Setup & Authentication\",\n      \"description\": \"Set up project structure, implement user authentication with JWT, and create basic user registration/login pages.\",\n      \"amount\": 600,\n      \"durationDays\": 5\n    },\n    {\n      \"title\": \"Core Application Development\",\n      \"description\": \"Build the main application features including responsive design, routing, and core functionality.\",\n      \"amount\": 1200,\n      \"durationDays\": 12\n    },\n    {\n      \"title\": \"Payment Integration & Testing\",\n      \"description\": \"Integrate payment system, perform comprehensive testing, and deploy the application.\",\n      \"amount\": 700,\n      \"durationDays\": 8\n    }\n  ],\n  \"attachments\": [\n    {\n      \"filename\": \"portfolio.pdf\",\n      \"url\": \"https://example.com/portfolio.pdf\",\n      \"size\": 2048576,\n      \"type\": \"application/pdf\"\n    },\n    {\n      \"filename\": \"previous-work.zip\",\n      \"url\": \"https://example.com/previous-work.zip\",\n      \"size\": 5242880,\n      \"type\": \"application/zip\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/proposals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals"
+              ]
+            },
+            "description": "Create a new proposal for a job (freelancer only). Includes all optional fields like milestones and attachments. Saves proposal ID to collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Simple Proposal (Minimal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobId\": \"{{job_id}}\",\n  \"coverLetter\": \"I can deliver this project efficiently with high quality. I have the required skills and experience.\",\n  \"proposedRate\": {\n    \"amount\": 1800,\n    \"type\": \"fixed\",\n    \"currency\": \"USD\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/proposals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals"
+              ]
+            },
+            "description": "Create a simple proposal with only required fields (freelancer only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Proposals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/proposals/my?page=1&limit=10&status=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "my"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of proposals per page"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by proposal status (pending, accepted, rejected, withdrawn)"
+                }
+              ]
+            },
+            "description": "Get all proposals submitted by the current freelancer"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Proposal Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/proposals/{{proposal_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposal_id}}"
+              ]
+            },
+            "description": "Get detailed information about a specific proposal"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Proposal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coverLetter\": \"Updated proposal with revised timeline and pricing. I can complete this project in 20 days for $2200.\",\n  \"proposedRate\": {\n    \"amount\": 2200,\n    \"type\": \"fixed\",\n    \"currency\": \"USD\"\n  },\n  \"estimatedDuration\": {\n    \"value\": 20,\n    \"unit\": \"days\"\n  },\n  \"proposedMilestones\": [\n    {\n      \"title\": \"Complete Project Delivery\",\n      \"description\": \"Deliver the complete React web application with all requested features.\",\n      \"amount\": 2200,\n      \"durationDays\": 20\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/proposals/{{proposal_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposal_id}}"
+              ]
+            },
+            "description": "Update an existing proposal (freelancer only, only if status is pending)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Proposal",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/proposals/{{proposal_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposal_id}}"
+              ]
+            },
+            "description": "Delete/withdraw a proposal (freelancer only, only if status is pending)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Client Proposal Management",
+      "item": [
+        {
+          "name": "Get Proposals for Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/proposals/job/{{job_id}}?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "job",
+                "{{job_id}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of proposals per page"
+                }
+              ]
+            },
+            "description": "Get all proposals submitted for a specific job (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Proposal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/proposals/{{proposal_id}}/accept",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposal_id}}",
+                "accept"
+              ]
+            },
+            "description": "Accept a proposal and create a contract (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Proposal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/proposals/{{proposal_id}}/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposal_id}}",
+                "reject"
+              ]
+            },
+            "description": "Reject a proposal (client only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Proposal Examples",
+      "item": [
+        {
+          "name": "Hourly Rate Proposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobId\": \"{{job_id}}\",\n  \"coverLetter\": \"I specialize in hourly development work and can provide flexible, ongoing support for your project.\",\n  \"proposedRate\": {\n    \"amount\": 45,\n    \"type\": \"hourly\",\n    \"currency\": \"USD\"\n  },\n  \"estimatedDuration\": {\n    \"value\": 2,\n    \"unit\": \"months\"\n  },\n  \"proposedMilestones\": [\n    {\n      \"title\": \"Month 1 Development\",\n      \"description\": \"Complete initial development phase with core features.\",\n      \"amount\": 3600,\n      \"durationDays\": 30\n    },\n    {\n      \"title\": \"Month 2 Development & Testing\",\n      \"description\": \"Continue development, add advanced features, and perform testing.\",\n      \"amount\": 3600,\n      \"durationDays\": 30\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/proposals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals"
+              ]
+            },
+            "description": "Example of an hourly rate proposal with monthly milestones"
+          },
+          "response": []
+        },
+        {
+          "name": "Complex Proposal with Multiple Milestones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobId\": \"{{job_id}}\",\n  \"coverLetter\": \"This is a comprehensive proposal for your e-commerce platform. I will deliver a complete solution with all requested features.\",\n  \"proposedRate\": {\n    \"amount\": 5000,\n    \"type\": \"fixed\",\n    \"currency\": \"USD\"\n  },\n  \"estimatedDuration\": {\n    \"value\": 8,\n    \"unit\": \"weeks\"\n  },\n  \"proposedMilestones\": [\n    {\n      \"title\": \"Requirements Analysis & Planning\",\n      \"description\": \"Detailed analysis of requirements, create technical specifications, and project timeline.\",\n      \"amount\": 500,\n      \"durationDays\": 5\n    },\n    {\n      \"title\": \"UI/UX Design\",\n      \"description\": \"Create wireframes, mockups, and design system for the e-commerce platform.\",\n      \"amount\": 800,\n      \"durationDays\": 7\n    },\n    {\n      \"title\": \"Frontend Development\",\n      \"description\": \"Build responsive frontend with React, implement product catalog, shopping cart.\",\n      \"amount\": 1500,\n      \"durationDays\": 14\n    },\n    {\n      \"title\": \"Backend Development\",\n      \"description\": \"Develop REST API, user authentication, payment integration, and database.\",\n      \"amount\": 1500,\n      \"durationDays\": 14\n    },\n    {\n      \"title\": \"Testing & Deployment\",\n      \"description\": \"Comprehensive testing, bug fixes, performance optimization, and deployment.\",\n      \"amount\": 700,\n      \"durationDays\": 10\n    }\n  ],\n  \"attachments\": [\n    {\n      \"filename\": \"project-timeline.pdf\",\n      \"url\": \"https://example.com/project-timeline.pdf\",\n      \"size\": 1048576,\n      \"type\": \"application/pdf\"\n    },\n    {\n      \"filename\": \"design-mockups.zip\",\n      \"url\": \"https://example.com/design-mockups.zip\",\n      \"size\": 3145728,\n      \"type\": \"application/zip\"\n    },\n    {\n      \"filename\": \"technical-spec.pdf\",\n      \"url\": \"https://example.com/technical-spec.pdf\",\n      \"size\": 2097152,\n      \"type\": \"application/pdf\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/proposals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "proposals"
+              ]
+            },
+            "description": "Example of a complex proposal with multiple milestones and attachments"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default base URL if not set",
+          "if (!pm.collectionVariables.get('base_url')) {",
+          "    pm.collectionVariables.set('base_url', 'http://localhost:8000/api');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "proposal_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

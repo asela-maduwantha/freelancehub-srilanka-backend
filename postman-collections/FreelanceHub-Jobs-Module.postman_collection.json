@@ -1,0 +1,587 @@
+{
+  "info": {
+    "name": "FreelanceHub Jobs Module",
+    "description": "Postman collection for testing job posting and management endpoints in FreelanceHub backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "freelancehub-backend"
+  },
+  "item": [
+    {
+      "name": "Public Job Browsing",
+      "item": [
+        {
+          "name": "Get All Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs?page=1&limit=10&status=open&search=web%20development",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of jobs per page"
+                },
+                {
+                  "key": "status",
+                  "value": "open",
+                  "description": "Filter by job status (open, closed, completed)"
+                },
+                {
+                  "key": "search",
+                  "value": "web development",
+                  "description": "Search term for job title/description"
+                },
+                {
+                  "key": "category",
+                  "value": "web-development",
+                  "description": "Filter by job category"
+                }
+              ]
+            },
+            "description": "Get all jobs with optional filtering and pagination (public endpoint)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Featured Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs/featured?page=1&limit=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "featured"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Get featured jobs for homepage display (public endpoint)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recent Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs/recent?page=1&limit=10&days=7",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "recent"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "Number of days to look back"
+                }
+              ]
+            },
+            "description": "Get recently posted jobs (public endpoint)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Jobs by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs/categories/web-development?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "categories",
+                "web-development"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get jobs filtered by category (public endpoint)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Get detailed information about a specific job (public endpoint)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Client Job Management",
+      "item": [
+        {
+          "name": "Create New Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data._id) {",
+                  "        pm.collectionVariables.set('job_id', response.data._id);",
+                  "        console.log('Job created with ID:', response.data._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Build a Modern React Web Application\",\n  \"description\": \"I need a skilled React developer to build a modern web application with the following requirements: responsive design, user authentication, payment integration, and real-time features.\",\n  \"category\": \"web-development\",\n  \"subcategory\": \"frontend-development\",\n  \"projectType\": \"fixed-price\",\n  \"budget\": {\n    \"type\": \"fixed\",\n    \"min\": 1500,\n    \"max\": 3000,\n    \"currency\": \"USD\"\n  },\n  \"duration\": {\n    \"value\": 30,\n    \"unit\": \"days\"\n  },\n  \"skills\": [\n    \"React\",\n    \"JavaScript\",\n    \"TypeScript\",\n    \"CSS\",\n    \"HTML\"\n  ],\n  \"experienceLevel\": \"intermediate\",\n  \"isUrgent\": false,\n  \"isFeatured\": true,\n  \"maxProposals\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/jobs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs"
+              ]
+            },
+            "description": "Create a new job posting (client only). Saves job ID to collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/my-jobs?page=1&limit=10&status=open",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "my-jobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "open"
+                }
+              ]
+            },
+            "description": "Get all jobs posted by the current client"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Job",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Build a Modern React Web Application - Updated\",\n  \"description\": \"Updated description with additional requirements.\",\n  \"budget\": {\n    \"min\": 2000,\n    \"max\": 3500\n  },\n  \"isUrgent\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Update an existing job posting (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Close Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/close",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "close"
+              ]
+            },
+            "description": "Close job to new proposals (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Reopen Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/reopen",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "reopen"
+              ]
+            },
+            "description": "Reopen job for new proposals (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "stats"
+              ]
+            },
+            "description": "Get statistics for a specific job (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Proposals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/proposals?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "proposals"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all proposals for a specific job (client only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Job",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Delete a job posting (client only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Freelancer Job Actions",
+      "item": [
+        {
+          "name": "Save Job to Favorites",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "save"
+              ]
+            },
+            "description": "Save a job to favorites (freelancer only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Saved Jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/saved?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "saved"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get freelancer's saved jobs (freelancer only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Job from Favorites",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "save"
+              ]
+            },
+            "description": "Remove a job from favorites (freelancer only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reporting & Moderation",
+      "item": [
+        {
+          "name": "Report Inappropriate Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"inappropriate_content\",\n  \"description\": \"Job description contains inappropriate language or content.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}/report",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "{{job_id}}",
+                "report"
+              ]
+            },
+            "description": "Report a job for inappropriate content or violations"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default base URL if not set",
+          "if (!pm.collectionVariables.get('base_url')) {",
+          "    pm.collectionVariables.set('base_url', 'http://localhost:8000/api');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
