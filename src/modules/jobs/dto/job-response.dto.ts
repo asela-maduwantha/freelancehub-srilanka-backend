@@ -17,18 +17,14 @@ export class BudgetResponseDto {
 }
 
 export class DurationResponseDto {
-  @ApiProperty({
-    enum: [
-      'less-than-1-month',
-      '1-3-months',
-      '3-6-months',
-      'more-than-6-months',
-    ],
-  })
-  type: string;
+  @ApiProperty({ description: 'Duration value', minimum: 1 })
+  value: number;
 
-  @ApiPropertyOptional()
-  estimatedHours?: number;
+  @ApiProperty({
+    enum: ['days', 'weeks', 'months'],
+    description: 'Duration unit',
+  })
+  unit: string;
 }
 
 export class AttachmentResponseDto {

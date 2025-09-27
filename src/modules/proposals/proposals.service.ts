@@ -254,7 +254,7 @@ export class ProposalsService {
     const job = proposal.jobId as any;
     if (
       proposal.freelancerId._id.toString() !== userId &&
-      job.clientId?.toString() !== userId
+      job.clientId?._id?.toString() !== userId
     ) {
       throw new ForbiddenException(
         'You are not authorized to view this proposal',
@@ -395,7 +395,7 @@ export class ProposalsService {
       throw new NotFoundException('Proposal not found');
     }
     const job = proposal.jobId as any;
-    if (job.clientId?.toString() !== clientId) {
+    if (job.clientId?._id?.toString() !== clientId) {
       throw new ForbiddenException(
         'You are not authorized to accept this proposal',
       );
@@ -403,6 +403,12 @@ export class ProposalsService {
 
     proposal.status = ProposalStatus.ACCEPTED;
     await proposal.save();
+
+    // Update the job's selectedProposalId
+    await this.jobModel.findByIdAndUpdate(
+      job._id,
+      { selectedProposalId: id }
+    );
 
     const proposalResponse = this.mapToProposalResponseDto(proposal);
 
@@ -445,7 +451,7 @@ export class ProposalsService {
       throw new NotFoundException('Proposal not found');
     }
     const job = proposal.jobId as any;
-    if (job.clientId?.toString() !== clientId) {
+    if (job.clientId?._id?.toString() !== clientId) {
       throw new ForbiddenException(
         'You are not authorized to reject this proposal',
       );
@@ -496,7 +502,7 @@ export class ProposalsService {
     freelancerDto.title = freelancerProfile.title;
     freelancerDto.skills = freelancerProfile.skills;
 
-    return {
+    const result = {
       _id: proposal._id?.toString(),
       job: jobDto,
       freelancer: freelancerDto,
@@ -528,5 +534,9 @@ export class ProposalsService {
       createdAt: proposal.createdAt,
       updatedAt: proposal.updatedAt,
     };
+
+    // Use JSON.parse(JSON.stringify()) to remove any potential circular references
+    // from populated Mongoose documents that might cause class-transformer recursion
+    return JSON.parse(JSON.stringify(result));
   }
 }

@@ -232,12 +232,14 @@ export class JobsService {
     }
 
     if (updateJobDto.duration !== undefined) {
-      if (updateJobDto.duration.type !== undefined) {
+      if (updateJobDto.duration.value !== undefined && updateJobDto.duration.unit !== undefined) {
         updateData.duration = updateJobDto.duration;
       } else {
-        if (updateJobDto.duration.estimatedHours !== undefined) {
-          updateData['duration.estimatedHours'] =
-            updateJobDto.duration.estimatedHours;
+        if (updateJobDto.duration.value !== undefined) {
+          updateData['duration.value'] = updateJobDto.duration.value;
+        }
+        if (updateJobDto.duration.unit !== undefined) {
+          updateData['duration.unit'] = updateJobDto.duration.unit;
         }
       }
     }
@@ -855,14 +857,14 @@ export class JobsService {
     }
 
     let durationDto: DurationResponseDto | undefined;
-    if (job.duration) {
+    if (job.duration && job.duration.value && job.duration.unit) {
       durationDto = new DurationResponseDto();
-      durationDto.type = job.duration.type;
-      durationDto.estimatedHours = job.duration.estimatedHours;
+      durationDto.value = job.duration.value;
+      durationDto.unit = job.duration.unit;
     }
 
     let locationDto: JobLocationResponseDto | undefined;
-    if (job.location) {
+    if (job.location && job.location.type) {
       locationDto = new JobLocationResponseDto();
       locationDto.type = job.location.type;
       locationDto.countries = job.location.countries

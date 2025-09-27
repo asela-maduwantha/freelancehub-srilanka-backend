@@ -39,29 +39,19 @@ class BudgetDto {
 }
 
 class DurationDto {
-  @ApiPropertyOptional({
-    enum: [
-      'less-than-1-month',
-      '1-3-months',
-      '3-6-months',
-      'more-than-6-months',
-    ],
-    description: 'Project duration type',
-  })
-  @IsOptional()
-  @IsEnum([
-    'less-than-1-month',
-    '1-3-months',
-    '3-6-months',
-    'more-than-6-months',
-  ])
-  type?: string;
-
-  @ApiPropertyOptional({ description: 'Estimated hours', minimum: 1 })
+  @ApiPropertyOptional({ description: 'Duration value', minimum: 1 })
   @IsOptional()
   @IsNumber()
   @Min(1)
-  estimatedHours?: number;
+  value?: number;
+
+  @ApiPropertyOptional({
+    enum: ['days', 'weeks', 'months'],
+    description: 'Duration unit',
+  })
+  @IsOptional()
+  @IsEnum(['days', 'weeks', 'months'])
+  unit?: string;
 }
 
 class AttachmentDto {
