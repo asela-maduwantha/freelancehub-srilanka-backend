@@ -169,7 +169,7 @@ MilestoneSchema.set('toJSON', {
   transform: function(doc: any, ret: any) {
     delete ret._id;
     delete ret.__v;
-    ret.id = doc._id;
+    ret.id = doc._id.toString();
     return ret;
   }
 });
@@ -179,7 +179,7 @@ MilestoneSchema.set('toObject', {
   transform: function(doc: any, ret: any) {
     delete ret._id;
     delete ret.__v;
-    ret.id = doc._id;
+    ret.id = doc._id.toString();
     return ret;
   }
 });

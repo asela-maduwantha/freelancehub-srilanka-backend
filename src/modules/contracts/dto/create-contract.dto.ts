@@ -5,9 +5,42 @@ import {
   IsMongoId,
   IsNotEmpty,
   MinDate,
+  IsArray,
+  IsNumber,
+  Min,
+  ValidateNested,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+// Milestone DTO for contract creation
+export class CreateContractMilestoneDto {
+  @ApiProperty({ description: 'Milestone title' })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiProperty({ description: 'Milestone description' })
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+
+  @ApiProperty({ description: 'Milestone amount', minimum: 0 })
+  @IsNumber()
+  @Min(0)
+  amount: number;
+
+  @ApiPropertyOptional({ description: 'Currency code', default: 'USD' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @ApiPropertyOptional({ description: 'Duration in days for milestone completion' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  durationDays?: number;
+}
 
 // Create Contract DTO
 export class CreateContractDto {
@@ -40,4 +73,14 @@ export class CreateContractDto {
   @IsOptional()
   @IsString()
   terms?: string;
+
+  @ApiPropertyOptional({
+    description: 'Milestones for the contract',
+    type: [CreateContractMilestoneDto]
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateContractMilestoneDto)
+  milestones?: CreateContractMilestoneDto[];
 }

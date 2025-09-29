@@ -11,6 +11,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { JobStatus } from '../../common/enums/job-status.enum';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MilestoneStatus } from '../../common/enums/milestone-status.enum';
 
 
 @Injectable()
@@ -36,7 +37,7 @@ export class ContractsService {
     const sanitized = JSON.parse(JSON.stringify(contract));
     
     // List of ObjectId fields that need conversion
-    const objectIdFields = ['_id', 'id', 'jobId', 'clientId', 'freelancerId', 'proposalId'];
+    const objectIdFields = ['_id', 'id'];
     
     objectIdFields.forEach(field => {
       if (sanitized[field]) {
@@ -107,6 +108,31 @@ export class ContractsService {
       throw new BadRequestException('Contract duration cannot exceed 2 years');
     }
 
+    // Validate milestones if provided
+    if (contractData.milestones && contractData.milestones.length > 0) {
+      const totalMilestoneAmount = contractData.milestones.reduce((sum, milestone) => sum + milestone.amount, 0);
+
+      // Check if total milestone amount exceeds contract amount
+      if (totalMilestoneAmount > proposal.proposedRate.amount) {
+        throw new BadRequestException(
+          `Total milestone amount (${totalMilestoneAmount}) cannot exceed contract amount (${proposal.proposedRate.amount})`
+        );
+      }
+
+      // Validate individual milestones
+      for (const milestone of contractData.milestones) {
+        if (milestone.amount <= 0) {
+          throw new BadRequestException('Milestone amount must be greater than 0');
+        }
+        if (!milestone.title || milestone.title.trim().length === 0) {
+          throw new BadRequestException('Milestone title is required');
+        }
+        if (!milestone.description || milestone.description.trim().length === 0) {
+          throw new BadRequestException('Milestone description is required');
+        }
+      }
+    }
+
     const contract = new this.contractModel();
 
     contract.proposalId = proposal._id as Types.ObjectId;
@@ -130,6 +156,41 @@ export class ContractsService {
     contract.isFreelancerSigned = false;
 
     await contract.save();
+
+    // Create milestones if provided
+    let milestoneCount = 0;
+    if (contractData.milestones && contractData.milestones.length > 0) {
+      const milestones = contractData.milestones.map((milestoneData, index) => {
+        // Calculate due date based on contract start date and milestone duration
+        let dueDate: Date | undefined;
+        if (milestoneData.durationDays) {
+          dueDate = new Date(contractData.startDate);
+          dueDate.setDate(dueDate.getDate() + milestoneData.durationDays);
+        }
+
+        return {
+          contractId: contract._id,
+          title: milestoneData.title,
+          description: milestoneData.description,
+          amount: milestoneData.amount,
+          currency: milestoneData.currency || 'USD',
+          order: index + 1,
+          dueDate,
+          status: MilestoneStatus.PENDING,
+          isCompleted: false,
+          completedAt: null,
+          deliverables: [],
+        };
+      });
+
+      // Create all milestones
+      await this.milestoneModel.insertMany(milestones);
+      milestoneCount = milestones.length;
+
+      // Update contract milestone count
+      contract.milestoneCount = milestoneCount;
+      await contract.save();
+    }
 
     // Send notification to freelancer about contract creation
     try {
@@ -241,12 +302,12 @@ export class ContractsService {
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
     // Create cache key
-    const cacheKey = `contract:${contractId}`;
+    const cacheKey = `contract:v2:${contractId}`;
 
     // Try to get from cache first
     const cachedResult = await this.cacheManager.get<Contract>(cacheKey);
     if (cachedResult) {
-      return cachedResult;
+      return this.sanitizeContract(cachedResult);
     }
 
     const contract = await this.contractModel
@@ -260,16 +321,19 @@ export class ContractsService {
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
-    if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
+    if (contract.clientId._id.toString() !== userId && contract.freelancerId._id.toString() !== userId) {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
 
     const contractObject = contract.toObject();
 
-    // Cache for 10 minutes (contracts don't change frequently)
-    await this.cacheManager.set(cacheKey, contractObject, 600000);
+    // Sanitize to ensure ObjectIds are strings
+    const sanitizedContract = this.sanitizeContract(contractObject);
 
-    return contractObject;
+    // Cache for 10 minutes (contracts don't change frequently)
+    await this.cacheManager.set(cacheKey, sanitizedContract, 600000);
+
+    return sanitizedContract;
   }
 
   async getContractsForUser(userId: string, query: ContractQueryDto): Promise<PaginationResult<Contract>> {
@@ -277,7 +341,7 @@ export class ContractsService {
     const skip = (page - 1) * limit;
 
     // Create cache key from search parameters
-    const cacheKey = `contracts_user:${userId}:${JSON.stringify(query)}`;
+    const cacheKey = `contracts_user:v2:${userId}:${JSON.stringify(query)}`;
 
     // Try to get from cache first
     const cachedResult = await this.cacheManager.get<PaginationResult<Contract>>(cacheKey);

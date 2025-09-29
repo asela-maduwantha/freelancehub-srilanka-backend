@@ -146,16 +146,34 @@ ContractSchema.pre('save', function (next) {
 ContractSchema.pre(/^find/, function (next) {
   next();
 });
-
 ContractSchema.set('toJSON', { 
   virtuals: true,
   transform: function(doc, ret) {
-    // Convert ObjectId fields to strings
-    if (ret._id) (ret as any)._id = ret._id.toString();
-    if (ret.jobId) (ret as any).jobId = ret.jobId.toString();
-    if (ret.clientId) (ret as any).clientId = ret.clientId.toString();
-    if (ret.freelancerId) (ret as any).freelancerId = ret.freelancerId.toString();
-    if (ret.proposalId) (ret as any).proposalId = ret.proposalId.toString();
+    // Convert ObjectId fields to strings, but handle populated fields
+    if (ret._id) ret._id = ret._id.toString();
+    
+    // Handle populated or unpopulated fields
+    if (ret.jobId) {
+      (ret as any).jobId = typeof ret.jobId === 'object' && ret.jobId._id 
+        ? ret.jobId 
+        : ret.jobId.toString();
+    }
+    if (ret.clientId) {
+      (ret as any).clientId = typeof ret.clientId === 'object' && ret.clientId._id 
+        ? ret.clientId 
+        : ret.clientId.toString();
+    }
+    if (ret.freelancerId) {
+      (ret as any).freelancerId = typeof ret.freelancerId === 'object' && ret.freelancerId._id 
+        ? ret.freelancerId 
+        : ret.freelancerId.toString();
+    }
+    if (ret.proposalId) {
+      (ret as any).proposalId = typeof ret.proposalId === 'object' && ret.proposalId._id 
+        ? ret.proposalId 
+        : ret.proposalId.toString();
+    }
+    
     return ret;
   }
 });
@@ -163,13 +181,30 @@ ContractSchema.set('toJSON', {
 ContractSchema.set('toObject', { 
   virtuals: true,
   transform: function(doc, ret) {
-    // Convert ObjectId fields to strings
-    if (ret._id) (ret as any)._id = ret._id.toString();
-    if (ret.jobId) (ret as any).jobId = ret.jobId.toString();
-    if (ret.clientId) (ret as any).clientId = ret.clientId.toString();
-    if (ret.freelancerId) (ret as any).freelancerId = ret.freelancerId.toString();
-    if (ret.proposalId) (ret as any).proposalId = ret.proposalId.toString();
+    // Same logic for toObject
+    if (ret._id) ret._id = ret._id.toString();
+    
+    if (ret.jobId) {
+      (ret as any).jobId = typeof ret.jobId === 'object' && ret.jobId._id 
+        ? ret.jobId 
+        : ret.jobId.toString();
+    }
+    if (ret.clientId) {
+      (ret as any).clientId = typeof ret.clientId === 'object' && ret.clientId._id 
+        ? ret.clientId 
+        : ret.clientId.toString();
+    }
+    if (ret.freelancerId) {
+      (ret as any).freelancerId = typeof ret.freelancerId === 'object' && ret.freelancerId._id 
+        ? ret.freelancerId 
+        : ret.freelancerId.toString();
+    }
+    if (ret.proposalId) {
+      (ret as any).proposalId = typeof ret.proposalId === 'object' && ret.proposalId._id 
+        ? ret.proposalId 
+        : ret.proposalId.toString();
+    }
+    
     return ret;
   }
 });
-
