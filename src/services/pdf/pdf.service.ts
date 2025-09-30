@@ -28,9 +28,6 @@ export class PdfService {
       doc.text(`Description: ${contract.description}`);
       doc.text(`Contract Type: ${contract.contractType || 'N/A'}`);
       doc.text(`Total Amount: ${contract.totalAmount} ${contract.currency}`);
-      if (contract.hourlyRate) {
-        doc.text(`Hourly Rate: ${contract.hourlyRate} ${contract.currency}`);
-      }
     
       doc.text(`Start Date: ${contract.startDate.toDateString()}`);
       if (contract.endDate) {
@@ -90,7 +87,6 @@ export class PdfService {
         .text(`Description: ${contract.description}`)
         .text(`Contract Type: ${contract.contractType || 'N/A'}`)
         .text(`Total Amount: ${contract.totalAmount} ${contract.currency}`)
-        .text(`Hourly Rate: ${contract.hourlyRate || 0} ${contract.currency}`)
         .text(`Start Date: ${contract.startDate.toDateString()}`)
         .text(`End Date: ${contract.endDate ? contract.endDate.toDateString() : 'Not specified'}`)
         .text(`Status: ${contract.status}`)

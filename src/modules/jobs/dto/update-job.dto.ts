@@ -120,11 +120,11 @@ export class UpdateJobDto {
   subcategory?: string;
 
   @ApiPropertyOptional({
-    enum: ['fixed-price', 'hourly'],
+    enum: ['fixed-price'],
     description: 'Project type',
   })
   @IsOptional()
-  @IsEnum(['fixed-price', 'hourly'])
+  @IsEnum(['fixed-price'])
   projectType?: string;
 
   @ApiPropertyOptional({ description: 'Job budget', type: BudgetDto })

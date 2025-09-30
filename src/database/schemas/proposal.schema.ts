@@ -8,7 +8,7 @@ export class ProposedRate {
   @Prop({ required: true, min: 0 })
   amount: number;
 
-  @Prop({ required: true, enum: ['fixed', 'hourly'] })
+  @Prop({ required: true, enum: ['fixed'] })
   type: string;
 
   @Prop({ default: 'USD' })

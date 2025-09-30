@@ -18,8 +18,8 @@ class ProposedRateDto {
   @Min(0)
   amount: number;
 
-  @ApiProperty({ example: 'fixed', enum: ['fixed', 'hourly'] })
-  @IsEnum(['fixed', 'hourly'])
+  @ApiProperty({ example: 'fixed', enum: ['fixed'] })
+  @IsEnum(['fixed'])
   type: string;
 
   @ApiPropertyOptional({ example: 'USD', default: 'USD' })

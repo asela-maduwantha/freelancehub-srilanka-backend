@@ -40,7 +40,7 @@ export class ContractQueryDto {
   @ApiPropertyOptional({ description: 'Filter by contract type' })
   @IsOptional()
   @IsString()
-  @IsEnum(['fixed-price', 'hourly'])
+  @IsEnum(['fixed-price'])
   contractType?: string;
 
   @ApiPropertyOptional({ description: 'Filter by client ID' })

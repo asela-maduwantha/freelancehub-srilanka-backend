@@ -6,7 +6,7 @@ export class ProposedRateResponseDto {
   @ApiProperty()
   amount: number;
 
-  @ApiProperty({ enum: ['fixed', 'hourly'] })
+  @ApiProperty({ enum: ['fixed'] })
   type: string;
 
   @ApiProperty()
@@ -96,7 +96,7 @@ export class ProposalJobResponseDto {
   @ApiPropertyOptional()
   subcategory?: string;
 
-  @ApiProperty({ enum: ['fixed-price', 'hourly'] })
+  @ApiProperty({ enum: ['fixed-price'] })
   projectType: string;
 
   @ApiPropertyOptional()

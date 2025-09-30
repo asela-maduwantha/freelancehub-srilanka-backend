@@ -65,7 +65,7 @@ export class Job extends Document {
   @Prop()
   subcategory?: string;
 
-  @Prop({ required: true, enum: ['fixed-price', 'hourly'] })
+  @Prop({ required: true, enum: ['fixed-price'] })
   projectType: string;
 
   @Prop({ required: true, type: Budget })

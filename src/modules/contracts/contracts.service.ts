@@ -144,7 +144,6 @@ export class ContractsService {
     contract.contractType = job.projectType;
     contract.totalAmount = proposal.proposedRate.amount;
     contract.currency = proposal.proposedRate.currency;
-    contract.hourlyRate = proposal.proposedRate.type === 'hourly' ? proposal.proposedRate.amount : 0;
     contract.startDate = contractData.startDate;
     contract.endDate = contractData.endDate;
     contract.status = ContractStatus.ACTIVE;

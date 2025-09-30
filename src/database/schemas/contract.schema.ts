@@ -25,7 +25,7 @@ export class Contract extends Document {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true, enum: ['fixed-price', 'hourly'] })
+  @Prop({ required: true, enum: ['fixed-price'] })
   contractType: string;
 
   @Prop({ required: true, min: 0 })
@@ -33,9 +33,6 @@ export class Contract extends Document {
 
   @Prop({ default: 'USD' })
   currency: string;
-
-  @Prop({ min: 0 })
-  hourlyRate?: number;
 
   @Prop({ required: true })
   startDate: Date;
