@@ -30,6 +30,7 @@ import { FilesModule } from './modules/files/files.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { StripeModule } from './services/stripe/stripe.module';
 
 @Module({
   imports: [
@@ -59,6 +60,9 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 
     // Database module
     DatabaseModule,
+
+    // Global services
+    StripeModule,
 
     // Feature modules
     AuthModule,

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "FreelanceHub Contracts Module",
-    "description": "Postman collection for testing contract lifecycle and management endpoints in FreelanceHub backend",
+    "description": "Postman collection for testing contract lifecycle and management endpoints in FreelanceHub backend. Now includes upfront payment system where clients pay full contract amount at creation and funds are released proportionally upon milestone approval.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "freelancehub-backend"
   },
@@ -21,6 +21,11 @@
                   "    if (response.data && response.data._id) {",
                   "        pm.collectionVariables.set('contract_id', response.data._id);",
                   "        console.log('Contract created with ID:', response.data._id);",
+                  "    }",
+                  "    if (response.data && response.data.paymentIntent) {",
+                  "        pm.collectionVariables.set('payment_intent_id', response.data.paymentIntent.id);",
+                  "        pm.collectionVariables.set('payment_intent_client_secret', response.data.paymentIntent.client_secret);",
+                  "        console.log('Payment Intent created with ID:', response.data.paymentIntent.id);",
                   "    }",
                   "}"
                 ],
@@ -53,7 +58,7 @@
                 "contracts"
               ]
             },
-            "description": "Create a new contract from an accepted proposal (client only). Includes all optional fields like terms and conditions. Saves contract ID to collection variables."
+            "description": "Create a new contract from an accepted proposal (client only). Includes all optional fields like terms and conditions. Saves contract ID to collection variables. Now returns payment intent data for upfront payment collection."
           },
           "response": []
         },
@@ -84,7 +89,7 @@
                 "contracts"
               ]
             },
-            "description": "Create a contract with only required fields (client only)"
+            "description": "Create a contract with only required fields (client only). Now returns payment intent data for upfront payment collection."
           },
           "response": []
         }
@@ -294,6 +299,30 @@
               ]
             },
             "description": "Get detailed information about a specific contract"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Contract Balance & Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contracts/{{contract_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "contracts",
+                "{{contract_id}}"
+              ]
+            },
+            "description": "Check contract payment status including totalPaid, releasedAmount, and remainingAmount. Use this to verify upfront payment collection and milestone-based fund releases."
           },
           "response": []
         },
@@ -536,6 +565,16 @@
     },
     {
       "key": "contract_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_intent_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_intent_client_secret",
       "value": "",
       "type": "string"
     }

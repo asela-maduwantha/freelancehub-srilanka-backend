@@ -12,6 +12,7 @@ import { Cache } from 'cache-manager';
 import { JobStatus } from '../../common/enums/job-status.enum';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MilestoneStatus } from '../../common/enums/milestone-status.enum';
+import { StripeService } from '../../services/stripe/stripe.service';
 
 
 @Injectable()
@@ -26,6 +27,7 @@ export class ContractsService {
     private pdfService: PdfService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private notificationsService: NotificationsService,
+    private stripeService: StripeService,
   ) {}
 
   /**
@@ -80,8 +82,8 @@ export class ContractsService {
     }
 
     // Validate job status
-    if (job.status !== JobStatus.OPEN) {
-      throw new BadRequestException('Can only create contract for open jobs');
+    if (job.status !== JobStatus.IN_PROGRESS) {
+      throw new BadRequestException('Can only create contract for in-progress jobs');
     }
 
     if (job.clientId.toString() !== clientId) {
@@ -149,12 +151,37 @@ export class ContractsService {
     contract.status = ContractStatus.ACTIVE;
     contract.platformFeePercentage = 10;
     contract.totalPaid = 0;
+    contract.releasedAmount = 0;
     contract.milestoneCount = 0;
     contract.terms = contractData.terms || '';
     contract.isClientSigned = true;
     contract.isFreelancerSigned = false;
 
+    // Save contract first to get _id for payment intent metadata
     await contract.save();
+
+    // Create payment intent for upfront payment
+    try {
+      const paymentIntent = await this.stripeService.createPaymentIntent(
+        contract.totalAmount,
+        contract.currency,
+        {
+          contractId: (contract._id as Types.ObjectId).toString(),
+          type: 'contract_upfront',
+          clientId: contract.clientId.toString(),
+          freelancerId: contract.freelancerId.toString(),
+        }
+      );
+
+      contract.stripePaymentIntentId = paymentIntent.id;
+      await contract.save(); // Save again with payment intent ID
+
+      this.logger.log(`Payment intent created for contract: ${paymentIntent.id}`, 'ContractsService');
+    } catch (stripeError) {
+      this.logger.error(`Failed to create payment intent: ${stripeError.message}`, stripeError.stack, 'ContractsService');
+      // Don't fail contract creation if payment intent fails - can be created later
+      // But log the error for monitoring
+    }
 
     // Create milestones if provided
     let milestoneCount = 0;
@@ -221,7 +248,21 @@ export class ContractsService {
       throw new NotFoundException('Contract not found after creation');
     }
 
-    return populatedContract.toObject();
+    // Get payment intent details if it was created
+    let paymentIntentData: any = null;
+    if (populatedContract.stripePaymentIntentId) {
+      try {
+        paymentIntentData = await this.stripeService.retrievePaymentIntent(populatedContract.stripePaymentIntentId);
+      } catch (error) {
+        this.logger.warn(`Could not retrieve payment intent details: ${error.message}`, 'ContractsService');
+      }
+    }
+
+    const contractObject = populatedContract.toObject() as any;
+    
+    // Add payment information to response
+    contractObject.paymentIntent = paymentIntentData;
+    return contractObject;
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
     throw error;

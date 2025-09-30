@@ -170,6 +170,8 @@ MilestoneSchema.set('toJSON', {
     delete ret._id;
     delete ret.__v;
     ret.id = doc._id.toString();
+    // Don't transform paymentId to avoid circular references
+    // It will remain as ObjectId which is fine for API responses
     return ret;
   }
 });
@@ -180,6 +182,8 @@ MilestoneSchema.set('toObject', {
     delete ret._id;
     delete ret.__v;
     ret.id = doc._id.toString();
+    // Don't transform paymentId to avoid circular references
+    // It will remain as ObjectId which is fine for API responses
     return ret;
   }
 });

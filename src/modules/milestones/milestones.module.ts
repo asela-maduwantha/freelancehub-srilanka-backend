@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import {
@@ -12,6 +12,7 @@ import { AuthModule } from '../auth/auth.module';
 import { MilestonesController } from './milestones.controller';
 import { MilestoneService } from './milestones.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ]),
     AuthModule,
     NotificationsModule,
+    forwardRef(() => PaymentsModule),
   ],
   controllers: [MilestonesController],
   providers: [MilestoneService],

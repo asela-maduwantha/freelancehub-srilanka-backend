@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PaymentsController } from './payments.controller';
 import { PaymentService } from './payments.service';
@@ -11,6 +11,7 @@ import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.sch
 import { AuthModule } from '../auth/auth.module';
 import { StripeService } from '../../services/stripe/stripe.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MilestonesModule } from '../milestones/milestones.module';
 
 @Module({
   imports: [
@@ -23,9 +24,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ]),
     AuthModule,
     NotificationsModule,
+    forwardRef(() => MilestonesModule),
   ],
   controllers: [PaymentsController],
   providers: [PaymentService, TransactionLogService, StripeService],
-  exports: [PaymentService, TransactionLogService],
+  exports: [PaymentService, TransactionLogService, StripeService],
 })
 export class PaymentsModule {}

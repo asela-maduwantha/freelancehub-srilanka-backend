@@ -50,6 +50,12 @@ export class Contract extends Document {
   @Prop({ default: 0, min: 0 })
   totalPaid: number;
 
+  @Prop({ default: 0, min: 0 })
+  releasedAmount: number;
+
+  @Prop()
+  stripePaymentIntentId?: string;
+
   @Prop({ default: 10, min: 0, max: 20 })
   platformFeePercentage: number;
 
@@ -96,7 +102,7 @@ ContractSchema.index({ status: 1, createdAt: -1 });
 
 
 ContractSchema.virtual('remainingAmount').get(function () {
-  return Math.max(0, this.totalAmount - this.totalPaid);
+  return Math.max(0, this.totalAmount - this.releasedAmount);
 });
 
 ContractSchema.virtual('completionPercentage').get(function () {

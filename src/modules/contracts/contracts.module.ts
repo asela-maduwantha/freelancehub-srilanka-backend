@@ -11,6 +11,8 @@ import { Job, JobSchema } from '../../database/schemas/job.schema';
 import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
 import { PdfModule } from '../../services/pdf/pdf.module';
 import { LoggerModule } from '../../services/logger/logger.module';
+import { StripeModule } from '../../services/stripe/stripe.module';
+import { StripeService } from '../../services/stripe/stripe.service';
 import { AuthModule } from '../auth/auth.module';
 import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
@@ -29,9 +31,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AuthModule,
     PdfModule,
     NotificationsModule,
+    StripeModule,
   ],
   controllers: [ContractsController],
-  providers: [ContractsService],
+  providers: [ContractsService, StripeService],
   exports: [ContractsService],
 })
 export class ContractsModule {}

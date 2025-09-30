@@ -12,6 +12,7 @@ import { Contract, ContractSchema } from '../../database/schemas/contract.schema
 import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
 import { AuthModule } from '../auth/auth.module';
 import { ContractsService } from '../contracts/contracts.service';
+import { ContractsModule } from '../contracts/contracts.module';
 import { LoggerService } from '../../services/logger/logger.service';
 import { PdfService } from '../../services/pdf/pdf.service';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -24,6 +25,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     // Notifications module for real-time notifications
     NotificationsModule,
 
+    // Contracts module for contract operations
+    ContractsModule,
+
     // Mongoose models
     MongooseModule.forFeature([
       { name: Proposal.name, schema: ProposalSchema },
@@ -34,7 +38,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ]),
   ],
   controllers: [ProposalsController],
-  providers: [ProposalsService, ContractsService, LoggerService, PdfService],
+  providers: [ProposalsService, LoggerService, PdfService],
   exports: [ProposalsService],
 })
 export class ProposalsModule {}

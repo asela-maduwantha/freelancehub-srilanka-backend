@@ -332,44 +332,6 @@ export class MilestonesController {
     return this.milestoneService.markInProgress(id, userId);
   }
 
-  @Put(':id/payment')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Mark milestone as paid with payment reference' })
-  @ApiParam({ name: 'id', description: 'Milestone ID' })
-  @ApiBody({
-    description: 'Payment information',
-    schema: {
-      type: 'object',
-      properties: {
-        paymentId: {
-          type: 'string',
-          description: 'Payment reference ID',
-        },
-      },
-      required: ['paymentId'],
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Milestone marked as paid successfully',
-    type: Milestone,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Only approved milestones can be marked as paid or payment must be completed',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Milestone or payment not found',
-  })
-  async processPayment(
-    @Param('id') id: string,
-    @Body('paymentId') paymentId: string,
-    @CurrentUser('id') userId: string,
-  ): Promise<Milestone> {
-    return this.milestoneService.processPayment(id, paymentId, userId);
-  }
-
   @Put('contract/:contractId/reorder')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reorder milestones within a contract (client only)' })

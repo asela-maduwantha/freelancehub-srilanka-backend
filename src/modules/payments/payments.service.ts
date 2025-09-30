@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Payment } from '../../database/schemas/payment.schema';
@@ -10,6 +10,7 @@ import { PaymentStatus } from '../../common/enums/payment-status.enum';
 import { TransactionLogService } from './transaction-log.service';
 import { StripeService } from '../../services/stripe/stripe.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MilestoneService } from '../milestones/milestones.service';
 
 @Injectable()
 export class PaymentService {
@@ -22,6 +23,8 @@ export class PaymentService {
     private transactionLogService: TransactionLogService,
     private stripeService: StripeService,
     private notificationsService: NotificationsService,
+    @Inject(forwardRef(() => MilestoneService))
+    private milestoneService: MilestoneService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
@@ -577,6 +580,9 @@ export class PaymentService {
         paymentIntent.transfer_data?.destination,
         paymentIntent.charges.data[0]?.fee_details?.[0]?.amount || 0
       );
+
+      // Note: Milestone payment processing is now handled through upfront contract payments
+      // Individual milestone payments are no longer created
     }
   }
 

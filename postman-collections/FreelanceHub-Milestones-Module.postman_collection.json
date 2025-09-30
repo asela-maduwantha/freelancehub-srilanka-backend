@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "FreelanceHub Milestones Module",
-    "description": "Postman collection for testing milestone lifecycle and management endpoints in FreelanceHub backend",
+    "description": "Postman collection for testing milestone lifecycle and management endpoints in FreelanceHub backend. Now uses upfront payment system where milestone approval automatically releases funds proportionally from contract balance.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "freelancehub-backend"
   },
@@ -261,7 +261,7 @@
                 "approve"
               ]
             },
-            "description": "Approve submitted milestone (client only). Only submitted milestones can be approved."
+            "description": "Approve submitted milestone and automatically release funds proportionally from contract balance (client only). Only submitted milestones can be approved."
           },
           "response": []
         },
@@ -295,39 +295,6 @@
               ]
             },
             "description": "Reject submitted milestone with feedback (client only). Feedback is required for rejection."
-          },
-          "response": []
-        },
-        {
-          "name": "Process Milestone Payment",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"paymentId\": \"{{payment_id}}\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/milestones/{{milestone_id}}/payment",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "milestones",
-                "{{milestone_id}}",
-                "payment"
-              ]
-            },
-            "description": "Mark milestone as paid with payment reference. Only approved milestones can be marked as paid."
           },
           "response": []
         }
@@ -557,6 +524,35 @@
       ]
     },
     {
+      "name": "Upfront Payment Flow Examples",
+      "item": [
+        {
+          "name": "Complete Payment Flow: Create → Submit → Approve → Funds Released",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/milestones/{{milestone_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestone_id}}"
+              ]
+            },
+            "description": "Example of the complete upfront payment flow: 1) Contract created with upfront payment, 2) Milestone submitted by freelancer, 3) Milestone approved by client, 4) Funds automatically released proportionally from contract balance. Check milestone status and contract balance to verify fund releases."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Milestone Organization",
       "item": [
         {
@@ -748,11 +744,6 @@
     },
     {
       "key": "milestone_id_3",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "payment_id",
       "value": "",
       "type": "string"
     }

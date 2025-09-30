@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Milestone, Contract, Payment } from 'src/database/schemas';
+import { Milestone, Contract } from 'src/database/schemas';
 import { MilestoneStatus, ContractStatus, PaymentStatus } from 'src/common/enums';
 import {
   CreateMilestoneDto,
@@ -12,15 +12,17 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TransactionLogService } from '../payments/transaction-log.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class MilestoneService {
   constructor(
     @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
-    @InjectModel(Payment.name) private paymentModel: Model<Payment>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private notificationsService: NotificationsService,
+    private transactionLogService: TransactionLogService,
   ) {}
 
   async create(createMilestoneDto: CreateMilestoneDto, userId: string): Promise<Milestone> {
@@ -329,6 +331,65 @@ export class MilestoneService {
     await this.invalidateMilestoneCache(id);
     await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
+    // Check if contract has been paid upfront
+    if (contract!.totalPaid === 0) {
+      throw new BadRequestException('Contract payment has not been completed yet');
+    }
+
+    // Check if there's enough remaining balance to release this milestone
+    const remainingBalance = contract!.totalAmount - contract!.releasedAmount;
+    if (remainingBalance < milestone.amount) {
+      throw new BadRequestException('Insufficient contract balance to release this milestone amount');
+    }
+
+    // Update contract released amount
+    await this.contractModel.findByIdAndUpdate(
+      milestone.contractId,
+      { $inc: { releasedAmount: milestone.amount } }
+    );
+
+    // Create transaction log for the release
+    try {
+      await this.transactionLogService.create({
+        transactionId: uuidv4(),
+        type: 'payment', // Use payment type for milestone releases
+        fromUserId: contract!.clientId, // From client
+        toUserId: contract!.freelancerId, // To freelancer
+        amount: milestone.amount,
+        currency: milestone.currency,
+        fee: milestone.amount * (contract!.platformFeePercentage / 100), // Platform fee
+        netAmount: milestone.amount * (1 - contract!.platformFeePercentage / 100), // Amount after fee
+        relatedId: milestone._id as Types.ObjectId,
+        relatedType: 'milestone',
+        description: `Milestone payment released: ${milestone.title}`,
+        metadata: {
+          contractId: (contract!._id as Types.ObjectId).toString(),
+          milestoneId: (milestone._id as Types.ObjectId).toString(),
+          freelancerId: contract!.freelancerId.toString(),
+          clientId: contract!.clientId.toString(),
+        },
+      });
+    } catch (logError) {
+      console.error('Failed to create transaction log:', logError);
+      // Don't fail milestone approval if logging fails
+    }
+
+    // Send notification about payment release
+    try {
+      await this.notificationsService.notifyPaymentSent(
+        (milestone._id as Types.ObjectId).toString(), // Use milestone ID as payment reference
+        milestone.amount,
+        contract!.freelancerId.toString()
+      );
+    } catch (notificationError) {
+      console.error('Failed to send payment release notification:', notificationError);
+      // Don't fail milestone approval if notification fails
+    }
+
+    // Invalidate cache and return updated milestone
+    await this.invalidateMilestoneCache(id);
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
+
     return updatedMilestone!.toJSON();
   }
 
@@ -388,49 +449,6 @@ export class MilestoneService {
         { status: MilestoneStatus.IN_PROGRESS },
         { new: true, runValidators: true }
       );
-
-    // Invalidate cache for this milestone and contract
-    await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
-
-    return updatedMilestone!.toJSON();
-  }
-
-  async processPayment(id: string, paymentId: string, userId: string): Promise<Milestone> {
-    const milestone = await this.findById(id, userId);
-    const contract = await this.contractModel.findById(milestone.contractId);
-
-    // Verify the payment exists and is completed
-    const payment = await this.paymentModel.findById(paymentId);
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
-
-    if (payment.status !== PaymentStatus.COMPLETED) {
-      throw new BadRequestException('Payment must be completed to update milestone');
-    }
-
-    // Only approved milestones can be marked as paid
-    if (milestone.status !== MilestoneStatus.APPROVED) {
-      throw new BadRequestException('Only approved milestones can be marked as paid');
-    }
-
-    const updatedMilestone = await this.milestoneModel
-      .findByIdAndUpdate(
-        id,
-        {
-          status: MilestoneStatus.PAID,
-          paymentId: new Types.ObjectId(paymentId),
-          paidAt: new Date(),
-        },
-        { new: true, runValidators: true }
-      );
-
-    // Update contract total paid amount
-    await this.contractModel.findByIdAndUpdate(
-      milestone.contractId,
-      { $inc: { totalPaid: milestone.amount } }
-    );
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
