@@ -228,7 +228,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -278,7 +278,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -327,7 +327,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -363,7 +363,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -391,7 +391,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -434,7 +434,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
 
     return updatedMilestone!.toJSON();
   }
@@ -565,7 +565,7 @@ export class MilestoneService {
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);
-    await this.invalidateContractMilestoneCache(milestone.contractId.toString());
+    await this.invalidateContractMilestoneCache(milestone.contractId._id.toString());
   }
 
   async reorderMilestones(contractId: string, milestoneOrders: { id: string; order: number }[], userId: string): Promise<void> {

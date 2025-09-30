@@ -25,6 +25,7 @@ import {
 } from './dto/proposal-response.dto';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
 import { ContractStatus } from '../../common/enums/contract-status.enum';
+import { JobStatus } from '../../common/enums/job-status.enum';
 import { ContractsService } from '../contracts/contracts.service';
 import { LoggerService } from '../../services/logger/logger.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -401,13 +402,31 @@ export class ProposalsService {
       );
     }
 
+    // Check if job is in a valid state for accepting proposals
+    if (job.status !== JobStatus.OPEN) {
+      throw new BadRequestException('Can only accept proposals for open jobs');
+    }
+
     proposal.status = ProposalStatus.ACCEPTED;
     await proposal.save();
 
-    // Update the job's selectedProposalId
+    // Reject all other proposals for this job
+    await this.proposalModel.updateMany(
+      {
+        jobId: job._id,
+        _id: { $ne: id },
+        status: ProposalStatus.PENDING
+      },
+      { status: ProposalStatus.REJECTED }
+    );
+
+    // Update the job's selectedProposalId and status
     await this.jobModel.findByIdAndUpdate(
       job._id,
-      { selectedProposalId: id }
+      { 
+        selectedProposalId: id,
+        status: JobStatus.IN_PROGRESS
+      }
     );
 
     const proposalResponse = this.mapToProposalResponseDto(proposal);
@@ -427,6 +446,17 @@ export class ProposalsService {
 
     // Clear cache after accepting proposal
     await this.cacheManager.del(`proposal_${id}`);
+    
+    // Clear cache for other proposals that were rejected
+    const otherProposals = await this.proposalModel.find({
+      jobId: job._id,
+      _id: { $ne: id },
+      status: ProposalStatus.REJECTED
+    }, '_id');
+    
+    for (const otherProposal of otherProposals) {
+      await this.cacheManager.del(`proposal_${otherProposal._id}`);
+    }
 
     return proposalResponse;
   }
