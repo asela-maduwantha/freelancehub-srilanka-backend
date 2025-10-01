@@ -874,6 +874,10 @@ export class PaymentService {
           await this.handlePaymentIntentFailed(data.object);
           break;
 
+        case 'charge.succeeded':
+          await this.handleChargeSucceeded(data.object);
+          break;
+
         case 'charge.dispute.created':
           await this.handleChargeDispute(data.object);
           break;
@@ -886,6 +890,27 @@ export class PaymentService {
     } catch (error) {
       this.logger.error(`Webhook processing failed: ${error.message}`, error.stack);
       throw new BadRequestException('Invalid webhook signature or processing failed');
+    }
+  }
+
+  private async handleChargeSucceeded(charge: any): Promise<void> {
+    const payment = await this.paymentModel.findOne({
+      stripePaymentIntentId: charge.payment_intent
+    });
+
+    if (!payment) {
+      this.logger.warn(`Payment not found for charge: ${charge.id} with PaymentIntent: ${charge.payment_intent}`);
+      return;
+    }
+
+    if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+      await this.completePayment(
+        (payment._id as any).toString(),
+        charge.payment_intent,
+        charge.id,
+        undefined, // transfer_data not available in charge
+        charge.fee_details?.[0]?.amount || 0
+      );
     }
   }
 
