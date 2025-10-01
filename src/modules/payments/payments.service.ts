@@ -466,8 +466,8 @@ export class PaymentService {
   ): Promise<Payment> {
     const payment = await this.findById(id);
 
-    if (payment.status !== PaymentStatus.PROCESSING) {
-      throw new BadRequestException('Payment is not in processing status');
+    if (payment.status !== PaymentStatus.PROCESSING && payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Payment is not in pending or processing status');
     }
 
     const updatedPayment = await this.updateById(id, {
@@ -925,12 +925,17 @@ export class PaymentService {
     }
 
     if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+      // Extract charge details safely - charges might not be expanded in payment_intent events
+      const chargeId = paymentIntent.charges?.data?.[0]?.id || paymentIntent.latest_charge;
+      const stripeFee = paymentIntent.charges?.data?.[0]?.fee_details?.[0]?.amount || 0;
+      const transferDestination = paymentIntent.transfer_data?.destination;
+
       await this.completePayment(
         (payment._id as any).toString(),
         paymentIntent.id,
-        paymentIntent.charges.data[0]?.id,
-        paymentIntent.transfer_data?.destination,
-        paymentIntent.charges.data[0]?.fee_details?.[0]?.amount || 0
+        chargeId,
+        transferDestination,
+        stripeFee
       );
 
       // Note: Milestone payment processing is now handled through upfront contract payments
