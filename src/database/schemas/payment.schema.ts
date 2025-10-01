@@ -149,10 +149,6 @@ PaymentSchema.virtual('totalFees').get(function () {
   return this.platformFee + this.stripeFee;
 });
 
-PaymentSchema.virtual('platformFeePercentage').get(function () {
-  return this.amount > 0 ? (this.platformFee / this.amount) * 100 : 0;
-});
-
 // Pre-save middleware
 PaymentSchema.pre('save', function (next) {
   // Set timestamps based on status changes
