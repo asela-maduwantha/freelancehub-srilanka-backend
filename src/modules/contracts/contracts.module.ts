@@ -17,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaymentMethodsModule } from '../payment-methods/payment-methods.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PdfModule,
     NotificationsModule,
     StripeModule,
+    PaymentMethodsModule,
   ],
   controllers: [ContractsController],
   providers: [ContractsService, StripeService],

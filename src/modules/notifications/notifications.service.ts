@@ -266,4 +266,26 @@ export class NotificationsService {
       relatedType: "review",
     });
   }
+
+  async notifyWithdrawalRequested(withdrawalId: string, amount: number, userId: string): Promise<Notification> {
+    return this.create({
+      userId,
+      type: NotificationType.WITHDRAWAL_REQUESTED,
+      title: "Withdrawal Requested",
+      message: `Your withdrawal request for $${amount.toFixed(2)} has been submitted and is being processed.`,
+      relatedId: withdrawalId,
+      relatedType: "withdrawal",
+    });
+  }
+
+  async notifyWithdrawalCompleted(withdrawalId: string, amount: number, userId: string): Promise<Notification> {
+    return this.create({
+      userId,
+      type: NotificationType.WITHDRAWAL_COMPLETED,
+      title: "Withdrawal Completed",
+      message: `Your withdrawal of $${amount.toFixed(2)} has been successfully processed.`,
+      relatedId: withdrawalId,
+      relatedType: "withdrawal",
+    });
+  }
 }

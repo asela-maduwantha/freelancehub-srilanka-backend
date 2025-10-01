@@ -83,4 +83,13 @@ export class CreateContractDto {
   @ValidateNested({ each: true })
   @Type(() => CreateContractMilestoneDto)
   milestones?: CreateContractMilestoneDto[];
+
+  @ApiPropertyOptional({ description: 'Saved payment method ID to use for this contract' })
+  @IsOptional()
+  @IsMongoId()
+  paymentMethodId?: string;
+
+  @ApiPropertyOptional({ description: 'Whether to save the payment method for future use', default: false })
+  @IsOptional()
+  savePaymentMethod?: boolean;
 }

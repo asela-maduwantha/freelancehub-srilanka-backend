@@ -422,6 +422,28 @@ export class TransactionLogService {
       .exec();
   }
 
+  async updateByRelatedEntity(
+    relatedId: string,
+    relatedType: 'contract' | 'milestone' | 'withdrawal' | 'dispute',
+    updateTransactionLogDto: UpdateTransactionLogDto
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(relatedId)) {
+      throw new BadRequestException('Invalid related entity ID');
+    }
+
+    await this.transactionLogModel.updateMany(
+      {
+        relatedId: new Types.ObjectId(relatedId),
+        relatedType,
+        deletedAt: null,
+      },
+      {
+        ...updateTransactionLogDto,
+        updatedAt: new Date(),
+      }
+    ).exec();
+  }
+
   async getTotalAmountByType(
     type: string,
     dateRange?: { start: Date; end: Date }
@@ -777,6 +799,9 @@ export class TransactionLogService {
     totalIncoming: number;
     totalOutgoing: number;
     balance: number;
+    pendingIncoming: number;
+    pendingOutgoing: number;
+    availableBalance: number;
   }> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid user ID');
@@ -784,7 +809,8 @@ export class TransactionLogService {
 
     const userObjectId = new Types.ObjectId(userId);
 
-    const [incomingResult, outgoingResult] = await Promise.all([
+    const [incomingResult, outgoingResult, pendingIncomingResult, pendingOutgoingResult] = await Promise.all([
+      // Completed incoming transactions
       this.transactionLogModel.aggregate([
         {
           $match: {
@@ -800,6 +826,7 @@ export class TransactionLogService {
           },
         },
       ]),
+      // Completed outgoing transactions
       this.transactionLogModel.aggregate([
         {
           $match: {
@@ -815,16 +842,56 @@ export class TransactionLogService {
           },
         },
       ]),
+      // Pending incoming transactions
+      this.transactionLogModel.aggregate([
+        {
+          $match: {
+            toUserId: userObjectId,
+            status: 'pending',
+            deletedAt: null,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$netAmount' },
+          },
+        },
+      ]),
+      // Pending outgoing transactions (withdrawals, etc.)
+      this.transactionLogModel.aggregate([
+        {
+          $match: {
+            fromUserId: userObjectId,
+            status: 'pending',
+            type: { $in: ['withdrawal', 'payment'] },
+            deletedAt: null,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' },
+          },
+        },
+      ]),
     ]);
 
     const totalIncoming = incomingResult.length > 0 ? incomingResult[0].total : 0;
     const totalOutgoing = outgoingResult.length > 0 ? outgoingResult[0].total : 0;
-    const balance = totalIncoming - totalOutgoing;
+    const pendingIncoming = pendingIncomingResult.length > 0 ? pendingIncomingResult[0].total : 0;
+    const pendingOutgoing = pendingOutgoingResult.length > 0 ? pendingOutgoingResult[0].total : 0;
+
+    const totalBalance = totalIncoming - totalOutgoing;
+    const availableBalance = totalBalance - pendingOutgoing; // Available balance excludes pending outgoing
 
     return {
       totalIncoming,
       totalOutgoing,
-      balance,
+      balance: totalBalance,
+      pendingIncoming,
+      pendingOutgoing,
+      availableBalance,
     };
   }
 }

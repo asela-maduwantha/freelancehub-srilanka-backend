@@ -1,10 +1,14 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Payment } from '../../database/schemas/payment.schema';
 import { Contract } from '../../database/schemas/contract.schema';
 import { Milestone } from '../../database/schemas/milestone.schema';
+import { User } from '../../database/schemas/user.schema';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { StripeWebhookDto } from './dto/stripe-webhook.dto';
+import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { PaymentFilters } from '../../common/filters/payment.filters';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 import { TransactionLogService } from './transaction-log.service';
@@ -20,9 +24,11 @@ export class PaymentService {
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
     @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
+    @InjectModel(User.name) private userModel: Model<User>,
     private transactionLogService: TransactionLogService,
     private stripeService: StripeService,
     private notificationsService: NotificationsService,
+    private configService: ConfigService,
     @Inject(forwardRef(() => MilestoneService))
     private milestoneService: MilestoneService,
   ) {}
@@ -144,6 +150,169 @@ export class PaymentService {
     } catch (error) {
       this.logger.error(`Failed to create payment: ${error.message}`, error.stack);
       throw new BadRequestException('Failed to create payment');
+    }
+  }
+
+  /**
+   * Get or create Stripe customer for a user
+   * This ensures every user has a Stripe customer ID for payment processing
+   */
+  private async getOrCreateStripeCustomer(userId: string): Promise<string> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // If user already has a Stripe customer ID, return it
+      if (user.stripeCustomerId) {
+        this.logger.debug(`Using existing Stripe customer: ${user.stripeCustomerId} for user ${userId}`);
+        return user.stripeCustomerId;
+      }
+
+      // Create new Stripe customer
+      const customer = await this.stripeService.createCustomer(
+        user.email,
+        user.profile?.firstName && user.profile?.lastName 
+          ? `${user.profile.firstName} ${user.profile.lastName}` 
+          : user.email,
+        {
+          userId: userId,
+          role: user.role,
+        }
+      );
+
+      // Save customer ID to user record
+      user.stripeCustomerId = customer.id;
+      await user.save();
+
+      this.logger.log(`Created Stripe customer ${customer.id} for user ${userId}`);
+      return customer.id;
+    } catch (error) {
+      this.logger.error(`Failed to get or create Stripe customer for user ${userId}: ${error.message}`, error.stack);
+      throw new BadRequestException('Failed to initialize payment customer');
+    }
+  }
+
+  async createPaymentIntent(createIntentDto: CreatePaymentIntentDto, userId: string) {
+    try {
+      this.logger.log(`Creating payment intent for user ${userId}: ${JSON.stringify(createIntentDto)}`);
+
+      // Validate contract if contractId is provided
+      let contract: any = null;
+      if (!createIntentDto.contractId) {
+        throw new BadRequestException('Contract ID is required for payment intent creation');
+      }
+
+      contract = await this.contractModel.findById(createIntentDto.contractId);
+      if (!contract) {
+        throw new BadRequestException('Contract not found');
+      }
+
+      // Check if user is authorized (client should be the payer)
+      if (contract.clientId.toString() !== userId) {
+        throw new ForbiddenException('Only the contract client can create payment intents for this contract');
+      }
+
+      // Validate amount is positive
+      if (createIntentDto.amount <= 0) {
+        throw new BadRequestException('Payment amount must be positive');
+      }
+
+      // Get or create Stripe customer for the user
+      const stripeCustomerId = await this.getOrCreateStripeCustomer(userId);
+
+      // Calculate platform fee (use contract's fee or default to 10%)
+      const platformFeePercentage = contract.platformFeePercentage || 10;
+      const platformFee = (createIntentDto.amount * platformFeePercentage) / 100;
+      const freelancerAmount = createIntentDto.amount - platformFee;
+
+      // Create metadata for the payment intent
+      const metadata: { [key: string]: string } = {
+        userId,
+        type: 'contract_payment',
+        contractId: contract._id.toString(),
+        freelancerId: contract.freelancerId.toString(),
+        platformFeePercentage: platformFeePercentage.toString(),
+        stripeCustomerId,
+        ...createIntentDto.metadata,
+      };
+
+      // Create the payment intent with optional payment method
+      const paymentIntent = await this.stripeService.createPaymentIntent(
+        createIntentDto.amount,
+        createIntentDto.currency || 'USD',
+        metadata,
+        createIntentDto.paymentMethodId
+      );
+
+      this.logger.log(`Payment intent created: ${paymentIntent.id}`);
+
+      // Create Payment record in database for webhook to update later
+      const payment = new this.paymentModel({
+        contractId: contract._id,
+        milestoneId: null, // Contract-level payment, not milestone-specific
+        payerId: new Types.ObjectId(userId),
+        payeeId: contract.freelancerId,
+        amount: createIntentDto.amount,
+        currency: (createIntentDto.currency || 'USD').toUpperCase(),
+        paymentType: 'milestone', // Contract payment type
+        stripePaymentIntentId: paymentIntent.id,
+        platformFee,
+        platformFeePercentage,
+        stripeFee: 0, // Will be updated by webhook
+        freelancerAmount,
+        status: PaymentStatus.PENDING,
+        description: createIntentDto.description || `Payment for contract ${contract.title || contract._id}`,
+        metadata: {
+          paymentMethodId: createIntentDto.paymentMethodId,
+          ...createIntentDto.metadata,
+        },
+      });
+
+      const savedPayment = await payment.save();
+      this.logger.log(`Payment record created: ${savedPayment._id} for PaymentIntent: ${paymentIntent.id}`);
+
+      // Log the transaction
+      try {
+        await this.transactionLogService.create({
+          type: 'payment',
+          fromUserId: new Types.ObjectId(userId),
+          toUserId: contract.freelancerId,
+          amount: createIntentDto.amount,
+          currency: (createIntentDto.currency || 'USD').toUpperCase(),
+          fee: platformFee,
+          netAmount: freelancerAmount,
+          relatedId: contract._id,
+          relatedType: 'contract',
+          stripeId: paymentIntent.id,
+          description: `Payment intent created for contract ${contract.title || contract._id}`,
+          metadata: {
+            paymentId: savedPayment._id,
+            paymentType: 'milestone',
+            platformFeePercentage,
+          },
+        });
+      } catch (logError) {
+        this.logger.error(`Failed to log transaction for payment ${savedPayment._id}: ${logError.message}`, logError.stack);
+        // Don't fail the payment creation if logging fails
+      }
+
+      return {
+        id: paymentIntent.id,
+        clientSecret: paymentIntent.clientSecret,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        metadata: paymentIntent.metadata,
+        paymentId: (savedPayment._id as Types.ObjectId).toString(), // Include payment record ID for reference
+      };
+    } catch (error) {
+      this.logger.error(`Failed to create payment intent: ${error.message}`, error.stack);
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to create payment intent');
     }
   }
 
@@ -289,7 +458,7 @@ export class PaymentService {
   }
 
   async completePayment(
-    id: string, 
+    id: string,
     stripePaymentIntentId: string,
     stripeChargeId?: string,
     stripeTransferId?: string,
@@ -301,16 +470,77 @@ export class PaymentService {
       throw new BadRequestException('Payment is not in processing status');
     }
 
-    return this.updateById(id, {
+    const updatedPayment = await this.updateById(id, {
       status: PaymentStatus.COMPLETED,
       stripePaymentIntentId,
       stripeChargeId,
       stripeTransferId,
       stripeFee,
     });
-  }
 
-  async failPayment(id: string, errorMessage: string): Promise<Payment> {
+    // Log the completed payment transaction
+    try {
+      await this.transactionLogService.updateByStripeId(stripePaymentIntentId, {
+        status: 'completed',
+        stripeId: stripeChargeId,
+        description: `Payment completed - Charge: ${stripeChargeId}`,
+        metadata: {
+          stripeFee,
+          stripeTransferId,
+        },
+      });
+
+      // Log platform fee as separate transaction
+      if (payment.platformFee > 0) {
+        await this.transactionLogService.create({
+          transactionId: `fee_${payment._id}_${Date.now()}`,
+          type: 'fee',
+          fromUserId: payment.payerId,
+          toUserId: undefined, // Platform fee goes to platform
+          amount: payment.platformFee,
+          currency: payment.currency,
+          fee: 0,
+          netAmount: payment.platformFee,
+          relatedId: payment._id as Types.ObjectId,
+          relatedType: 'contract',
+          stripeId: stripeChargeId,
+          description: `Platform fee for payment ${payment._id}`,
+          metadata: {
+            paymentId: payment._id,
+            feeType: 'platform',
+            feePercentage: (payment.platformFee / payment.amount) * 100,
+          },
+        });
+      }
+
+      // Log Stripe fee if applicable
+      if (stripeFee > 0) {
+        await this.transactionLogService.create({
+          transactionId: `stripe_fee_${payment._id}_${Date.now()}`,
+          type: 'fee',
+          fromUserId: payment.payerId,
+          toUserId: undefined, // Stripe fee goes to Stripe
+          amount: stripeFee / 100, // Convert from cents
+          currency: payment.currency,
+          fee: 0,
+          netAmount: stripeFee / 100,
+          relatedId: payment._id as Types.ObjectId,
+          relatedType: 'contract',
+          stripeId: stripeChargeId,
+          description: `Stripe processing fee for payment ${payment._id}`,
+          metadata: {
+            paymentId: payment._id,
+            feeType: 'stripe',
+            stripeFeeCents: stripeFee,
+          },
+        });
+      }
+    } catch (logError) {
+      this.logger.error(`Failed to log transactions for completed payment ${id}: ${logError.message}`, logError.stack);
+    }
+
+    return updatedPayment;
+  }  async failPayment(id: string, errorMessage: string): Promise<Payment> {
     const payment = await this.findById(id);
 
     if (![PaymentStatus.PENDING, PaymentStatus.PROCESSING].includes(payment.status)) {
@@ -320,11 +550,26 @@ export class PaymentService {
     // Increment retry count
     const retryCount = payment.retryCount + 1;
 
-    return this.updateById(id, {
+    const updatedPayment = await this.updateById(id, {
       status: PaymentStatus.FAILED,
       errorMessage,
       retryCount,
     });
+
+    // Update transaction log status
+    try {
+      if (payment.stripePaymentIntentId) {
+        await this.transactionLogService.updateByStripeId(payment.stripePaymentIntentId, {
+          status: 'failed',
+          errorMessage,
+          description: `Payment failed: ${errorMessage}`,
+        });
+      }
+    } catch (logError) {
+      this.logger.error(`Failed to update transaction log for failed payment ${id}: ${logError.message}`, logError.stack);
+    }
+
+    return updatedPayment;
   }
 
   async refundPayment(id: string, refundAmount?: number): Promise<Payment> {
@@ -336,20 +581,28 @@ export class PaymentService {
 
     const actualRefundAmount = refundAmount || payment.amount;
 
-    // Create refund transaction log (would be implemented if service existed)
-    // await this.transactionLogService.create({
-    //   transactionId: `refund_${payment._id}_${Date.now()}`,
-    //   type: 'refund',
-    //   fromUserId: payment.payeeId,
-    //   toUserId: payment.payerId,
-    //   amount: actualRefundAmount,
-    //   currency: payment.currency,
-    //   fee: 0,
-    //   netAmount: actualRefundAmount,
-    //   relatedId: payment._id,
-    //   relatedType: 'contract',
-    //   description: `Refund for payment ${payment._id}`,
-    // });
+    // Create refund transaction log
+    try {
+      await this.transactionLogService.create({
+        transactionId: `refund_${payment._id}_${Date.now()}`,
+        type: 'refund',
+        fromUserId: payment.payeeId,
+        toUserId: payment.payerId,
+        amount: actualRefundAmount,
+        currency: payment.currency,
+        fee: 0,
+        netAmount: actualRefundAmount,
+        relatedId: payment._id as Types.ObjectId,
+        relatedType: 'contract',
+        description: `Refund for payment ${payment._id}`,
+        metadata: {
+          originalPaymentId: payment._id,
+          refundAmount: actualRefundAmount,
+        },
+      });
+    } catch (logError) {
+      this.logger.error(`Failed to log refund transaction for payment ${id}: ${logError.message}`, logError.stack);
+    }
 
     return this.updateById(id, { status: PaymentStatus.REFUNDED });
   }
@@ -365,10 +618,60 @@ export class PaymentService {
       throw new BadRequestException('Maximum retry attempts exceeded');
     }
 
-    return this.updateById(id, {
+    // Reset payment to pending status and increment retry count
+    const updatedPayment = await this.updateById(id, {
       status: PaymentStatus.PENDING,
-      errorMessage: undefined,
+      retryCount: payment.retryCount + 1,
+      errorMessage: undefined, // Clear previous error
     });
+
+    // Attempt to recreate the payment intent with Stripe
+    try {
+      const paymentIntent = await this.stripeService.createPaymentIntent(
+        payment.amount,
+        payment.currency,
+        {
+          contractId: payment.contractId.toString(),
+          milestoneId: payment.milestoneId?.toString() || '',
+          payerId: payment.payerId.toString(),
+          payeeId: payment.payeeId.toString(),
+          paymentType: payment.paymentType,
+          retryAttempt: (payment.retryCount + 1).toString(),
+          originalPaymentId: (payment._id as Types.ObjectId).toString(),
+        }
+      );
+
+      // Update with new payment intent
+      await this.updateById(id, {
+        stripePaymentIntentId: paymentIntent.id,
+        status: PaymentStatus.PENDING,
+      });
+
+      this.logger.log(`Payment retry initiated: ${id} with new PaymentIntent: ${paymentIntent.id}`);
+
+      // Send retry notification (using existing notification method)
+      try {
+        await this.notificationsService.notifyPaymentSent(
+          (payment._id as Types.ObjectId).toString(),
+          payment.amount,
+          payment.payerId.toString()
+        );
+      } catch (notificationError) {
+        this.logger.error(`Failed to send payment retry notification: ${notificationError.message}`);
+      }
+
+    } catch (stripeError) {
+      // If Stripe fails, mark as failed again with incremented retry count
+      await this.updateById(id, {
+        status: PaymentStatus.FAILED,
+        errorMessage: `Retry failed: ${stripeError.message}`,
+      });
+
+      this.logger.error(`Payment retry failed for ${id}: ${stripeError.message}`);
+      throw new BadRequestException(`Payment retry failed: ${stripeError.message}`);
+    }
+
+    return updatedPayment;
   }
 
   async deleteById(id: string): Promise<void> {
@@ -532,11 +835,35 @@ export class PaymentService {
   }
 
   // Stripe webhook handling
-  async handleStripeWebhook(webhookData: any): Promise<{ received: boolean }> {
+  async handleStripeWebhook(
+    webhookData: StripeWebhookDto,
+    rawBody: string,
+    signature: string
+  ): Promise<{ received: boolean }> {
     try {
-      const { type, data } = webhookData;
+      // TEMPORARILY DISABLE SIGNATURE VERIFICATION FOR TESTING
+      const skipSignatureVerification = this.configService.get<string>('STRIPE_SKIP_SIGNATURE_VERIFICATION') === 'true';
 
-      this.logger.log(`Received Stripe webhook: ${type}`);
+      let event: any;
+
+      if (skipSignatureVerification) {
+        // Skip signature verification - use webhook data directly
+        this.logger.warn('WARNING: Stripe webhook signature verification is DISABLED for testing');
+        event = webhookData;
+      } else {
+        // Verify webhook signature for security
+        const webhookSecret = this.configService.get<string>('stripe.webhookSecret');
+        if (!webhookSecret) {
+          throw new BadRequestException('Stripe webhook secret is not configured');
+        }
+
+        // Construct and verify the event
+        event = this.stripeService.constructEvent(rawBody, signature, webhookSecret);
+      }
+
+      const { type, data } = event;
+
+      this.logger.log(`Received and verified Stripe webhook: ${type}`);
 
       switch (type) {
         case 'payment_intent.succeeded':
@@ -558,7 +885,7 @@ export class PaymentService {
       return { received: true };
     } catch (error) {
       this.logger.error(`Webhook processing failed: ${error.message}`, error.stack);
-      throw error;
+      throw new BadRequestException('Invalid webhook signature or processing failed');
     }
   }
 

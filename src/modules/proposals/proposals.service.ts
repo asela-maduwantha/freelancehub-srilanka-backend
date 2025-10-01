@@ -45,6 +45,34 @@ export class ProposalsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  /**
+   * Clear all cached proposal lists for a specific job
+   * This invalidates the cache when proposals are modified
+   */
+  private async clearJobProposalCache(jobId: string): Promise<void> {
+    try {
+      // Since we can't easily list all cache keys, we'll clear common patterns
+      // The cache keys follow pattern: proposals_job:{jobId}:{page}:{limit}
+      // We'll clear first few pages which are most commonly accessed
+      const cacheKeys = [
+        `proposals_job:${jobId}:1:10`,
+        `proposals_job:${jobId}:1:20`,
+        `proposals_job:${jobId}:1:50`,
+        `proposals_job:${jobId}:2:10`,
+        `proposals_job:${jobId}:2:20`,
+        `proposals_job:${jobId}:3:10`,
+      ];
+
+      await Promise.all(
+        cacheKeys.map(key => this.cacheManager.del(key))
+      );
+
+      this.logger.log(`Cleared proposal cache for job ${jobId}`);
+    } catch (error) {
+      this.logger.error(`Failed to clear proposal cache for job ${jobId}:`, error);
+    }
+  }
+
   async create(
     createProposalDto: CreateProposalDto,
     freelancerId: string,
@@ -107,6 +135,9 @@ export class ProposalsService {
       // Log error but don't fail proposal creation
       console.error('Failed to send proposal received notification:', error);
     }
+
+    // Clear job proposal cache since new proposal was added
+    await this.clearJobProposalCache(createProposalDto.jobId.toString());
 
     return this.mapToProposalResponseDto(populatedProposal);
   }
@@ -338,6 +369,9 @@ export class ProposalsService {
 
     // Clear cache after updating proposal
     await this.cacheManager.del(`proposal_${id}`);
+    
+    // Clear job proposal list cache since proposal content changed
+    await this.clearJobProposalCache(updatedProposal.jobId.toString());
 
     return updatedProposalResponse;
   }
@@ -370,8 +404,9 @@ export class ProposalsService {
 
     // Clear cache after deleting proposal
     await this.cacheManager.del(`proposal_${id}`);
-    // Note: We can't efficiently clear all related list caches without knowing all possible combinations
-    // The cache will naturally expire in 5 minutes
+    
+    // Clear job proposal list cache since proposal was removed
+    await this.clearJobProposalCache(proposal.jobId.toString());
 
     return { message: 'Proposal deleted successfully' };
   }
@@ -447,6 +482,9 @@ export class ProposalsService {
     // Clear cache after accepting proposal
     await this.cacheManager.del(`proposal_${id}`);
     
+    // Clear job proposal list cache since proposal status changed
+    await this.clearJobProposalCache(job._id.toString());
+    
     // Clear cache for other proposals that were rejected
     const otherProposals = await this.proposalModel.find({
       jobId: job._id,
@@ -493,6 +531,9 @@ export class ProposalsService {
 
     // Clear cache after rejecting proposal
     await this.cacheManager.del(`proposal_${id}`);
+    
+    // Clear job proposal list cache since proposal status changed
+    await this.clearJobProposalCache(job._id.toString());
 
     return proposalResponse;
   }

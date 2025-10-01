@@ -41,6 +41,9 @@ export class Payment extends Document {
   @Prop({ required: true, min: 0 })
   platformFee: number;
 
+  @Prop({ min: 0, max: 100, default: 10 })
+  platformFeePercentage: number;
+
   @Prop({ min: 0, default: 0 })
   stripeFee: number;
 
@@ -97,10 +100,6 @@ export class Payment extends Document {
 
   get totalFees(): number {
     return this.platformFee + this.stripeFee;
-  }
-
-  get platformFeePercentage(): number {
-    return this.amount > 0 ? (this.platformFee / this.amount) * 100 : 0;
   }
 }
 

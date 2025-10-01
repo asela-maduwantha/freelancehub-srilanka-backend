@@ -13,6 +13,7 @@ import { JobStatus } from '../../common/enums/job-status.enum';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MilestoneStatus } from '../../common/enums/milestone-status.enum';
 import { StripeService } from '../../services/stripe/stripe.service';
+import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 
 
 @Injectable()
@@ -28,6 +29,7 @@ export class ContractsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private notificationsService: NotificationsService,
     private stripeService: StripeService,
+    private paymentMethodsService: PaymentMethodsService,
   ) {}
 
   /**
@@ -160,6 +162,17 @@ export class ContractsService {
     // Save contract first to get _id for payment intent metadata
     await contract.save();
 
+    // Handle payment method selection and saving
+    let paymentMethodId: string | undefined;
+    if (contractData.paymentMethodId) {
+      // Validate that the payment method belongs to the client
+      const paymentMethod = await this.paymentMethodsService.findById(contractData.paymentMethodId);
+      if (paymentMethod.userId.toString() !== clientId) {
+        throw new BadRequestException('Payment method not found');
+      }
+      paymentMethodId = paymentMethod.stripePaymentMethodId;
+    }
+
     // Create payment intent for upfront payment
     try {
       const paymentIntent = await this.stripeService.createPaymentIntent(
@@ -170,7 +183,8 @@ export class ContractsService {
           type: 'contract_upfront',
           clientId: contract.clientId.toString(),
           freelancerId: contract.freelancerId.toString(),
-        }
+        },
+        paymentMethodId // Use selected payment method if provided
       );
 
       contract.stripePaymentIntentId = paymentIntent.id;

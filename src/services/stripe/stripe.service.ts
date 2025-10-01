@@ -56,17 +56,29 @@ export class StripeService {
   async createPaymentIntent(
     amount: number,
     currency: string = 'usd',
-    metadata?: { [key: string]: string }
+    metadata?: { [key: string]: string },
+    paymentMethodId?: string
   ): Promise<PaymentIntent> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.create({
+      const paymentIntentData: Stripe.PaymentIntentCreateParams = {
         amount: Math.round(amount * 100), // Convert to cents
         currency: currency.toLowerCase(),
         metadata: metadata || {},
-        automatic_payment_methods: {
+      };
+
+      if (paymentMethodId) {
+        // If payment method is provided, attach it and set confirmation method
+        paymentIntentData.payment_method = paymentMethodId;
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = process.env.FRONTEND_URL || 'http://localhost:3000';
+      } else {
+        // Use automatic payment methods if no specific payment method
+        paymentIntentData.automatic_payment_methods = {
           enabled: true,
-        },
-      });
+        };
+      }
+
+      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentData);
 
       this.logger.log(`Payment intent created: ${paymentIntent.id}`);
 
@@ -279,6 +291,39 @@ export class StripeService {
     } catch (error) {
       this.logger.error('Failed to retrieve balance:', error);
       throw new Error(`Failed to retrieve balance: ${error.message}`);
+    }
+  }
+
+  async createSetupIntent(customerId: string): Promise<Stripe.SetupIntent> {
+    try {
+      const setupIntent = await this.stripe.setupIntents.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+      });
+      return setupIntent;
+    } catch (error) {
+      this.logger.error('Failed to create setup intent:', error);
+      throw new Error(`Failed to create setup intent: ${error.message}`);
+    }
+  }
+
+  async getPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    try {
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+      return paymentMethod;
+    } catch (error) {
+      this.logger.error('Failed to retrieve payment method:', error);
+      throw new Error(`Failed to retrieve payment method: ${error.message}`);
+    }
+  }
+
+  async detachPaymentMethodFromCustomer(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    try {
+      const paymentMethod = await this.stripe.paymentMethods.detach(paymentMethodId);
+      return paymentMethod;
+    } catch (error) {
+      this.logger.error('Failed to detach payment method:', error);
+      throw new Error(`Failed to detach payment method: ${error.message}`);
     }
   }
 }

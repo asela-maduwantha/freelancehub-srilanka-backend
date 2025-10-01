@@ -37,6 +37,29 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
+  // Raw body middleware for Stripe webhooks
+  app.use('/api/payments/webhook', (req, res, next) => {
+    if (req.method === 'POST' && req.headers['content-type']?.includes('application/json')) {
+      let data = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        req.rawBody = data;
+        // Re-parse the JSON for the body parser
+        try {
+          req.body = JSON.parse(data);
+        } catch (e) {
+          // If parsing fails, continue anyway
+        }
+        next();
+      });
+    } else {
+      next();
+    }
+  });
+
   // CORS configuration
   app.enableCors({
     origin: corsOrigins,

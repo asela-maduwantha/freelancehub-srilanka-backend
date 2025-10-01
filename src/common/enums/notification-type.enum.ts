@@ -16,7 +16,9 @@ export enum NotificationType {
   MESSAGE_RECEIVED = 'message_received',
   DISPUTE_CREATED = 'dispute_created',
   DISPUTE_RESOLVED = 'dispute_resolved',
+  WITHDRAWAL_REQUESTED = 'withdrawal_requested',
   WITHDRAWAL_PROCESSED = 'withdrawal_processed',
+  WITHDRAWAL_COMPLETED = 'withdrawal_completed',
   JOB_POSTED = 'job_posted',
   JOB_COMPLETED = 'job_completed',
 }

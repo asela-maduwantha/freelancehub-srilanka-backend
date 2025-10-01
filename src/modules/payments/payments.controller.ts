@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Patch, Req } from '@nestjs/common';
 import { PaymentService } from './payments.service';
 import { TransactionLogService } from './transaction-log.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -10,6 +10,9 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { StripeWebhookDto } from './dto/stripe-webhook.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -17,12 +20,22 @@ export class PaymentsController {
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionLogService: TransactionLogService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Post()
   @Roles(UserRole.CLIENT, UserRole.FREELANCER)
   async create(@Body() createPaymentDto: CreatePaymentDto, @CurrentUser() user) {
     return this.paymentService.create(createPaymentDto);
+  }
+
+  @Post('create-intent')
+  @Roles(UserRole.CLIENT, UserRole.FREELANCER)
+  async createPaymentIntent(
+    @Body() createIntentDto: CreatePaymentIntentDto,
+    @CurrentUser() user
+  ) {
+    return this.paymentService.createPaymentIntent(createIntentDto, user._id.toString());
   }
 
   @Get()
@@ -309,7 +322,22 @@ export class PaymentsController {
   // Stripe webhook endpoint
   @Post('webhook')
   @Public()
-  async handleStripeWebhook(@Body() webhookData: StripeWebhookDto) {
-    return this.paymentService.handleStripeWebhook(webhookData);
+  async handleStripeWebhook(
+    @Body() webhookData: StripeWebhookDto,
+    @Req() request: any
+  ) {
+    const signature = request.headers['stripe-signature'];
+
+    // TEMPORARILY DISABLE SIGNATURE VERIFICATION FOR TESTING
+    const skipSignatureVerification = this.configService.get<string>('STRIPE_SKIP_SIGNATURE_VERIFICATION') === 'true';
+
+    if (!skipSignatureVerification && !signature) {
+      throw new BadRequestException('Missing Stripe signature');
+    }
+
+    // Use the raw body captured by middleware, fallback to request.rawBody
+    const rawBody = request.rawBody || request.body;
+
+    return this.paymentService.handleStripeWebhook(webhookData, rawBody, signature || '');
   }
 }

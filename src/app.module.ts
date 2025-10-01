@@ -30,6 +30,8 @@ import { FilesModule } from './modules/files/files.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
+import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
 import { StripeModule } from './services/stripe/stripe.module';
 
 @Module({
@@ -78,6 +80,8 @@ import { StripeModule } from './services/stripe/stripe.module';
     DashboardModule,
     NotificationsModule,
     ReviewsModule,
+    WithdrawalsModule,
+    PaymentMethodsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
