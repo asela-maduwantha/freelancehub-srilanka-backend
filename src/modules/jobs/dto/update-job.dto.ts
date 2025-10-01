@@ -189,11 +189,11 @@ export class UpdateJobDto {
   maxProposals?: number;
 
   @ApiPropertyOptional({
-    enum: ['draft', 'open', 'in-progress', 'completed', 'cancelled'],
+    enum: ['draft', 'open', 'awaiting-contract', 'contracted', 'in-progress', 'under-review', 'completed', 'closed', 'cancelled'],
     description: 'Job status',
   })
   @IsOptional()
-  @IsEnum(['draft', 'open', 'in-progress', 'completed', 'cancelled'])
+  @IsEnum(['draft', 'open', 'awaiting-contract', 'contracted', 'in-progress', 'under-review', 'completed', 'closed', 'cancelled'])
   status?: string;
 
   @ApiPropertyOptional({ description: 'Job expiration date' })

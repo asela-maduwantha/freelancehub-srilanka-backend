@@ -371,8 +371,9 @@ export class JobsService {
       throw new BadRequestException('Job is not open and cannot be closed');
     }
 
+    // Use CLOSED status for manually closed jobs (not completed)
     await this.jobModel
-      .findByIdAndUpdate(id, { status: JobStatus.COMPLETED })
+      .findByIdAndUpdate(id, { status: JobStatus.CLOSED })
       .exec();
 
     // Clear cache after closing job
@@ -395,8 +396,9 @@ export class JobsService {
       throw new ForbiddenException(RESPONSE_MESSAGES.JOB.UNAUTHORIZED);
     }
 
-    if (job.status !== JobStatus.COMPLETED) {
-      throw new BadRequestException('Only completed jobs can be reopened');
+    // Allow reopening both completed and closed jobs
+    if (job.status !== JobStatus.COMPLETED && job.status !== JobStatus.CLOSED) {
+      throw new BadRequestException('Only completed or closed jobs can be reopened');
     }
 
     await this.jobModel

@@ -151,6 +151,9 @@ JobSchema.index({
 JobSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 JobSchema.index({ 'location.countries': 1 });
 JobSchema.index({ deletedAt: 1 }, { sparse: true });
+// Unique index on contractId to ensure one job can only have one contract
+// Sparse index allows null values (jobs without contracts)
+JobSchema.index({ contractId: 1 }, { unique: true, sparse: true });
 
 // Text search index
 JobSchema.index(

@@ -455,12 +455,12 @@ export class ProposalsService {
       { status: ProposalStatus.REJECTED }
     );
 
-    // Update the job's selectedProposalId and status
+    // Update the job's selectedProposalId and status to AWAITING_CONTRACT
     await this.jobModel.findByIdAndUpdate(
       job._id,
       { 
         selectedProposalId: id,
-        status: JobStatus.IN_PROGRESS
+        status: JobStatus.AWAITING_CONTRACT
       }
     );
 

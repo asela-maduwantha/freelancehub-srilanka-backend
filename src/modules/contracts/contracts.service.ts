@@ -83,9 +83,14 @@ export class ContractsService {
       throw new NotFoundException('Job not found');
     }
 
-    // Validate job status
-    if (job.status !== JobStatus.IN_PROGRESS) {
-      throw new BadRequestException('Can only create contract for in-progress jobs');
+    // CRITICAL: Check if job already has a contract - enforce one contract per job
+    if (job.contractId) {
+      throw new BadRequestException('This job already has a contract. Only one contract is allowed per job.');
+    }
+
+    // Validate job status - accept both IN_PROGRESS (legacy) and AWAITING_CONTRACT (new workflow)
+    if (job.status !== JobStatus.IN_PROGRESS && job.status !== JobStatus.AWAITING_CONTRACT) {
+      throw new BadRequestException('Can only create contract for jobs awaiting contract or in-progress');
     }
 
     if (job.clientId.toString() !== clientId) {
@@ -244,7 +249,9 @@ export class ContractsService {
       // Don't throw - notification failure shouldn't break contract creation
     }
 
+    // Update job with contract reference and set status to CONTRACTED
     job.contractId = contract._id as Types.ObjectId;
+    job.status = JobStatus.CONTRACTED;
     await job.save();
 
     this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
