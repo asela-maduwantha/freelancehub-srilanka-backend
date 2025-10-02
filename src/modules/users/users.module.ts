@@ -7,10 +7,12 @@ import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
+import { StripeModule } from '../../services/stripe/stripe.module';
 
 @Module({
   imports: [
     AuthModule,
+    StripeModule,
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     MulterModule.register({
       storage: diskStorage({

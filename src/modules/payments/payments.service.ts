@@ -999,6 +999,34 @@ export class PaymentService {
           await this.handleChargeDispute(data.object);
           break;
 
+        case 'account.updated':
+          await this.handleAccountUpdated(data.object);
+          break;
+
+        case 'account.application.deauthorized':
+          await this.handleAccountDeauthorized(data.object);
+          break;
+
+        case 'transfer.created':
+          await this.handleTransferCreated(data.object);
+          break;
+
+        case 'transfer.updated':
+          await this.handleTransferUpdated(data.object);
+          break;
+
+        case 'transfer.failed':
+          await this.handleTransferFailed(data.object);
+          break;
+
+        case 'payout.paid':
+          await this.handlePayoutPaid(data.object);
+          break;
+
+        case 'payout.failed':
+          await this.handlePayoutFailed(data.object);
+          break;
+
         default:
           this.logger.log(`Unhandled webhook type: ${type}`);
       }
@@ -1087,5 +1115,154 @@ export class PaymentService {
       status: 'failed',
       description: `Dispute created: ${dispute.reason}`,
     });
+  }
+
+  // Stripe Connected Account Webhook Handlers
+  private async handleAccountUpdated(account: any): Promise<void> {
+    this.logger.log(`Account updated: ${account.id}`);
+
+    try {
+      // Find user by Stripe account ID
+      const user = await this.userModel.findOne({ stripeAccountId: account.id });
+      if (!user) {
+        this.logger.warn(`User not found for Stripe account: ${account.id}`);
+        return;
+      }
+
+      this.logger.log(`Account updated for user: ${user._id}, charges_enabled: ${account.charges_enabled}, payouts_enabled: ${account.payouts_enabled}`);
+
+      // You could send notifications to user about account status changes
+      if (account.charges_enabled && account.payouts_enabled) {
+        // Account is fully enabled
+        this.logger.log(`Stripe account fully enabled for user: ${user._id}`);
+      } else if (account.requirements?.currently_due?.length > 0) {
+        // Account has pending requirements
+        this.logger.log(`Stripe account has pending requirements for user: ${user._id}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle account update: ${error.message}`, error.stack);
+    }
+  }
+
+  private async handleAccountDeauthorized(application: any): Promise<void> {
+    this.logger.log(`Account deauthorized: ${application.account}`);
+
+    try {
+      // Find user by Stripe account ID
+      const user = await this.userModel.findOne({ stripeAccountId: application.account });
+      if (!user) {
+        this.logger.warn(`User not found for deauthorized account: ${application.account}`);
+        return;
+      }
+
+      // Clear the Stripe account ID from user
+      user.stripeAccountId = undefined;
+      await user.save();
+
+      this.logger.log(`Stripe account disconnected for user: ${user._id}`);
+
+      // You could send notification to user about disconnection
+    } catch (error) {
+      this.logger.error(`Failed to handle account deauthorization: ${error.message}`, error.stack);
+    }
+  }
+
+  // Transfer and Payout Webhook Handlers
+  private async handleTransferCreated(transfer: any): Promise<void> {
+    this.logger.log(`Transfer created: ${transfer.id} to ${transfer.destination}`);
+
+    // You could update withdrawal status or create transaction log
+    try {
+      const withdrawalId = transfer.metadata?.withdrawalId;
+      if (withdrawalId) {
+        await this.transactionLogService.updateByRelatedEntity(
+          withdrawalId,
+          'withdrawal',
+          {
+            stripeId: transfer.id,
+            status: 'pending',
+            description: `Transfer created: ${transfer.id}`,
+          }
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle transfer created: ${error.message}`);
+    }
+  }
+
+  private async handleTransferUpdated(transfer: any): Promise<void> {
+    this.logger.log(`Transfer updated: ${transfer.id}, status: ${transfer.status}`);
+    // Handle transfer status updates if needed
+  }
+
+  private async handleTransferFailed(transfer: any): Promise<void> {
+    this.logger.log(`Transfer failed: ${transfer.id}`);
+
+    try {
+      const withdrawalId = transfer.metadata?.withdrawalId;
+      if (withdrawalId) {
+        // Update transaction log
+        await this.transactionLogService.updateByRelatedEntity(
+          withdrawalId,
+          'withdrawal',
+          {
+            status: 'failed',
+            errorMessage: transfer.failure_message || 'Transfer failed',
+            description: `Transfer failed: ${transfer.failure_message}`,
+          }
+        );
+
+        // You could also update the withdrawal record status
+        this.logger.error(`Transfer failed for withdrawal: ${withdrawalId}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle transfer failure: ${error.message}`);
+    }
+  }
+
+  private async handlePayoutPaid(payout: any): Promise<void> {
+    this.logger.log(`Payout paid: ${payout.id}, amount: ${payout.amount / 100}`);
+
+    // Handle successful payout - could update withdrawal status to completed
+    try {
+      const metadata = payout.metadata || {};
+      const withdrawalId = metadata.withdrawalId;
+
+      if (withdrawalId) {
+        await this.transactionLogService.updateByRelatedEntity(
+          withdrawalId,
+          'withdrawal',
+          {
+            status: 'completed',
+            description: `Payout completed: ${payout.id}`,
+          }
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle payout paid: ${error.message}`);
+    }
+  }
+
+  private async handlePayoutFailed(payout: any): Promise<void> {
+    this.logger.log(`Payout failed: ${payout.id}`);
+
+    try {
+      const metadata = payout.metadata || {};
+      const withdrawalId = metadata.withdrawalId;
+
+      if (withdrawalId) {
+        await this.transactionLogService.updateByRelatedEntity(
+          withdrawalId,
+          'withdrawal',
+          {
+            status: 'failed',
+            errorMessage: payout.failure_message || 'Payout failed',
+            description: `Payout failed: ${payout.failure_message}`,
+          }
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle payout failure: ${error.message}`);
+    }
   }
 }

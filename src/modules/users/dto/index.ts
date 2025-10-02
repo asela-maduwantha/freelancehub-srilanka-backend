@@ -12,3 +12,4 @@ export * from './update-education.dto';
 export * from './add-certification.dto';
 export * from './client-public-profile.dto';
 export * from './user-settings.dto';
+export * from './stripe-account.dto';

@@ -61,6 +61,7 @@ export class WithdrawalsService {
         finalAmount,
         processingFee,
         description: createWithdrawalDto.description,
+        stripeAccountId: createWithdrawalDto.stripeAccountId,
         bankAccount: createWithdrawalDto.method === WithdrawalMethod.BANK_TRANSFER ? {
           accountHolderName: createWithdrawalDto.accountHolderName!,
           accountNumber: createWithdrawalDto.bankAccountNumber!, // Should be encrypted
@@ -150,13 +151,38 @@ export class WithdrawalsService {
       throw new BadRequestException('Withdrawal is not in pending status');
     }
 
+    // If stripeAccountId is provided and no transfer ID exists, execute the transfer
+    let transferId = processDto.stripeTransferId;
+    let payoutId = processDto.stripePayoutId;
+
+    if (!transferId && withdrawal.stripeAccountId) {
+      try {
+        // Execute actual Stripe transfer
+        const transfer = await this.stripeService.createTransfer(
+          withdrawal.finalAmount,
+          withdrawal.stripeAccountId,
+          withdrawal.currency.toLowerCase(),
+          {
+            withdrawalId: id,
+            freelancerId: withdrawal.freelancerId.toString(),
+            description: withdrawal.description || 'Withdrawal payout',
+          }
+        );
+        transferId = transfer.id;
+        this.logger.log(`Stripe transfer created: ${transferId} for withdrawal: ${id}`);
+      } catch (transferError) {
+        this.logger.error(`Failed to create Stripe transfer: ${transferError.message}`);
+        throw new BadRequestException(`Failed to execute Stripe transfer: ${transferError.message}`);
+      }
+    }
+
     // Update status to processing
     const updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
       id,
       {
         status: WithdrawalStatus.PROCESSING,
-        stripeTransferId: processDto.stripeTransferId,
-        stripePayoutId: processDto.stripePayoutId,
+        stripeTransferId: transferId,
+        stripePayoutId: payoutId,
         processingFee: processDto.processingFee || withdrawal.processingFee,
         externalTransactionId: processDto.externalTransactionId,
       },
@@ -170,8 +196,8 @@ export class WithdrawalsService {
         'withdrawal',
         {
           status: 'pending', // Still pending until actually transferred
-          stripeId: processDto.stripeTransferId,
-          description: `Withdrawal processing started - Transfer ID: ${processDto.stripeTransferId}`,
+          stripeId: transferId,
+          description: `Withdrawal processing started - Transfer ID: ${transferId}`,
         }
       );
     } catch (logError) {

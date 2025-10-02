@@ -332,4 +332,170 @@ export class StripeService {
       throw new Error(`Failed to detach payment method: ${error.message}`);
     }
   }
+
+  // Connected Accounts Management
+  async createConnectedAccount(
+    email: string,
+    country: string,
+    type: 'express' | 'standard' = 'express',
+    metadata?: { [key: string]: string }
+  ): Promise<Stripe.Account> {
+    try {
+      const account = await this.stripe.accounts.create({
+        type,
+        country,
+        email,
+        capabilities: {
+          transfers: { requested: true },
+        },
+        business_type: 'individual',
+        metadata: metadata || {},
+      });
+
+      this.logger.log(`Connected account created: ${account.id} for email: ${email}`);
+      return account;
+    } catch (error) {
+      this.logger.error('Failed to create connected account:', error);
+      throw new Error(`Failed to create connected account: ${error.message}`);
+    }
+  }
+
+  async createAccountLink(
+    accountId: string,
+    refreshUrl: string,
+    returnUrl: string,
+    type: 'account_onboarding' | 'account_update' = 'account_onboarding'
+  ): Promise<Stripe.AccountLink> {
+    try {
+      const accountLink = await this.stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: refreshUrl,
+        return_url: returnUrl,
+        type,
+      });
+
+      this.logger.log(`Account link created for account: ${accountId}`);
+      return accountLink;
+    } catch (error) {
+      this.logger.error(`Failed to create account link for ${accountId}:`, error);
+      throw new Error(`Failed to create account link: ${error.message}`);
+    }
+  }
+
+  async retrieveAccount(accountId: string): Promise<Stripe.Account> {
+    try {
+      const account = await this.stripe.accounts.retrieve(accountId);
+      return account;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve account ${accountId}:`, error);
+      throw new Error(`Failed to retrieve account: ${error.message}`);
+    }
+  }
+
+  async updateAccount(
+    accountId: string,
+    updates: Stripe.AccountUpdateParams
+  ): Promise<Stripe.Account> {
+    try {
+      const account = await this.stripe.accounts.update(accountId, updates);
+      this.logger.log(`Account updated: ${accountId}`);
+      return account;
+    } catch (error) {
+      this.logger.error(`Failed to update account ${accountId}:`, error);
+      throw new Error(`Failed to update account: ${error.message}`);
+    }
+  }
+
+  async deleteAccount(accountId: string): Promise<Stripe.DeletedAccount> {
+    try {
+      const deleted = await this.stripe.accounts.del(accountId);
+      this.logger.log(`Account deleted: ${accountId}`);
+      return deleted;
+    } catch (error) {
+      this.logger.error(`Failed to delete account ${accountId}:`, error);
+      throw new Error(`Failed to delete account: ${error.message}`);
+    }
+  }
+
+  // Transfers and Payouts
+  async createTransfer(
+    amount: number,
+    destination: string,
+    currency: string = 'usd',
+    metadata?: { [key: string]: string }
+  ): Promise<Stripe.Transfer> {
+    try {
+      const transfer = await this.stripe.transfers.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        destination,
+        metadata: metadata || {},
+      });
+
+      this.logger.log(`Transfer created: ${transfer.id} to ${destination} for ${amount} ${currency}`);
+      return transfer;
+    } catch (error) {
+      this.logger.error(`Failed to create transfer to ${destination}:`, error);
+      throw new Error(`Failed to create transfer: ${error.message}`);
+    }
+  }
+
+  async retrieveTransfer(transferId: string): Promise<Stripe.Transfer> {
+    try {
+      const transfer = await this.stripe.transfers.retrieve(transferId);
+      return transfer;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve transfer ${transferId}:`, error);
+      throw new Error(`Failed to retrieve transfer: ${error.message}`);
+    }
+  }
+
+  async createPayout(
+    amount: number,
+    currency: string = 'usd',
+    metadata?: { [key: string]: string },
+    destination?: string
+  ): Promise<Stripe.Payout> {
+    try {
+      const payoutData: Stripe.PayoutCreateParams = {
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        metadata: metadata || {},
+      };
+
+      if (destination) {
+        payoutData.destination = destination;
+      }
+
+      const payout = await this.stripe.payouts.create(payoutData);
+
+      this.logger.log(`Payout created: ${payout.id} for ${amount} ${currency}`);
+      return payout;
+    } catch (error) {
+      this.logger.error('Failed to create payout:', error);
+      throw new Error(`Failed to create payout: ${error.message}`);
+    }
+  }
+
+  async retrievePayout(payoutId: string): Promise<Stripe.Payout> {
+    try {
+      const payout = await this.stripe.payouts.retrieve(payoutId);
+      return payout;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve payout ${payoutId}:`, error);
+      throw new Error(`Failed to retrieve payout: ${error.message}`);
+    }
+  }
+
+  async listAccountBalances(accountId: string): Promise<Stripe.Balance> {
+    try {
+      const balance = await this.stripe.balance.retrieve({
+        stripeAccount: accountId,
+      });
+      return balance;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve balance for account ${accountId}:`, error);
+      throw new Error(`Failed to retrieve account balance: ${error.message}`);
+    }
+  }
 }

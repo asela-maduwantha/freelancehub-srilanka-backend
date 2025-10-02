@@ -40,6 +40,9 @@ export class Withdrawal extends Document {
   @Prop()
   stripePayoutId?: string;
 
+  @Prop()
+  stripeAccountId?: string;
+
   @Prop({ type: BankAccount })
   bankAccount?: BankAccount;
 

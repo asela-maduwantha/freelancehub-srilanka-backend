@@ -46,11 +46,21 @@ import {
 import { UserRole } from '../../common/enums/user-role.enum';
 import { RESPONSE_MESSAGES } from '../../common/constants/response-messages';
 import { MessageResponseDto } from 'src/common/dto';
+import { StripeService } from '../../services/stripe/stripe.service';
+import {
+  CreateStripeAccountDto,
+  CreateAccountLinkDto,
+  StripeAccountResponseDto,
+  AccountLinkResponseDto,
+  StripeAccountStatusDto,
+} from './dto/stripe-account.dto';
+
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly stripeService: StripeService,
   ) {}
 
   async getCurrentUser(userId: string): Promise<CompleteUserResponseDto> {
@@ -1344,5 +1354,151 @@ export class UsersService {
     return {
       message: 'Account permanently deleted successfully',
     };
+  }
+
+  // Stripe Connected Account Management
+  async createStripeAccount(
+    userId: string,
+    createDto: CreateStripeAccountDto
+  ): Promise<StripeAccountResponseDto> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Only freelancers can create connected accounts
+    if (user.role !== UserRole.FREELANCER) {
+      throw new ForbiddenException('Only freelancers can create Stripe connected accounts');
+    }
+
+    // Check if user already has a Stripe account
+    if (user.stripeAccountId) {
+      throw new BadRequestException('User already has a Stripe connected account');
+    }
+
+    try {
+      // Create Stripe connected account
+      const account = await this.stripeService.createConnectedAccount(
+        user.email,
+        createDto.country,
+        createDto.type || 'express',
+        {
+          userId: userId,
+          userEmail: user.email,
+        }
+      );
+
+      // Save account ID to user
+      user.stripeAccountId = account.id;
+      await user.save();
+
+      // Clear cache
+      await this.cacheManager.del(`user_${userId}`);
+
+      return {
+        id: account.id,
+        email: account.email!,
+        country: account.country!,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        detailsSubmitted: account.details_submitted,
+        type: account.type!,
+        created: account.created || 0,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to create Stripe account: ${error.message}`);
+    }
+  }
+
+  async createAccountLink(
+    userId: string,
+    createDto: CreateAccountLinkDto
+  ): Promise<AccountLinkResponseDto> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.stripeAccountId) {
+      throw new BadRequestException('User does not have a Stripe connected account');
+    }
+
+    try {
+      const accountLink = await this.stripeService.createAccountLink(
+        user.stripeAccountId,
+        createDto.refreshUrl,
+        createDto.returnUrl,
+        createDto.type || 'account_onboarding'
+      );
+
+      return {
+        url: accountLink.url,
+        expiresAt: accountLink.expires_at,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to create account link: ${error.message}`);
+    }
+  }
+
+  async getStripeAccountStatus(userId: string): Promise<StripeAccountStatusDto> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.stripeAccountId) {
+      return {
+        hasAccount: false,
+      };
+    }
+
+    try {
+      const account = await this.stripeService.retrieveAccount(user.stripeAccountId);
+
+      return {
+        hasAccount: true,
+        accountId: account.id,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        detailsSubmitted: account.details_submitted,
+        requirements: account.requirements ? {
+          currentlyDue: account.requirements.currently_due || [],
+          eventuallyDue: account.requirements.eventually_due || [],
+          pastDue: account.requirements.past_due || [],
+          pendingVerification: account.requirements.pending_verification || [],
+        } : undefined,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to retrieve account status: ${error.message}`);
+    }
+  }
+
+  async deleteStripeAccount(userId: string): Promise<MessageResponseDto> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.stripeAccountId) {
+      throw new BadRequestException('User does not have a Stripe connected account');
+    }
+
+    try {
+      // Delete the Stripe account
+      await this.stripeService.deleteAccount(user.stripeAccountId);
+
+      // Remove account ID from user
+      user.stripeAccountId = undefined;
+      await user.save();
+
+      // Clear cache
+      await this.cacheManager.del(`user_${userId}`);
+
+      return {
+        message: 'Stripe connected account deleted successfully',
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to delete Stripe account: ${error.message}`);
+    }
   }
 }
