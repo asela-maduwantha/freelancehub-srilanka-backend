@@ -27,6 +27,38 @@ export class SkillsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  /**
+   * Invalidate all skill-related caches
+   */
+  private async invalidateSkillCaches(skillId: string): Promise<void> {
+    try {
+      // Clear the specific skill cache - FIX: use correct cache key format
+      await this.cacheManager.del(`skill:${skillId}`);
+      
+      // Clear skill by slug cache (we don't know the slug, but it will expire naturally)
+      
+      // Clear skills list caches (first few pages)
+      for (let page = 1; page <= 5; page++) {
+        for (const limit of [10, 20, 50]) {
+          await this.cacheManager.del(`skills:${page}:${limit}`);
+          // Also clear with active filter
+          await this.cacheManager.del(`skills:${page}:${limit}:active:true`);
+          await this.cacheManager.del(`skills:${page}:${limit}:active:false`);
+        }
+      }
+      
+      // Clear popular skills cache
+      await this.cacheManager.del('popular_skills');
+      await this.cacheManager.del('skills:popular');
+      
+      // Clear any other skill-related caches
+      await this.cacheManager.del('all_skills');
+    } catch (error) {
+      console.error(`Failed to invalidate skill caches for skill ${skillId}:`, error);
+      // Don't throw - cache invalidation failures shouldn't break the operation
+    }
+  }
+
   async create(createSkillDto: CreateSkillDto): Promise<SkillResponseDto> {
     if (!createSkillDto.slug) {
       createSkillDto.slug = slugify(createSkillDto.name, {
@@ -223,10 +255,8 @@ export class SkillsService {
       throw new NotFoundException(RESPONSE_MESSAGES.SKILL.NOT_FOUND);
     }
 
-    // Clear cache after updating skill
-    await this.cacheManager.del('skills');
-    await this.cacheManager.del('popular_skills');
-    await this.cacheManager.del(`skill_${id}`);
+    // Clear cache after updating skill - FIX: use correct cache key format
+    await this.invalidateSkillCaches(id);
 
     return this.mapToSkillResponseDto(updatedSkill);
   }
@@ -244,9 +274,7 @@ export class SkillsService {
       .exec();
 
     // Clear cache after removing skill
-    await this.cacheManager.del('skills');
-    await this.cacheManager.del('popular_skills');
-    await this.cacheManager.del(`skill_${id}`);
+    await this.invalidateSkillCaches(id);
 
     return { message: RESPONSE_MESSAGES.SKILL.DELETED };
   }

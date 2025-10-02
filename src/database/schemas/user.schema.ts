@@ -140,6 +140,12 @@ export class FreelancerData {
   totalEarned: number;
 
   @Prop({ default: 0, min: 0 })
+  pendingBalance: number; // Funds locked in active contracts/milestones
+
+  @Prop({ default: 0, min: 0 })
+  availableBalance: number; // Funds ready for withdrawal
+
+  @Prop({ default: 0, min: 0 })
   completedJobs: number;
 
   @Prop({ default: 0, min: 0, max: 5 })

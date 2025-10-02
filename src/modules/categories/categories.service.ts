@@ -27,6 +27,30 @@ export class CategoriesService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  /**
+   * Invalidate all category-related caches
+   */
+  private async invalidateCategoryCaches(categoryId: string): Promise<void> {
+    try {
+      // Clear the specific category cache - FIX: use correct cache key format
+      await this.cacheManager.del(`category:${categoryId}`);
+      
+      // Clear main categories list caches (first few pages)
+      for (let page = 1; page <= 5; page++) {
+        for (const limit of [10, 20, 50]) {
+          await this.cacheManager.del(`main_categories:${page}:${limit}`);
+        }
+      }
+      
+      // Clear any other category-related caches
+      await this.cacheManager.del('all_categories');
+      await this.cacheManager.del('popular_categories');
+    } catch (error) {
+      console.error(`Failed to invalidate category caches for category ${categoryId}:`, error);
+      // Don't throw - cache invalidation failures shouldn't break the operation
+    }
+  }
+
   async create(
     createCategoryDto: CreateCategoryDto,
   ): Promise<CategoryResponseDto> {
@@ -315,10 +339,8 @@ export class CategoriesService {
       throw new NotFoundException(RESPONSE_MESSAGES.CATEGORY.NOT_FOUND);
     }
 
-    // Clear cache after updating category
-    await this.cacheManager.del('main_categories');
-    await this.cacheManager.del('category');
-    await this.cacheManager.del(`category_${id}`);
+    // Clear cache after updating category - FIX: use correct cache key patterns
+    await this.invalidateCategoryCaches(id);
 
     return this.mapToCategoryResponseDto(updatedCategory);
   }
@@ -349,9 +371,7 @@ export class CategoriesService {
       .exec();
 
     // Clear cache after deleting category
-    await this.cacheManager.del('main_categories');
-    await this.cacheManager.del('category');
-    await this.cacheManager.del(`category_${id}`);
+    await this.invalidateCategoryCaches(id);
 
     return { message: RESPONSE_MESSAGES.CATEGORY.DELETED };
   }

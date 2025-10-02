@@ -113,6 +113,7 @@ PaymentSchema.index({ payeeId: 1 });
 PaymentSchema.index({ status: 1 });
 PaymentSchema.index({ paymentType: 1 });
 PaymentSchema.index({ stripePaymentIntentId: 1 }, { sparse: true });
+PaymentSchema.index({ stripePaymentIntentId: 1, status: 1 }); // Compound index for webhook queries
 PaymentSchema.index({ stripeChargeId: 1 }, { sparse: true });
 PaymentSchema.index({ stripeTransferId: 1 }, { sparse: true });
 PaymentSchema.index({ createdAt: -1 });

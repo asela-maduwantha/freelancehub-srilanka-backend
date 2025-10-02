@@ -6,11 +6,16 @@ import { Payment } from '../../database/schemas/payment.schema';
 import { Contract } from '../../database/schemas/contract.schema';
 import { Milestone } from '../../database/schemas/milestone.schema';
 import { User } from '../../database/schemas/user.schema';
+import { Job } from '../../database/schemas/job.schema';
+import { Proposal } from '../../database/schemas/proposal.schema';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { StripeWebhookDto } from './dto/stripe-webhook.dto';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { PaymentFilters } from '../../common/filters/payment.filters';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
+import { ContractStatus } from '../../common/enums/contract-status.enum';
+import { JobStatus } from '../../common/enums/job-status.enum';
+import { ProposalStatus } from '../../common/enums/proposal-status.enum';
 import { TransactionLogService } from './transaction-log.service';
 import { StripeService } from '../../services/stripe/stripe.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -20,11 +25,46 @@ import { MilestoneService } from '../milestones/milestones.service';
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
 
+  /**
+   * Helper function to convert all ObjectIds to strings and preserve Dates recursively
+   */
+  private convertObjectIdsToStrings(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    if (obj instanceof Types.ObjectId) {
+      return obj.toString();
+    }
+
+    if (obj instanceof Date) {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.convertObjectIdsToStrings(item));
+    }
+
+    if (typeof obj === 'object') {
+      const converted: any = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          converted[key] = this.convertObjectIdsToStrings(obj[key]);
+        }
+      }
+      return converted;
+    }
+
+    return obj;
+  }
+
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
     @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Job.name) private jobModel: Model<Job>,
+    @InjectModel(Proposal.name) private proposalModel: Model<Proposal>,
     private transactionLogService: TransactionLogService,
     private stripeService: StripeService,
     private notificationsService: NotificationsService,
@@ -323,17 +363,18 @@ export class PaymentService {
 
     const payment = await this.paymentModel
       .findOne({ _id: id, deletedAt: null })
-      .populate('contractId')
-      .populate('milestoneId')
-      .populate('payerId', 'firstName lastName email')
-      .populate('payeeId', 'firstName lastName email')
+      .populate('contractId', 'title status totalAmount currency')
+      .populate('milestoneId', 'title amount currency status')
+      .populate('payerId', 'profile.firstName profile.lastName email')
+      .populate('payeeId', 'profile.firstName profile.lastName email')
+      .lean({ virtuals: true })
       .exec();
 
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
 
-    return payment;
+    return this.convertObjectIdsToStrings(payment);
   }
 
   async findAll(
@@ -366,20 +407,24 @@ export class PaymentService {
     const [payments, total] = await Promise.all([
       this.paymentModel
         .find(query)
-        .populate('contractId')
-        .populate('milestoneId')
-        .populate('payerId', 'firstName lastName email')
-        .populate('payeeId', 'firstName lastName email')
+        .populate('contractId', 'title status totalAmount currency')
+        .populate('milestoneId', 'title amount currency status')
+        .populate('payerId', 'profile.firstName profile.lastName email')
+        .populate('payeeId', 'profile.firstName profile.lastName email')
         .sort(sort)
         .skip(skip)
         .limit(limit)
+        .lean({ virtuals: true })
         .exec(),
       this.paymentModel.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limit);
 
-    return { payments, total, totalPages };
+    // Convert all ObjectIds to strings
+    const convertedPayments = this.convertObjectIdsToStrings(payments);
+
+    return { payments: convertedPayments, total, totalPages };
   }
 
   async updateById(id: string, updateData: Partial<Payment>): Promise<Payment> {
@@ -396,10 +441,10 @@ export class PaymentService {
         },
         { new: true }
       )
-      .populate('contractId')
-      .populate('milestoneId')
-      .populate('payerId', 'firstName lastName email')
-      .populate('payeeId', 'firstName lastName email')
+      .populate('contractId', 'title status totalAmount currency')
+      .populate('milestoneId', 'title amount currency status')
+      .populate('payerId', 'profile.firstName profile.lastName email')
+      .populate('payeeId', 'profile.firstName profile.lastName email')
       .exec();
 
     if (!payment) {
@@ -443,8 +488,9 @@ export class PaymentService {
       }
     }
 
+    const plainPayment = payment.toObject({ virtuals: true });
     this.logger.log(`Payment updated: ${payment._id}`);
-    return payment;
+    return this.convertObjectIdsToStrings(plainPayment);
   }
 
   async processPayment(id: string): Promise<Payment> {
@@ -537,6 +583,74 @@ export class PaymentService {
       }
     } catch (logError) {
       this.logger.error(`Failed to log transactions for completed payment ${id}: ${logError.message}`, logError.stack);
+    }
+
+    // Update contract totalPaid for upfront payments and activate contract
+    if (payment.metadata?.type === 'contract_upfront' && payment.contractId) {
+      try {
+        // Update contract: set as ACTIVE and update totalPaid
+        const contract = await this.contractModel.findByIdAndUpdate(
+          payment.contractId,
+          {
+            totalPaid: payment.amount,
+            status: ContractStatus.ACTIVE
+          },
+          { new: true }
+        ).populate('jobId', 'title');
+        
+        if (contract) {
+          this.logger.log(`Contract ${payment.contractId} ACTIVATED after successful payment: ${payment.amount}`);
+
+          // Update freelancer's pending balance
+          // Full contract amount goes to pending balance (will move to available when milestones are approved)
+          try {
+            const freelancerAmountAfterFee = payment.amount - payment.platformFee;
+            await this.contractModel.db.model('User').findByIdAndUpdate(
+              payment.payeeId,
+              { 
+                $inc: { 
+                  'freelancerData.pendingBalance': freelancerAmountAfterFee
+                } 
+              }
+            );
+            this.logger.log(`Updated freelancer ${payment.payeeId} pending balance: +$${freelancerAmountAfterFee}`);
+          } catch (balanceError) {
+            this.logger.error(`Failed to update freelancer balance: ${balanceError.message}`, balanceError.stack);
+            // Critical - payment completed but balance not updated, needs reconciliation
+          }
+
+          // Update associated job status to CONTRACTED
+          if (payment.metadata?.jobId) {
+            try {
+              await this.jobModel.findByIdAndUpdate(
+                payment.metadata.jobId,
+                {
+                  status: JobStatus.CONTRACTED
+                }
+              );
+              this.logger.log(`Job ${payment.metadata.jobId} status set to CONTRACTED after successful payment`);
+            } catch (jobError) {
+              this.logger.error(`Failed to update job ${payment.metadata.jobId} status: ${jobError.message}`, jobError.stack);
+            }
+          }
+
+          // NOW send notification to freelancer - contract is ready and paid
+          try {
+            const jobTitle = (contract.jobId as any)?.title || 'a contract';
+            await this.notificationsService.notifyContractCreated(
+              payment.contractId.toString(),
+              jobTitle,
+              payment.payeeId.toString()
+            );
+            this.logger.log(`Sent contract notification to freelancer ${payment.payeeId} after payment completion`);
+          } catch (notificationError) {
+            this.logger.error(`Failed to send contract notification: ${notificationError.message}`, notificationError.stack);
+          }
+        }
+      } catch (contractError) {
+        this.logger.error(`Failed to activate contract ${payment.contractId} after payment: ${contractError.message}`, contractError.stack);
+        // Don't fail payment completion if contract update fails
+      }
     }
 
     return updatedPayment;
@@ -700,11 +814,14 @@ export class PaymentService {
       throw new BadRequestException('Invalid contract ID');
     }
 
-    return this.paymentModel
+    const payments = await this.paymentModel
       .find({ contractId, deletedAt: null })
-      .populate('milestoneId')
+      .populate('milestoneId', 'title amount currency status')
       .sort({ createdAt: -1 })
+      .lean({ virtuals: true })
       .exec();
+    
+    return this.convertObjectIdsToStrings(payments);
   }
 
   async getTotalPaidByContract(contractId: string): Promise<number> {

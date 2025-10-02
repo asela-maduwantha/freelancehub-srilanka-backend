@@ -348,7 +348,27 @@ export class MilestoneService {
       { $inc: { releasedAmount: milestone.amount } }
     );
 
+    // Update freelancer's available balance
+    // The milestone amount is released from pending to available
+    try {
+      await this.contractModel.db.model('User').findByIdAndUpdate(
+        contract!.freelancerId,
+        { 
+          $inc: { 
+            'freelancerData.availableBalance': milestone.amount,
+            'freelancerData.pendingBalance': -milestone.amount
+          } 
+        }
+      );
+      console.log(`Updated freelancer balance: +$${milestone.amount} available, -$${milestone.amount} pending`);
+    } catch (balanceError) {
+      console.error('Failed to update freelancer balance:', balanceError);
+      // Don't fail milestone approval if balance update fails, but log for reconciliation
+    }
+
     // Create transaction log for the release
+    // NOTE: Platform fee was already deducted during upfront payment
+    // This is just releasing the already-paid milestone amount
     try {
       await this.transactionLogService.create({
         transactionId: uuidv4(),
@@ -357,8 +377,8 @@ export class MilestoneService {
         toUserId: contract!.freelancerId, // To freelancer
         amount: milestone.amount,
         currency: milestone.currency,
-        fee: milestone.amount * (contract!.platformFeePercentage / 100), // Platform fee
-        netAmount: milestone.amount * (1 - contract!.platformFeePercentage / 100), // Amount after fee
+        fee: 0, // Fee already deducted during upfront payment
+        netAmount: milestone.amount, // Full amount goes to freelancer
         relatedId: milestone._id as Types.ObjectId,
         relatedType: 'milestone',
         description: `Milestone payment released: ${milestone.title}`,
@@ -671,7 +691,27 @@ export class MilestoneService {
       cacheKeysToDelete.map(key => this.cacheManager.del(key).catch(() => {})) // Ignore errors for non-existent keys
     );
 
-    // Note: For findAll cache keys with filters, we can't predict all combinations,
-    // so they will expire naturally based on TTL
+    // Clear milestone list caches for both users with common filter combinations
+    for (const userId of userIds) {
+      for (let page = 1; page <= 5; page++) {
+        for (const limit of [10, 20, 50]) {
+          // Clear various filter combinations
+          const filterCombinations = [
+            { contractId },
+            { contractId, status: MilestoneStatus.PENDING },
+            { contractId, status: MilestoneStatus.IN_PROGRESS },
+            { contractId, status: MilestoneStatus.SUBMITTED },
+            { contractId, status: MilestoneStatus.APPROVED },
+            { contractId, status: MilestoneStatus.PAID },
+            {},  // No contractId filter (user's all milestones)
+          ];
+
+          for (const filters of filterCombinations) {
+            const cacheKey = `milestones_user:${userId}:${JSON.stringify({ ...filters, page, limit })}`;
+            await this.cacheManager.del(cacheKey).catch(() => {});
+          }
+        }
+      }
+    }
   }
 }

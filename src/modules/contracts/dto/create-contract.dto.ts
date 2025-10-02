@@ -40,6 +40,11 @@ export class CreateContractMilestoneDto {
   @IsNumber()
   @Min(1)
   durationDays?: number;
+
+  @ApiProperty({ description: 'Milestone order within the contract', minimum: 1 })
+  @IsNumber()
+  @Min(1)
+  order: number;
 }
 
 // Create Contract DTO
@@ -84,10 +89,9 @@ export class CreateContractDto {
   @Type(() => CreateContractMilestoneDto)
   milestones?: CreateContractMilestoneDto[];
 
-  @ApiPropertyOptional({ description: 'Saved payment method ID to use for this contract' })
-  @IsOptional()
+  @ApiProperty({ description: 'Saved payment method ID to use for upfront contract payment' })
   @IsMongoId()
-  paymentMethodId?: string;
+  paymentMethodId: string;
 
   @ApiPropertyOptional({ description: 'Whether to save the payment method for future use', default: false })
   @IsOptional()

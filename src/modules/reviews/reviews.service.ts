@@ -237,9 +237,19 @@ export class ReviewsService {
   }
 
   private async invalidateReviewCache(revieweeId: string): Promise<void> {
-    // Since cache-manager doesn't provide a keys method, we'll clear specific patterns
-    // In a production environment, you might want to use Redis with key patterns
-    await this.cacheManager.del(`review_stats:${revieweeId}`);
-    // Note: Individual review caches will expire naturally
+    try {
+      // Clear review stats cache
+      await this.cacheManager.del(`review_stats:${revieweeId}`);
+      
+      // Clear review list caches for this reviewee (first few pages)
+      for (let page = 1; page <= 5; page++) {
+        for (const limit of [10, 20, 50]) {
+          await this.cacheManager.del(`reviews:reviewee:${revieweeId}:page:${page}:limit:${limit}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to invalidate review cache for reviewee ${revieweeId}:`, error);
+      // Don't throw - cache invalidation failures shouldn't break the operation
+    }
   }
 }

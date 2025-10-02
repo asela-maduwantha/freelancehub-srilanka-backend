@@ -8,6 +8,8 @@ import { TransactionLog, TransactionLogSchema } from '../../database/schemas/tra
 import { User, UserSchema } from '../../database/schemas/user.schema';
 import { Contract, ContractSchema } from '../../database/schemas/contract.schema';
 import { Milestone, MilestoneSchema } from '../../database/schemas/milestone.schema';
+import { Job, JobSchema } from '../../database/schemas/job.schema';
+import { Proposal, ProposalSchema } from '../../database/schemas/proposal.schema';
 import { AuthModule } from '../auth/auth.module';
 import { StripeService } from '../../services/stripe/stripe.service';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -21,6 +23,8 @@ import { MilestonesModule } from '../milestones/milestones.module';
       { name: User.name, schema: UserSchema },
       { name: Contract.name, schema: ContractSchema },
       { name: Milestone.name, schema: MilestoneSchema },
+      { name: Job.name, schema: JobSchema },
+      { name: Proposal.name, schema: ProposalSchema },
     ]),
     AuthModule,
     NotificationsModule,

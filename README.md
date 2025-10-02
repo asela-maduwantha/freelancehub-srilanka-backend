@@ -25,6 +25,36 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## FreelanceHub Backend
+
+A comprehensive backend system for a freelance marketplace platform built with NestJS, MongoDB, and Stripe payments.
+
+### 📚 Documentation
+
+- **[Frontend Payment Flow Guide](FRONTEND_PAYMENT_FLOW_GUIDE.md)** - Complete user journey and integration guide
+- **[Frontend Integration Quick Reference](FRONTEND_INTEGRATION_QUICK_REFERENCE.md)** - Key integration points and code snippets
+- **[Contract Payment Flow Guide](CONTRACT_PAYMENT_FLOW_GUIDE.md)** - Detailed payment flows after contract creation
+- **[Payment System Guide](PAYMENT_SYSTEM_GUIDE.md)** - Backend payment system documentation
+- **[Postman Collections](postman-collections/)** - API testing collections for all modules
+
+### 🚀 Key Features
+
+- **User Management**: Client and Freelancer roles with JWT authentication
+- **Job Management**: Job posting, proposal system, and contract creation
+- **Payment System**: Stripe integration with milestone-based payments
+- **Milestone Tracking**: Work submission, approval, and payment release
+- **Withdrawal System**: Freelancer payouts via Stripe
+- **Admin Dashboard**: Transaction monitoring and dispute resolution
+
+### 🛠 Tech Stack
+
+- **Framework**: NestJS with TypeScript
+- **Database**: MongoDB with Mongoose
+- **Payments**: Stripe API
+- **Authentication**: JWT with role-based access
+- **File Storage**: Azure Blob Storage
+- **Email**: Nodemailer with templates
+
 ## Project setup
 
 ```bash

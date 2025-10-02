@@ -359,6 +359,8 @@ export class UsersService {
       user.freelancerData = {
         skills: [],
         totalEarned: 0,
+        pendingBalance: 0,
+        availableBalance: 0,
         completedJobs: 0,
         rating: 0,
         reviewCount: 0,
@@ -367,21 +369,21 @@ export class UsersService {
 
     // Update freelancer-specific fields
     if (updateFreelancerProfileDto.hourlyRate !== undefined) {
-      user.freelancerData.hourlyRate = updateFreelancerProfileDto.hourlyRate;
+      user.freelancerData!.hourlyRate = updateFreelancerProfileDto.hourlyRate;
     }
 
     if (updateFreelancerProfileDto.availability !== undefined) {
-      user.freelancerData.availability =
+      user.freelancerData!.availability =
         updateFreelancerProfileDto.availability;
     }
 
     if (updateFreelancerProfileDto.experience !== undefined) {
-      user.freelancerData.experience = updateFreelancerProfileDto.experience;
+      user.freelancerData!.experience = updateFreelancerProfileDto.experience;
     }
 
     if (updateFreelancerProfileDto.languages !== undefined) {
       // Convert string array to Language objects
-      user.freelancerData.languages = updateFreelancerProfileDto.languages.map(
+      user.freelancerData!.languages = updateFreelancerProfileDto.languages.map(
         (lang) => ({
           language: lang,
           proficiency: 'fluent', // Default proficiency
@@ -390,11 +392,11 @@ export class UsersService {
     }
 
     if (updateFreelancerProfileDto.title !== undefined) {
-      user.freelancerData.title = updateFreelancerProfileDto.title;
+      user.freelancerData!.title = updateFreelancerProfileDto.title;
     }
 
     if (updateFreelancerProfileDto.overview !== undefined) {
-      user.freelancerData.overview = updateFreelancerProfileDto.overview;
+      user.freelancerData!.overview = updateFreelancerProfileDto.overview;
     }
 
     await user.save();
@@ -436,6 +438,8 @@ export class UsersService {
       user.freelancerData = {
         skills: [],
         totalEarned: 0,
+        pendingBalance: 0,
+        availableBalance: 0,
         completedJobs: 0,
         rating: 0,
         reviewCount: 0,
@@ -443,14 +447,14 @@ export class UsersService {
     }
 
     // Add new skills (avoid duplicates)
-    const existingSkills = new Set(user.freelancerData.skills);
+    const existingSkills = new Set(user.freelancerData!.skills);
     const newSkills = skills.filter((skill) => !existingSkills.has(skill));
 
     if (newSkills.length === 0) {
       throw new BadRequestException('All provided skills are already added');
     }
 
-    user.freelancerData.skills.push(...newSkills);
+    user.freelancerData!.skills.push(...newSkills);
     await user.save();
 
     // Clear cache after adding skills
@@ -515,6 +519,8 @@ export class UsersService {
       user.freelancerData = {
         skills: [],
         totalEarned: 0,
+        pendingBalance: 0,
+        availableBalance: 0,
         completedJobs: 0,
         rating: 0,
         reviewCount: 0,
@@ -523,8 +529,8 @@ export class UsersService {
     }
 
     // Initialize portfolio array if it doesn't exist
-    if (!user.freelancerData.portfolio) {
-      user.freelancerData.portfolio = [];
+    if (!user.freelancerData!.portfolio) {
+      user.freelancerData!.portfolio = [];
     }
 
     const portfolioItem: PortfolioItem = {
@@ -535,7 +541,7 @@ export class UsersService {
       technologies: addPortfolioItemDto.technologies || [],
     };
 
-    user.freelancerData.portfolio.push(portfolioItem);
+    user.freelancerData!.portfolio.push(portfolioItem);
     await user.save();
 
     // Clear cache after adding portfolio item
@@ -660,6 +666,8 @@ export class UsersService {
       user.freelancerData = {
         skills: [],
         totalEarned: 0,
+        pendingBalance: 0,
+        availableBalance: 0,
         completedJobs: 0,
         rating: 0,
         reviewCount: 0,
@@ -668,8 +676,8 @@ export class UsersService {
     }
 
     // Initialize education array if it doesn't exist
-    if (!user.freelancerData.education) {
-      user.freelancerData.education = [];
+    if (!user.freelancerData!.education) {
+      user.freelancerData!.education = [];
     }
 
     const educationRecord: Education = {
@@ -678,7 +686,7 @@ export class UsersService {
       year: addEducationDto.year,
     };
 
-    user.freelancerData.education.push(educationRecord);
+    user.freelancerData!.education.push(educationRecord);
     await user.save();
 
     // Clear cache after adding education record
@@ -797,6 +805,8 @@ export class UsersService {
       user.freelancerData = {
         skills: [],
         totalEarned: 0,
+        pendingBalance: 0,
+        availableBalance: 0,
         completedJobs: 0,
         rating: 0,
         reviewCount: 0,
@@ -805,8 +815,8 @@ export class UsersService {
     }
 
     // Initialize certifications array if it doesn't exist
-    if (!user.freelancerData.certifications) {
-      user.freelancerData.certifications = [];
+    if (!user.freelancerData!.certifications) {
+      user.freelancerData!.certifications = [];
     }
 
     const certification: Certification = {
@@ -816,7 +826,7 @@ export class UsersService {
       url: addCertificationDto.url,
     };
 
-    user.freelancerData.certifications.push(certification);
+    user.freelancerData!.certifications.push(certification);
     await user.save();
 
     // Clear cache after adding certification

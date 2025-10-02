@@ -47,6 +47,27 @@ Each collection is organized by module and contains:
 - Pre-configured request bodies with example data
 - Proper authentication headers for protected endpoints
 
+### ✅ FreelanceHub-Payment-System.postman_collection.json
+**Status**: Complete
+
+**Endpoints Covered:**
+- **Payment Methods**: Setup intents, save/manage payment methods, set defaults
+- **Payments**: Create payments, payment intents, view payment history, stats
+- **Payment Actions (Admin)**: Process, complete, fail, refund, retry payments
+- **Transaction Logs**: View transactions, summaries, search, analytics
+- **Transaction Actions (Admin)**: Update status, bulk operations
+- **Withdrawals**: Create requests, process/complete/fail (admin)
+- **Stripe Webhook**: Handle webhook events
+
+**Key Features:**
+- Full Stripe integration endpoints
+- Payment method management (cards, bank accounts)
+- Transaction tracking and reporting
+- Withdrawal processing workflow
+- Admin payment operations
+- Automatic variable storage for IDs
+- Comprehensive transaction analytics
+
 ### ✅ FreelanceHub-Jobs-Module.postman_collection.json
 **Status**: Complete
 

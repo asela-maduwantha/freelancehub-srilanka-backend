@@ -43,7 +43,7 @@ export class Contract extends Document {
   @Prop({
     required: true,
     enum: ContractStatus,
-    default: ContractStatus.ACTIVE,
+    default: ContractStatus.PENDING_PAYMENT,
   })
   status: ContractStatus;
 

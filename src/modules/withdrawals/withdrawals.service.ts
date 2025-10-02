@@ -34,10 +34,12 @@ export class WithdrawalsService {
         throw new ForbiddenException('Only freelancers can request withdrawals');
       }
 
-      // Check user's available balance
-      const balance = await this.transactionLogService.getTransactionBalance(createWithdrawalDto.userId.toString());
-      if (balance.availableBalance < createWithdrawalDto.amount) {
-        throw new BadRequestException('Insufficient available balance for withdrawal');
+      // Check user's available balance from user schema
+      const availableBalance = user.freelancerData?.availableBalance || 0;
+      if (availableBalance < createWithdrawalDto.amount) {
+        throw new BadRequestException(
+          `Insufficient available balance for withdrawal. Available: $${availableBalance.toFixed(2)}, Requested: $${createWithdrawalDto.amount.toFixed(2)}`
+        );
       }
 
       // Validate withdrawal method details
@@ -191,6 +193,23 @@ export class WithdrawalsService {
       { status: WithdrawalStatus.COMPLETED },
       { new: true }
     ).populate('freelancerId', 'firstName lastName email');
+
+    // Deduct withdrawal amount from user's available balance
+    try {
+      await this.userModel.findByIdAndUpdate(
+        withdrawal.freelancerId,
+        { 
+          $inc: { 
+            'freelancerData.availableBalance': -withdrawal.amount 
+          } 
+        }
+      );
+      this.logger.log(`Deducted $${withdrawal.amount} from user ${withdrawal.freelancerId} balance`);
+    } catch (balanceError) {
+      this.logger.error(`Failed to update user balance after withdrawal: ${balanceError.message}`);
+      // This is critical - withdrawal was completed but balance not updated
+      // Should trigger manual reconciliation
+    }
 
     // Update transaction log to completed
     try {

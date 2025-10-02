@@ -1,0 +1,1447 @@
+{
+  "info": {
+    "name": "FreelanceHub Payment System",
+    "description": "Comprehensive Postman collection for testing payment, payment methods, transaction logs, and withdrawal endpoints in FreelanceHub backend. Includes Stripe integration, payment intents, transaction tracking, and withdrawal processing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "freelancehub-backend"
+  },
+  "item": [
+    {
+      "name": "Payment Methods",
+      "description": "Manage payment methods using Stripe. Users can save cards, set default methods, and manage their payment methods.",
+      "item": [
+        {
+          "name": "Create Setup Intent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.clientSecret) {",
+                  "        pm.collectionVariables.set('setup_intent_client_secret', response.data.clientSecret);",
+                  "        pm.collectionVariables.set('setup_intent_id', response.data.id);",
+                  "        console.log('Setup Intent created:', response.data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-methods/setup-intent",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "setup-intent"]
+            },
+            "description": "Creates a Stripe SetupIntent for collecting payment method details. Returns client_secret for frontend use."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Payment Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data._id) {",
+                  "        pm.collectionVariables.set('payment_method_id', response.data._id);",
+                  "        console.log('Payment method saved:', response.data._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stripePaymentMethodId\": \"pm_1234567890abcdef\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payment-methods",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"]
+            },
+            "description": "Save a payment method after collecting it with SetupIntent. Use Stripe payment method ID from client-side confirmation."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payment Methods",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-methods",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"]
+            },
+            "description": "Get all payment methods for the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Payment Method as Default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-methods/{{payment_method_id}}/default",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "{{payment_method_id}}", "default"]
+            },
+            "description": "Set a specific payment method as the default for future payments."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Payment Method",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "{{payment_method_id}}"]
+            },
+            "description": "Delete a saved payment method. Also removes it from Stripe."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "description": "Core payment operations including creating payments, payment intents, and managing payment lifecycle.",
+      "item": [
+        {
+          "name": "Create Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response._id) {",
+                  "        pm.collectionVariables.set('payment_id', response._id);",
+                  "        console.log('Payment created:', response._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"milestoneId\": \"{{milestone_id}}\",\n  \"payerId\": \"{{client_id}}\",\n  \"payeeId\": \"{{freelancer_id}}\",\n  \"amount\": 5000,\n  \"currency\": \"USD\",\n  \"paymentType\": \"milestone\",\n  \"platformFeePercentage\": 10,\n  \"description\": \"Payment for milestone completion\",\n  \"metadata\": {\n    \"milestoneTitle\": \"Phase 1 Complete\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["payments"]
+            },
+            "description": "Create a new payment record. Used for milestone payments, bonuses, or refunds."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Payment Intent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.clientSecret) {",
+                  "        pm.collectionVariables.set('payment_intent_client_secret', response.data.clientSecret);",
+                  "        pm.collectionVariables.set('payment_intent_id', response.data.id);",
+                  "        console.log('Payment Intent created:', response.data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"amount\": 10000,\n  \"currency\": \"USD\",\n  \"description\": \"Contract upfront payment\",\n  \"paymentMethodId\": \"{{payment_method_id}}\",\n  \"metadata\": {\n    \"type\": \"contract_upfront\",\n    \"contractId\": \"{{contract_id}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/create-intent",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "create-intent"]
+            },
+            "description": "Create a Stripe Payment Intent for processing payment. Returns client_secret for frontend confirmation."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                },
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "disabled": true
+                },
+                {
+                  "key": "paymentType",
+                  "value": "milestone",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get all payments with pagination and filtering options."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}"]
+            },
+            "description": "Get details of a specific payment by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payments by Contract",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/contract/{{contract_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "contract", "{{contract_id}}"]
+            },
+            "description": "Get all payments associated with a specific contract."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Total Paid by Contract",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/contract/{{contract_id}}/total",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "contract", "{{contract_id}}", "total"]
+            },
+            "description": "Get the total amount paid for a specific contract."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Stats for User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/stats/user/{{user_id}}/payer?startDate=2025-01-01&endDate=2025-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "stats", "user", "{{user_id}}", "payer"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-31"
+                }
+              ]
+            },
+            "description": "Get payment statistics for a user. Use 'payer' for clients and 'payee' for freelancers."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/balance/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "balance", "{{user_id}}"]
+            },
+            "description": "Get the current balance for a user (total received minus total paid)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment Actions (Admin)",
+      "description": "Admin-only endpoints for managing payment lifecycle and status changes.",
+      "item": [
+        {
+          "name": "Process Payment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/process",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}", "process"]
+            },
+            "description": "Mark a payment as processing (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Payment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stripePaymentIntentId\": \"pi_1234567890abcdef\",\n  \"stripeChargeId\": \"ch_1234567890abcdef\",\n  \"stripeTransferId\": \"tr_1234567890abcdef\",\n  \"stripeFee\": 30\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}", "complete"]
+            },
+            "description": "Mark a payment as completed with Stripe transaction details (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Fail Payment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"errorMessage\": \"Insufficient funds\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/fail",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}", "fail"]
+            },
+            "description": "Mark a payment as failed with error message (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Refund Payment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refundAmount\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/refund",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}", "refund"]
+            },
+            "description": "Refund a payment (full or partial). If refundAmount not specified, refunds full amount (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Retry Payment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/retry",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}", "retry"]
+            },
+            "description": "Retry a failed payment (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Payment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"amount\": 5500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}"]
+            },
+            "description": "Update payment details (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Payment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{payment_id}}"]
+            },
+            "description": "Delete a payment record (Admin only)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transaction Logs",
+      "description": "Track and manage all financial transactions in the system.",
+      "item": [
+        {
+          "name": "Get All Transaction Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/logs?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "logs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "Get all transaction logs with pagination (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction Log by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/{{transaction_log_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "{{transaction_log_id}}"]
+            },
+            "description": "Get details of a specific transaction log (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction by Transaction ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/by-transaction-id/{{transaction_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "by-transaction-id", "{{transaction_id}}"]
+            },
+            "description": "Get transaction log by unique transaction ID (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/user/{{user_id}}?type=both&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "user", "{{user_id}}"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "both",
+                  "description": "from, to, or both"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all transactions for a specific user. Type: 'from' (sent), 'to' (received), or 'both'."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Transaction Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/{{user_id}}/summary?startDate=2025-01-01&endDate=2025-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "{{user_id}}", "summary"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-31"
+                }
+              ]
+            },
+            "description": "Get summary of user's transactions including totals and counts."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transactions by Related Entity",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/related/{{related_id}}/contract",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "related", "{{related_id}}", "contract"],
+              "variable": [
+                {
+                  "key": "relatedType",
+                  "value": "contract",
+                  "description": "contract, milestone, withdrawal, or dispute"
+                }
+              ]
+            },
+            "description": "Get all transactions related to a specific entity (contract, milestone, withdrawal, or dispute)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recent Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/recent?limit=10&userId={{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "recent"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "userId",
+                  "value": "{{user_id}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get recent transactions. Optionally filter by user ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transactions by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/date-range?startDate=2025-01-01&endDate=2025-12-31&groupBy=day",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "date-range"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-31"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "day",
+                  "description": "day, week, or month"
+                }
+              ]
+            },
+            "description": "Get transactions grouped by time period (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Pending Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/pending",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "pending"]
+            },
+            "description": "Get all pending transactions (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Failed Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/failed?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "failed"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Get all failed transactions (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction Volume Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/volume-stats?startDate=2025-01-01&endDate=2025-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "volume-stats"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-31"
+                }
+              ]
+            },
+            "description": "Get transaction volume statistics (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/search?term=milestone&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "search"],
+              "query": [
+                {
+                  "key": "term",
+                  "value": "milestone"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Search transactions by description or transaction ID (Admin only)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transaction Actions (Admin)",
+      "description": "Admin endpoints for managing transaction status and performing bulk operations.",
+      "item": [
+        {
+          "name": "Update Transaction Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"stripeId\": \"pi_1234567890abcdef\",\n  \"errorMessage\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/{{transaction_log_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "{{transaction_log_id}}", "status"]
+            },
+            "description": "Update transaction status by ID (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Transaction Status by Transaction ID",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"failed\",\n  \"errorMessage\": \"Payment declined\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/by-transaction-id/{{transaction_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "by-transaction-id", "{{transaction_id}}", "status"]
+            },
+            "description": "Update transaction status by transaction ID (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Transaction as Completed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stripeId\": \"pi_1234567890abcdef\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/mark-completed/{{transaction_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "mark-completed", "{{transaction_id}}"]
+            },
+            "description": "Mark transaction as completed with Stripe ID (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Transaction as Failed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"errorMessage\": \"Card declined - insufficient funds\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/mark-failed/{{transaction_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "mark-failed", "{{transaction_id}}"]
+            },
+            "description": "Mark transaction as failed with error message (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Update Transaction Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionIds\": [\n    \"{{transaction_id_1}}\",\n    \"{{transaction_id_2}}\"\n  ],\n  \"status\": \"cancelled\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/bulk-update-status",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "bulk-update-status"]
+            },
+            "description": "Update status for multiple transactions at once (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Transaction Log",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/transactions/{{transaction_log_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "transactions", "{{transaction_log_id}}"]
+            },
+            "description": "Delete a transaction log record (Admin only)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Withdrawals",
+      "description": "Freelancer withdrawal requests and admin withdrawal processing.",
+      "item": [
+        {
+          "name": "Create Withdrawal Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response._id) {",
+                  "        pm.collectionVariables.set('withdrawal_id', response._id);",
+                  "        console.log('Withdrawal created:', response._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{freelancer_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000,\n  \"currency\": \"USD\",\n  \"withdrawalMethod\": \"bank_transfer\",\n  \"accountDetails\": {\n    \"accountNumber\": \"1234567890\",\n    \"routingNumber\": \"021000021\",\n    \"accountHolderName\": \"John Doe\",\n    \"bankName\": \"Example Bank\"\n  },\n  \"notes\": \"Withdrawal for completed projects\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/withdrawals",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals"]
+            },
+            "description": "Create a new withdrawal request. Freelancer only. Amount in cents."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Withdrawals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/withdrawals?userId={{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{user_id}}",
+                  "description": "Optional, admin only"
+                }
+              ]
+            },
+            "description": "Get all withdrawals. Freelancers see only their own, admins can filter by userId."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Withdrawal by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/withdrawals/{{withdrawal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals", "{{withdrawal_id}}"]
+            },
+            "description": "Get details of a specific withdrawal."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Withdrawal (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stripePayoutId\": \"po_1234567890abcdef\",\n  \"processingNotes\": \"Verified account details and initiated payout\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/withdrawals/{{withdrawal_id}}/process",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals", "{{withdrawal_id}}", "process"]
+            },
+            "description": "Mark withdrawal as processing and add Stripe payout ID (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Withdrawal (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/withdrawals/{{withdrawal_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals", "{{withdrawal_id}}", "complete"]
+            },
+            "description": "Mark withdrawal as completed (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Fail Withdrawal (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"errorMessage\": \"Invalid bank account details\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/withdrawals/{{withdrawal_id}}/fail",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals", "{{withdrawal_id}}", "fail"]
+            },
+            "description": "Mark withdrawal as failed with reason (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Withdrawal (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/withdrawals/{{withdrawal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["withdrawals", "{{withdrawal_id}}"]
+            },
+            "description": "Cancel a pending withdrawal (Admin only)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stripe Webhook",
+      "description": "Endpoint for receiving Stripe webhook events.",
+      "item": [
+        {
+          "name": "Stripe Webhook Handler",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "stripe-signature",
+                "value": "t=1234567890,v1=signature_here",
+                "type": "text",
+                "description": "Stripe webhook signature for verification"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_1234567890abcdef\",\n  \"object\": \"event\",\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_1234567890abcdef\",\n      \"amount\": 10000,\n      \"currency\": \"usd\",\n      \"status\": \"succeeded\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/webhook",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "webhook"]
+            },
+            "description": "Public endpoint for Stripe webhook events. No authentication required but signature is verified. Configure this URL in your Stripe dashboard."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "freelancer_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "freelancer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_method_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "setup_intent_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "setup_intent_client_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_intent_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_intent_client_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contract_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestone_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transaction_log_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transaction_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "withdrawal_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

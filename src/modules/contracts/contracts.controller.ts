@@ -69,10 +69,60 @@ export class ContractsController {
     @CurrentUser('id') clientId: string,
   ): Promise<ContractResponseDto> {
     const contract = await this.contractsService.createContract(createContractDto, clientId);
+    const requiresPayment = (contract as any).requiresPayment;
     return {
       success: true,
-      message: 'Contract created successfully',
+      message: requiresPayment 
+        ? 'Contract created successfully. Please complete payment to activate the contract.' 
+        : 'Contract created and payment initiated. Awaiting payment confirmation.',
       data: contract,
+    };
+  }
+
+  @Post(':id/pay')
+  @Roles(UserRole.CLIENT)
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 payment attempts per minute
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Initiate payment for a contract (client only)' })
+  @ApiParam({ name: 'id', description: 'Contract ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        paymentMethodId: {
+          type: 'string',
+          description: 'Saved payment method ID to use for payment',
+        },
+      },
+      required: ['paymentMethodId'],
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment initiated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Contract not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid payment method or contract not in PENDING_PAYMENT status',
+  })
+  async initiateContractPayment(
+    @Param('id') contractId: string,
+    @Body('paymentMethodId') paymentMethodId: string,
+    @CurrentUser('id') clientId: string,
+  ) {
+    const paymentIntent = await this.contractsService.initiateContractPayment(
+      contractId,
+      paymentMethodId,
+      clientId
+    );
+    return {
+      success: true,
+      message: 'Payment initiated successfully. Please confirm payment.',
+      data: paymentIntent,
     };
   }
 

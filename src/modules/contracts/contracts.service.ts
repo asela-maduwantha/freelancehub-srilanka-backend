@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, Inject } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types, ClientSession } from "mongoose";
-import { Contract, Milestone, Proposal, User, Job } from "src/database/schemas";
+import { Contract, Milestone, Proposal, User, Job, Payment } from "src/database/schemas";
 import { CreateContractDto, ContractQueryDto } from "./dto";
 import { ContractStatus } from "src/common/enums";
 import { LoggerService } from "src/services/logger/logger.service";
@@ -14,6 +14,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { MilestoneStatus } from '../../common/enums/milestone-status.enum';
 import { StripeService } from '../../services/stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
+import { PaymentStatus } from '../../common/enums/payment-status.enum';
+import { TransactionLogService } from '../payments/transaction-log.service';
 
 
 @Injectable()
@@ -24,13 +26,62 @@ export class ContractsService {
     @InjectModel(Job.name) private jobModel: Model<Job>,
     @InjectModel(Proposal.name) private proposalModel: Model<Proposal>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Payment.name) private paymentModel: Model<Payment>,
     private logger: LoggerService,
     private pdfService: PdfService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private notificationsService: NotificationsService,
     private stripeService: StripeService,
     private paymentMethodsService: PaymentMethodsService,
+    private transactionLogService: TransactionLogService,
   ) {}
+
+  /**
+   * Invalidate all contract-related caches
+   * This should be called whenever a contract is created, updated, or deleted
+   */
+  private async invalidateContractCaches(contractId: string, clientId?: string, freelancerId?: string): Promise<void> {
+    try {
+      // Clear the specific contract cache (both v1 and v2 keys)
+      await this.cacheManager.del(`contract:${contractId}`);
+      await this.cacheManager.del(`contract:v2:${contractId}`);
+
+      // Clear contract list caches for both client and freelancer
+      if (clientId) {
+        await this.clearUserContractListCache(clientId);
+      }
+      if (freelancerId) {
+        await this.clearUserContractListCache(freelancerId);
+      }
+
+      this.logger.log(`Cleared contract cache for contract ${contractId}`, 'ContractsService');
+    } catch (error) {
+      this.logger.error(`Failed to invalidate contract caches for contract ${contractId}:`, error, 'ContractsService');
+      // Don't throw - cache invalidation failures shouldn't break the operation
+    }
+  }
+
+  /**
+   * Clear all contract list caches for a specific user
+   */
+  private async clearUserContractListCache(userId: string): Promise<void> {
+    try {
+      // Clear contract list caches for various pagination and filter combinations
+      for (let page = 1; page <= 5; page++) {
+        for (const limit of [10, 20, 50]) {
+          // Clear without status filter
+          await this.cacheManager.del(`contracts:user:${userId}:page:${page}:limit:${limit}`);
+          
+          // Clear with each status
+          for (const status of Object.values(ContractStatus)) {
+            await this.cacheManager.del(`contracts:user:${userId}:page:${page}:limit:${limit}:status:${status}`);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Failed to clear contract list cache for user ${userId}:`, error, 'ContractsService');
+    }
+  }
 
   /**
    * Safely converts ObjectId fields to strings to prevent Buffer serialization issues
@@ -155,7 +206,7 @@ export class ContractsService {
     contract.currency = proposal.proposedRate.currency;
     contract.startDate = contractData.startDate;
     contract.endDate = contractData.endDate;
-    contract.status = ContractStatus.ACTIVE;
+    contract.status = ContractStatus.PENDING_PAYMENT; // Start with PENDING_PAYMENT status
     contract.platformFeePercentage = 10;
     contract.totalPaid = 0;
     contract.releasedAmount = 0;
@@ -164,43 +215,9 @@ export class ContractsService {
     contract.isClientSigned = true;
     contract.isFreelancerSigned = false;
 
-    // Save contract first to get _id for payment intent metadata
+    // Save contract first - payment will be handled separately
     await contract.save();
-
-    // Handle payment method selection and saving
-    let paymentMethodId: string | undefined;
-    if (contractData.paymentMethodId) {
-      // Validate that the payment method belongs to the client
-      const paymentMethod = await this.paymentMethodsService.findById(contractData.paymentMethodId);
-      if (paymentMethod.userId.toString() !== clientId) {
-        throw new BadRequestException('Payment method not found');
-      }
-      paymentMethodId = paymentMethod.stripePaymentMethodId;
-    }
-
-    // Create payment intent for upfront payment
-    try {
-      const paymentIntent = await this.stripeService.createPaymentIntent(
-        contract.totalAmount,
-        contract.currency,
-        {
-          contractId: (contract._id as Types.ObjectId).toString(),
-          type: 'contract_upfront',
-          clientId: contract.clientId.toString(),
-          freelancerId: contract.freelancerId.toString(),
-        },
-        paymentMethodId // Use selected payment method if provided
-      );
-
-      contract.stripePaymentIntentId = paymentIntent.id;
-      await contract.save(); // Save again with payment intent ID
-
-      this.logger.log(`Payment intent created for contract: ${paymentIntent.id}`, 'ContractsService');
-    } catch (stripeError) {
-      this.logger.error(`Failed to create payment intent: ${stripeError.message}`, stripeError.stack, 'ContractsService');
-      // Don't fail contract creation if payment intent fails - can be created later
-      // But log the error for monitoring
-    }
+    this.logger.log(`Contract created with PENDING_PAYMENT status: ${contract._id}`, 'ContractsService');
 
     // Create milestones if provided
     let milestoneCount = 0;
@@ -237,24 +254,31 @@ export class ContractsService {
       await contract.save();
     }
 
-    // Send notification to freelancer about contract creation
-    try {
-      await this.notificationsService.notifyContractCreated(
-        (contract._id as Types.ObjectId).toString(),
-        job.title,
-        proposal.freelancerId.toString()
-      );
-    } catch (notificationError) {
-      this.logger.error(`Failed to send contract creation notification: ${notificationError.message}`, notificationError.stack, 'ContractsService');
-      // Don't throw - notification failure shouldn't break contract creation
-    }
-
-    // Update job with contract reference and set status to CONTRACTED
+    // DON'T send notification to freelancer yet - wait until payment is complete
+    // DON'T update job status yet - wait until payment is complete
+    
+    // Update job with contract reference only
     job.contractId = contract._id as Types.ObjectId;
-    job.status = JobStatus.CONTRACTED;
     await job.save();
 
-    this.logger.log(`Contract created successfully: ${contract._id}`, 'ContractsService');
+    this.logger.log(`Contract created successfully with PENDING_PAYMENT status: ${contract._id}`, 'ContractsService');
+
+    // Initiate payment if payment method provided
+    let paymentIntentData: any = null;
+    if (contractData.paymentMethodId) {
+      try {
+        const paymentResult = await this.initiateContractPayment(
+          (contract._id as Types.ObjectId).toString(),
+          contractData.paymentMethodId,
+          clientId
+        );
+        paymentIntentData = paymentResult;
+        this.logger.log(`Payment initiated for contract: ${contract._id}`, 'ContractsService');
+      } catch (paymentError) {
+        this.logger.error(`Failed to initiate payment for contract ${contract._id}: ${paymentError.message}`, paymentError.stack, 'ContractsService');
+        // Don't fail contract creation if payment fails - client can retry payment later
+      }
+    }
 
     // Populate related data before returning
     const populatedContract = await this.contractModel
@@ -269,26 +293,164 @@ export class ContractsService {
       throw new NotFoundException('Contract not found after creation');
     }
 
-    // Get payment intent details if it was created
-    let paymentIntentData: any = null;
-    if (populatedContract.stripePaymentIntentId) {
-      try {
-        paymentIntentData = await this.stripeService.retrievePaymentIntent(populatedContract.stripePaymentIntentId);
-      } catch (error) {
-        this.logger.warn(`Could not retrieve payment intent details: ${error.message}`, 'ContractsService');
-      }
-    }
-
     const contractObject = populatedContract.toObject() as any;
     
     // Add payment information to response
     contractObject.paymentIntent = paymentIntentData;
+    contractObject.requiresPayment = !paymentIntentData; // Indicates if client needs to initiate payment
     return contractObject;
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
     throw error;
   }
 }
+
+  /**
+   * Initiate payment for a contract
+   * This can be called separately from contract creation to decouple concerns
+   */
+  async initiateContractPayment(
+    contractId: string,
+    paymentMethodId: string,
+    clientId: string
+  ): Promise<any> {
+    try {
+      // Get the contract
+      const contract = await this.contractModel.findById(contractId);
+      if (!contract) {
+        throw new NotFoundException('Contract not found');
+      }
+
+      // Verify client owns the contract
+      if (contract.clientId.toString() !== clientId) {
+        throw new UnauthorizedException('You are not authorized to pay for this contract');
+      }
+
+      // Check contract status - should be PENDING_PAYMENT
+      if (contract.status !== ContractStatus.PENDING_PAYMENT) {
+        throw new BadRequestException(`Contract must be in PENDING_PAYMENT status. Current status: ${contract.status}`);
+      }
+
+      // Check if payment already initiated
+      if (contract.stripePaymentIntentId) {
+        // Check if existing payment is still pending
+        const existingPayment = await this.paymentModel.findOne({
+          stripePaymentIntentId: contract.stripePaymentIntentId,
+          status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] }
+        });
+        
+        if (existingPayment) {
+          throw new BadRequestException('A payment is already in progress for this contract');
+        }
+      }
+
+      // Validate payment method
+      const paymentMethod = await this.paymentMethodsService.findById(paymentMethodId);
+      if (!paymentMethod || paymentMethod.userId.toString() !== clientId) {
+        throw new BadRequestException('Payment method not found or does not belong to you');
+      }
+
+      const stripePaymentMethodId = paymentMethod.stripePaymentMethodId;
+
+      // Get client's Stripe customer ID
+      const client = await this.userModel.findById(clientId).exec();
+      if (!client || !client.stripeCustomerId) {
+        throw new BadRequestException('Client Stripe customer not found. Please ensure payment methods are properly set up.');
+      }
+
+      // Calculate platform fee and freelancer amount
+      const platformFee = (contract.totalAmount * contract.platformFeePercentage) / 100;
+      const freelancerAmount = contract.totalAmount - platformFee;
+
+      // Create payment intent
+      const paymentIntent = await this.stripeService.createPaymentIntent(
+        contract.totalAmount,
+        contract.currency,
+        {
+          contractId: contractId,
+          type: 'contract_upfront',
+          clientId: contract.clientId.toString(),
+          freelancerId: contract.freelancerId.toString(),
+          platformFeePercentage: contract.platformFeePercentage.toString(),
+        },
+        stripePaymentMethodId,
+        client.stripeCustomerId
+      );
+
+      // Update contract with payment intent ID
+      contract.stripePaymentIntentId = paymentIntent.id;
+      await contract.save();
+
+      this.logger.log(`Payment intent created for contract ${contractId}: ${paymentIntent.id}`, 'ContractsService');
+
+      // Create Payment record in database
+      const payment = new this.paymentModel({
+        contractId: contract._id,
+        milestoneId: null,
+        payerId: contract.clientId,
+        payeeId: contract.freelancerId,
+        amount: contract.totalAmount,
+        currency: contract.currency.toUpperCase(),
+        paymentType: 'milestone',
+        stripePaymentIntentId: paymentIntent.id,
+        platformFee,
+        platformFeePercentage: contract.platformFeePercentage,
+        stripeFee: 0,
+        freelancerAmount,
+        status: PaymentStatus.PENDING,
+        description: `Upfront payment for contract: ${contract.title}`,
+        metadata: {
+          type: 'contract_upfront',
+          paymentMethodId: paymentMethodId,
+          contractId: contractId,
+          jobId: contract.jobId.toString(),
+          proposalId: contract.proposalId.toString(),
+        },
+      });
+
+      await payment.save();
+      this.logger.log(`Payment record created: ${payment._id}`, 'ContractsService');
+
+      // Create transaction log
+      try {
+        await this.transactionLogService.create({
+          type: 'payment',
+          fromUserId: contract.clientId,
+          toUserId: contract.freelancerId,
+          amount: contract.totalAmount,
+          currency: contract.currency.toUpperCase(),
+          fee: platformFee,
+          netAmount: freelancerAmount,
+          relatedId: contract._id as Types.ObjectId,
+          relatedType: 'contract',
+          stripeId: paymentIntent.id,
+          description: `Upfront payment for contract: ${contract.title}`,
+          metadata: {
+            paymentId: (payment._id as Types.ObjectId).toString(),
+            paymentType: 'milestone',
+            platformFeePercentage: contract.platformFeePercentage,
+            type: 'contract_upfront',
+          },
+        });
+        this.logger.log(`Transaction log created for payment ${payment._id}`, 'ContractsService');
+      } catch (logError) {
+        this.logger.error(`Failed to create transaction log: ${logError.message}`, logError.stack, 'ContractsService');
+        // Don't fail if transaction log fails
+      }
+
+      return {
+        id: paymentIntent.id,
+        clientSecret: paymentIntent.clientSecret,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        paymentId: (payment._id as Types.ObjectId).toString(),
+      };
+    } catch (error) {
+      this.logger.error(`Failed to initiate contract payment: ${error.message}`, error.stack, 'ContractsService');
+      throw error;
+    }
+  }
 
   async startContract(contractId: string, userId: string): Promise<Contract> {
     const contract = await this.contractModel.findById(contractId);
@@ -322,7 +484,7 @@ export class ContractsService {
     const result = populatedContract.toObject();
 
     // Clear cache after starting contract
-    await this.cacheManager.del(`contract:${contractId}`);
+    await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
 
     return result;
   }
@@ -356,7 +518,7 @@ export class ContractsService {
     const result = populatedContract.toObject();
 
     // Clear cache after signing contract
-    await this.cacheManager.del(`contract:${contractId}`);
+    await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
 
     return result;
   }
@@ -402,7 +564,7 @@ export class ContractsService {
     const skip = (page - 1) * limit;
 
     // Create cache key from search parameters
-    const cacheKey = `contracts_user:v2:${userId}:${JSON.stringify(query)}`;
+    const cacheKey = `contracts_user:v3:${userId}:${JSON.stringify(query)}`;
 
     // Try to get from cache first
     const cachedResult = await this.cacheManager.get<PaginationResult<Contract>>(cacheKey);
@@ -410,8 +572,15 @@ export class ContractsService {
       return cachedResult;
     }
 
+    // Filter out PENDING_PAYMENT contracts from freelancer view
     const filter: any = {
-      $or: [{ clientId: userId }, { freelancerId: userId }],
+      $or: [
+        { clientId: userId }, // Clients see all their contracts
+        { 
+          freelancerId: userId,
+          status: { $ne: ContractStatus.PENDING_PAYMENT } // Freelancers only see paid contracts
+        }
+      ],
     };
 
     // Apply additional filters
@@ -544,7 +713,7 @@ export class ContractsService {
       const result = populatedContract.toObject();
 
       // Clear cache after completing contract
-      await this.cacheManager.del(`contract:${contractId}`);
+      await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
 
       return result;
     } catch (error) {
@@ -588,6 +757,9 @@ export class ContractsService {
     }
 
     this.logger.log(`Contract cancelled successfully: ${contract._id}`, 'ContractsService');
+
+    // Clear cache after cancelling contract
+    await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
 
     // Populate related data before returning
     const populatedContract = await this.contractModel

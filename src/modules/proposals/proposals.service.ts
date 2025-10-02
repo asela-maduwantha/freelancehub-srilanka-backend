@@ -73,6 +73,32 @@ export class ProposalsService {
     }
   }
 
+  /**
+   * Clear all cached proposal lists for a specific freelancer
+   * This invalidates the cache when freelancer's proposals are modified
+   */
+  private async clearFreelancerProposalCache(freelancerId: string): Promise<void> {
+    try {
+      // Clear freelancer's proposals list caches
+      // Pattern: proposals_freelancer:{freelancerId}:{page}:{limit}:{status}
+      for (let page = 1; page <= 5; page++) {
+        for (const limit of [10, 20, 50]) {
+          // Clear without status filter
+          await this.cacheManager.del(`proposals_freelancer:${freelancerId}:${page}:${limit}:all`);
+          
+          // Clear with each status
+          for (const status of Object.values(ProposalStatus)) {
+            await this.cacheManager.del(`proposals_freelancer:${freelancerId}:${page}:${limit}:${status}`);
+          }
+        }
+      }
+
+      this.logger.log(`Cleared proposal cache for freelancer ${freelancerId}`);
+    } catch (error) {
+      this.logger.error(`Failed to clear proposal cache for freelancer ${freelancerId}:`, error);
+    }
+  }
+
   async create(
     createProposalDto: CreateProposalDto,
     freelancerId: string,
@@ -367,8 +393,11 @@ export class ProposalsService {
 
     const updatedProposalResponse = this.mapToProposalResponseDto(updatedProposal);
 
-    // Clear cache after updating proposal
-    await this.cacheManager.del(`proposal_${id}`);
+    // Clear cache after updating proposal - FIX: use correct cache key format
+    await this.cacheManager.del(`proposal:${id}`);
+    
+    // Clear freelancer's proposals list cache
+    await this.clearFreelancerProposalCache(freelancerId);
     
     // Clear job proposal list cache since proposal content changed
     await this.clearJobProposalCache(updatedProposal.jobId.toString());
@@ -402,8 +431,11 @@ export class ProposalsService {
       { new: true }
     ).exec();
 
-    // Clear cache after deleting proposal
-    await this.cacheManager.del(`proposal_${id}`);
+    // Clear cache after deleting proposal - FIX: use correct cache key format
+    await this.cacheManager.del(`proposal:${id}`);
+    
+    // Clear freelancer's proposals list cache
+    await this.clearFreelancerProposalCache(freelancerId);
     
     // Clear job proposal list cache since proposal was removed
     await this.clearJobProposalCache(proposal.jobId.toString());
@@ -415,88 +447,117 @@ export class ProposalsService {
     id: string,
     clientId: string,
   ): Promise<ProposalResponseDto> {
-    const proposal = await this.proposalModel
-      .findById(id)
-      .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
-      .populate({
-        path: 'jobId',
-        select: 'title category subcategory projectType budget clientId status',
-        populate: {
-          path: 'clientId',
-          select: 'email profile.firstName profile.lastName profile.avatar'
-        }
-      })
-      .exec();
-    if (!proposal) {
-      throw new NotFoundException('Proposal not found');
-    }
-    const job = proposal.jobId as any;
-    if (job.clientId?._id?.toString() !== clientId) {
-      throw new ForbiddenException(
-        'You are not authorized to accept this proposal',
+    // Start a session for transaction
+    const session: ClientSession = await this.proposalModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      // Find and validate proposal within transaction
+      const proposal = await this.proposalModel
+        .findById(id)
+        .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
+        .populate({
+          path: 'jobId',
+          select: 'title category subcategory projectType budget clientId status',
+          populate: {
+            path: 'clientId',
+            select: 'email profile.firstName profile.lastName profile.avatar'
+          }
+        })
+        .session(session)
+        .exec();
+
+      if (!proposal) {
+        throw new NotFoundException('Proposal not found');
+      }
+
+      const job = proposal.jobId as any;
+      if (job.clientId?._id?.toString() !== clientId) {
+        throw new ForbiddenException(
+          'You are not authorized to accept this proposal',
+        );
+      }
+
+      // Check if job is in a valid state for accepting proposals
+      // This check within transaction prevents race conditions
+      if (job.status !== JobStatus.OPEN) {
+        throw new BadRequestException('Can only accept proposals for open jobs');
+      }
+
+      // Accept the proposal
+      proposal.status = ProposalStatus.ACCEPTED;
+      await proposal.save({ session });
+
+      // Reject all other proposals for this job
+      await this.proposalModel.updateMany(
+        {
+          jobId: job._id,
+          _id: { $ne: id },
+          status: ProposalStatus.PENDING
+        },
+        { status: ProposalStatus.REJECTED },
+        { session }
       );
-    }
 
-    // Check if job is in a valid state for accepting proposals
-    if (job.status !== JobStatus.OPEN) {
-      throw new BadRequestException('Can only accept proposals for open jobs');
-    }
+      // Update the job's selectedProposalId and status to AWAITING_CONTRACT
+      await this.jobModel.findByIdAndUpdate(
+        job._id,
+        { 
+          selectedProposalId: id,
+          status: JobStatus.AWAITING_CONTRACT
+        },
+        { session }
+      );
 
-    proposal.status = ProposalStatus.ACCEPTED;
-    await proposal.save();
+      // Commit the transaction
+      await session.commitTransaction();
 
-    // Reject all other proposals for this job
-    await this.proposalModel.updateMany(
-      {
+      const proposalResponse = this.mapToProposalResponseDto(proposal);
+
+      // Send notification to freelancer about proposal acceptance
+      try {
+        await this.notificationsService.notifyProposalAccepted(
+          id,
+          job.title,
+          proposal.freelancerId.toString()
+        );
+      } catch (error) {
+        // Log error but don't fail proposal acceptance
+        console.error('Failed to send proposal accepted notification:', error);
+      }
+
+      // Clear cache after accepting proposal - FIX: use correct cache key format
+      await this.cacheManager.del(`proposal:${id}`);
+      
+      // Clear freelancer's proposals list cache
+      await this.clearFreelancerProposalCache(proposal.freelancerId.toString());
+      
+      // Clear job proposal list cache since proposal status changed
+      await this.clearJobProposalCache(job._id.toString());
+      
+      // Clear cache for other proposals that were rejected
+      const otherProposals = await this.proposalModel.find({
         jobId: job._id,
         _id: { $ne: id },
-        status: ProposalStatus.PENDING
-      },
-      { status: ProposalStatus.REJECTED }
-    );
-
-    // Update the job's selectedProposalId and status to AWAITING_CONTRACT
-    await this.jobModel.findByIdAndUpdate(
-      job._id,
-      { 
-        selectedProposalId: id,
-        status: JobStatus.AWAITING_CONTRACT
+        status: ProposalStatus.REJECTED
+      }, '_id freelancerId');
+      
+      for (const otherProposal of otherProposals) {
+        await this.cacheManager.del(`proposal:${otherProposal._id}`);
+        // Also clear the freelancer's cache for rejected proposals
+        await this.clearFreelancerProposalCache(otherProposal.freelancerId.toString());
       }
-    );
 
-    const proposalResponse = this.mapToProposalResponseDto(proposal);
+      return proposalResponse;
 
-    // Send notification to freelancer about proposal acceptance
-    try {
-      const job = proposal.jobId as any;
-      await this.notificationsService.notifyProposalAccepted(
-        id,
-        job.title,
-        proposal.freelancerId.toString()
-      );
     } catch (error) {
-      // Log error but don't fail proposal acceptance
-      console.error('Failed to send proposal accepted notification:', error);
+      // Rollback transaction on error
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      // End session
+      session.endSession();
     }
-
-    // Clear cache after accepting proposal
-    await this.cacheManager.del(`proposal_${id}`);
-    
-    // Clear job proposal list cache since proposal status changed
-    await this.clearJobProposalCache(job._id.toString());
-    
-    // Clear cache for other proposals that were rejected
-    const otherProposals = await this.proposalModel.find({
-      jobId: job._id,
-      _id: { $ne: id },
-      status: ProposalStatus.REJECTED
-    }, '_id');
-    
-    for (const otherProposal of otherProposals) {
-      await this.cacheManager.del(`proposal_${otherProposal._id}`);
-    }
-
-    return proposalResponse;
   }
 
   async rejectProposal(
@@ -529,8 +590,11 @@ export class ProposalsService {
 
     const proposalResponse = this.mapToProposalResponseDto(proposal);
 
-    // Clear cache after rejecting proposal
-    await this.cacheManager.del(`proposal_${id}`);
+    // Clear cache after rejecting proposal - FIX: use correct cache key format
+    await this.cacheManager.del(`proposal:${id}`);
+    
+    // Clear freelancer's proposals list cache
+    await this.clearFreelancerProposalCache(proposal.freelancerId.toString());
     
     // Clear job proposal list cache since proposal status changed
     await this.clearJobProposalCache(job._id.toString());

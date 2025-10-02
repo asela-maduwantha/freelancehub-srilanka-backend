@@ -57,7 +57,8 @@ export class StripeService {
     amount: number,
     currency: string = 'usd',
     metadata?: { [key: string]: string },
-    paymentMethodId?: string
+    paymentMethodId?: string,
+    customerId?: string
   ): Promise<PaymentIntent> {
     try {
       const paymentIntentData: Stripe.PaymentIntentCreateParams = {
@@ -71,6 +72,11 @@ export class StripeService {
         paymentIntentData.payment_method = paymentMethodId;
         paymentIntentData.confirm = true;
         paymentIntentData.return_url = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+        // If customer is provided, include it (required when payment method belongs to a customer)
+        if (customerId) {
+          paymentIntentData.customer = customerId;
+        }
       } else {
         // Use automatic payment methods if no specific payment method
         paymentIntentData.automatic_payment_methods = {

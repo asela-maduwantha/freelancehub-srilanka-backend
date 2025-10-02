@@ -46,6 +46,44 @@ export class JobsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  /**
+   * Invalidate all job-related caches
+   * This should be called whenever a job is created, updated, or deleted
+   */
+  private async invalidateJobCaches(jobId: string): Promise<void> {
+    try {
+      // Clear the specific job cache
+      await this.cacheManager.del(`job_${jobId}`);
+
+      // Clear all job list caches - since we can't enumerate all cache keys easily,
+      // we'll clear common pagination patterns
+      const listCachePatterns = [
+        'jobs_list:', // Prefix for all list caches
+      ];
+
+      // Clear first 10 pages for common pagination scenarios
+      for (let page = 1; page <= 10; page++) {
+        for (const limit of [10, 20, 50]) {
+          // Clear various filter combinations
+          await this.cacheManager.del(`jobs_list:${JSON.stringify({ page, limit })}`);
+          
+          // Clear status-based lists
+          for (const status of Object.values(JobStatus)) {
+            await this.cacheManager.del(`jobs_list:${JSON.stringify({ page, limit, status })}`);
+          }
+        }
+      }
+
+      // Clear static cache keys
+      await this.cacheManager.del('jobs_list:all');
+      await this.cacheManager.del('jobs_list:featured');
+      await this.cacheManager.del('jobs_list:recent');
+    } catch (error) {
+      console.error(`Failed to invalidate job caches for job ${jobId}:`, error);
+      // Don't throw - cache invalidation failures shouldn't break the operation
+    }
+  }
+
   async create(
     createJobDto: CreateJobDto,
     clientId: string,
@@ -273,11 +311,7 @@ export class JobsService {
     const updatedJobResponse = this.mapToJobResponseDto(updatedJob);
 
     // Clear cache after updating job
-    await this.cacheManager.del(`job_${id}`);
-    // Clear job listings cache (since job might appear in various listings)
-    await this.cacheManager.del('jobs_list:all');
-    await this.cacheManager.del('jobs_list:featured');
-    await this.cacheManager.del('jobs_list:recent');
+    await this.invalidateJobCaches(id);
 
     // Send notification if job status changed to OPEN (published)
     if (updateJobDto.status === JobStatus.OPEN && job.status !== JobStatus.OPEN) {
@@ -313,11 +347,7 @@ export class JobsService {
     await this.jobModel.findByIdAndDelete(id).exec();
 
     // Clear cache after deleting job
-    await this.cacheManager.del(`job_${id}`);
-    // Clear job listings cache (since job was removed from listings)
-    await this.cacheManager.del('jobs_list:all');
-    await this.cacheManager.del('jobs_list:featured');
-    await this.cacheManager.del('jobs_list:recent');
+    await this.invalidateJobCaches(id);
 
     return { message: RESPONSE_MESSAGES.JOB.DELETED };
   }
@@ -377,10 +407,7 @@ export class JobsService {
       .exec();
 
     // Clear cache after closing job
-    await this.cacheManager.del(`job_${id}`);
-    await this.cacheManager.del('jobs_list:all');
-    await this.cacheManager.del('jobs_list:featured');
-    await this.cacheManager.del('jobs_list:recent');
+    await this.invalidateJobCaches(id);
 
     return { message: 'Job closed successfully' };
   }
@@ -406,10 +433,7 @@ export class JobsService {
       .exec();
 
     // Clear cache after reopening job
-    await this.cacheManager.del(`job_${id}`);
-    await this.cacheManager.del('jobs_list:all');
-    await this.cacheManager.del('jobs_list:featured');
-    await this.cacheManager.del('jobs_list:recent');
+    await this.invalidateJobCaches(id);
 
     return { message: 'Job reopened successfully' };
   }
