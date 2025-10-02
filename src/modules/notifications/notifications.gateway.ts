@@ -47,7 +47,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       }
 
       const payload = this.jwtService.verify(token);
-      client.userId = payload.id;
+      client.userId = payload.sub;
 
       if (!client.userId) {
         this.logger.warn('Failed to extract user ID from token');

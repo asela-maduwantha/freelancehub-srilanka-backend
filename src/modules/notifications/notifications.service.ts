@@ -41,13 +41,28 @@ export class NotificationsService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("user", "name email")
+        .populate("userId", "profile.firstName profile.lastName email")
         .exec(),
       this.notificationModel.countDocuments(query).exec(),
     ]);
 
+    // Convert to plain objects with proper serialization
+    const serializedNotifications = notifications.map(notification => {
+      const plainObj: any = notification.toObject();
+      return {
+        ...plainObj,
+        _id: plainObj._id?.toString() || plainObj._id,
+        userId: plainObj.userId && typeof plainObj.userId === 'object' && '_id' in plainObj.userId ? {
+          _id: plainObj.userId._id?.toString() || plainObj.userId._id,
+          email: plainObj.userId.email,
+          profile: plainObj.userId.profile
+        } : plainObj.userId,
+        relatedId: plainObj.relatedId?.toString() || plainObj.relatedId
+      };
+    });
+
     return {
-      notifications,
+      notifications: serializedNotifications,
       pagination: {
         page,
         limit,
@@ -60,12 +75,24 @@ export class NotificationsService {
   async findOne(id: string, userId: string): Promise<Notification> {
     const notification = await this.notificationModel
       .findOne({ _id: id, userId, deletedAt: null })
-      .populate("user", "name email")
+      .populate("userId", "profile.firstName profile.lastName email")
       .exec();
     if (!notification) {
       throw new NotFoundException("Notification not found");
     }
-    return notification;
+    
+    // Convert to plain object with proper serialization
+    const plainObj: any = notification.toObject();
+    return {
+      ...plainObj,
+      _id: plainObj._id?.toString() || plainObj._id,
+      userId: plainObj.userId && typeof plainObj.userId === 'object' && '_id' in plainObj.userId ? {
+        _id: plainObj.userId._id?.toString() || plainObj.userId._id,
+        email: plainObj.userId.email,
+        profile: plainObj.userId.profile
+      } : plainObj.userId,
+      relatedId: plainObj.relatedId?.toString() || plainObj.relatedId
+    } as any;
   }
 
   async getUnreadCount(userId: string): Promise<number> {
