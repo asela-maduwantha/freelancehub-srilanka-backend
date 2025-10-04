@@ -524,15 +524,6 @@ export class ContractsService {
   }
 
   async getContractById(contractId: string, userId: string): Promise<Contract> {
-    // Create cache key
-    const cacheKey = `contract:v2:${contractId}`;
-
-    // Try to get from cache first
-    const cachedResult = await this.cacheManager.get<Contract>(cacheKey);
-    if (cachedResult) {
-      return this.sanitizeContract(cachedResult);
-    }
-
     const contract = await this.contractModel
       .findById(contractId)
       .populate('clientId', 'email profile.firstName profile.lastName profile.avatar')
@@ -553,24 +544,12 @@ export class ContractsService {
     // Sanitize to ensure ObjectIds are strings
     const sanitizedContract = this.sanitizeContract(contractObject);
 
-    // Cache for 10 minutes (contracts don't change frequently)
-    await this.cacheManager.set(cacheKey, sanitizedContract, 600000);
-
     return sanitizedContract;
   }
 
   async getContractsForUser(userId: string, query: ContractQueryDto): Promise<PaginationResult<Contract>> {
     const { page = 1, limit = 10, status, contractType, clientId, freelancerId, jobId, search } = query;
     const skip = (page - 1) * limit;
-
-    // Create cache key from search parameters
-    const cacheKey = `contracts_user:v3:${userId}:${JSON.stringify(query)}`;
-
-    // Try to get from cache first
-    const cachedResult = await this.cacheManager.get<PaginationResult<Contract>>(cacheKey);
-    if (cachedResult) {
-      return cachedResult;
-    }
 
     // Filter out PENDING_PAYMENT contracts from freelancer view
     const filter: any = {
@@ -624,7 +603,7 @@ export class ContractsService {
       this.contractModel.countDocuments(filter),
     ]);
 
-    const contracts = contractDocs.map(contract => contract.toObject());
+    const contracts = contractDocs.map(contract => this.sanitizeContract(contract.toObject()));
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
@@ -641,9 +620,6 @@ export class ContractsService {
         hasPrev,
       },
     };
-
-    // Cache for 5 minutes (contract lists change moderately frequently)
-    await this.cacheManager.set(cacheKey, result, 300000);
 
     return result;
   }

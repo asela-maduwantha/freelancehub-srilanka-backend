@@ -193,16 +193,13 @@ export class JobsService {
     }
 
     if (
-      job.status !== JobStatus.OPEN &&
+      job.status === JobStatus.DRAFT &&
       job.clientId?._id?.toString() !== clientId
     ) {
       throw new NotFoundException(RESPONSE_MESSAGES.JOB.NOT_FOUND);
     }
 
     const jobResponse = this.mapToJobResponseDto(job);
-
-    // Cache for 10 minutes (individual jobs change less frequently)
-    await this.cacheManager.set(cacheKey, jobResponse, 600000);
 
     return jobResponse;
   }
