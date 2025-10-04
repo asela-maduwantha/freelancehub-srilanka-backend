@@ -32,6 +32,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
 import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
+import { MessagesModule } from './modules/messages/messages.module';
 import { StripeModule } from './services/stripe/stripe.module';
 
 @Module({
@@ -82,6 +83,7 @@ import { StripeModule } from './services/stripe/stripe.module';
     ReviewsModule,
     WithdrawalsModule,
     PaymentMethodsModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

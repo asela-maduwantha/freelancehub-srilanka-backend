@@ -26,6 +26,8 @@ export class NotificationsService {
   }
 
   async findAll(userId: string, filters: NotificationFilters = {}) {
+    this.logger.debug(`📋 Fetching notifications for user: ${userId}, filters: ${JSON.stringify(filters)}`);
+    
     const query: any = { userId, deletedAt: null };
     if (filters.type) query.type = filters.type;
     if (filters.isRead !== undefined) query.isRead = filters.isRead;
@@ -34,6 +36,8 @@ export class NotificationsService {
     const page = filters.page || 1;
     const limit = filters.limit || 10;
     const skip = (page - 1) * limit;
+
+    this.logger.debug(`🔍 Executing notification query: ${JSON.stringify(query)}, page: ${page}, limit: ${limit}`);
 
     const [notifications, total] = await Promise.all([
       this.notificationModel
@@ -45,6 +49,8 @@ export class NotificationsService {
         .exec(),
       this.notificationModel.countDocuments(query).exec(),
     ]);
+    
+    this.logger.debug(`📊 Retrieved ${notifications.length} notifications out of ${total} total for user: ${userId}`);
 
     // Convert to plain objects with proper serialization
     const serializedNotifications = notifications.map(notification => {
@@ -73,13 +79,19 @@ export class NotificationsService {
   }
 
   async findOne(id: string, userId: string): Promise<Notification> {
+    this.logger.debug(`🔍 Finding notification: ${id} for user: ${userId}`);
+    
     const notification = await this.notificationModel
       .findOne({ _id: id, userId, deletedAt: null })
       .populate("userId", "profile.firstName profile.lastName email")
       .exec();
+      
     if (!notification) {
+      this.logger.warn(`❌ Notification not found: ${id} for user: ${userId}`);
       throw new NotFoundException("Notification not found");
     }
+    
+    this.logger.debug(`✅ Found notification: ${id} for user: ${userId}, type: ${notification.type}`);
     
     // Convert to plain object with proper serialization
     const plainObj: any = notification.toObject();
@@ -96,14 +108,21 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.notificationModel.countDocuments({
+    this.logger.debug(`📊 Counting unread notifications for user: ${userId}`);
+    
+    const count = await this.notificationModel.countDocuments({
       userId,
       isRead: false,
       deletedAt: null,
     }).exec();
+    
+    this.logger.debug(`📊 User ${userId} has ${count} unread notifications`);
+    return count;
   }
 
   async markAsRead(id: string, userId: string): Promise<Notification | null> {
+    this.logger.debug(`✓ Marking notification as read: ${id} for user: ${userId}`);
+    
     const notification = await this.notificationModel
       .findOneAndUpdate(
         { _id: id, userId, deletedAt: null },
@@ -111,31 +130,51 @@ export class NotificationsService {
         { new: true },
       )
       .exec();
+      
     if (notification) {
-      this.logger.log(`Notification marked as read: ${id} for user: ${userId}`);
+      this.logger.log(`✅ Notification marked as read: ${id} for user: ${userId}, type: ${notification.type}`);
+    } else {
+      this.logger.warn(`❌ Failed to mark notification as read - not found: ${id} for user: ${userId}`);
     }
     return notification;
   }
 
   async markAllAsRead(userId: string): Promise<any> {
+    this.logger.debug(`✓ Marking all notifications as read for user: ${userId}`);
+    
+    // First get the count of unread notifications
+    const unreadCount = await this.notificationModel.countDocuments({
+      userId, 
+      isRead: false, 
+      deletedAt: null
+    }).exec();
+    
+    this.logger.debug(`📊 Found ${unreadCount} unread notifications to mark as read for user: ${userId}`);
+    
     const result = await this.notificationModel
       .updateMany(
         { userId, isRead: false, deletedAt: null },
         { isRead: true, readAt: new Date() },
       )
       .exec();
-    this.logger.log(`Marked ${result.modifiedCount} notifications as read for user: ${userId}`);
+      
+    this.logger.log(`✅ Marked ${result.modifiedCount} notifications as read for user: ${userId}`);
     return result;
   }
 
   async remove(id: string, userId: string): Promise<Notification> {
+    this.logger.debug(`🗑️ Attempting to delete notification: ${id} for user: ${userId}`);
+    
     const notification = await this.notificationModel
       .findOneAndDelete({ _id: id, userId })
       .exec();
+      
     if (!notification) {
+      this.logger.warn(`❌ Notification not found for deletion: ${id} for user: ${userId}`);
       throw new NotFoundException("Notification not found");
     }
-    this.logger.log(`Notification deleted: ${id} for user: ${userId}`);
+    
+    this.logger.log(`✅ Notification deleted: ${id} for user: ${userId}, type: ${notification.type}`);
     return notification;
   }
 
@@ -335,5 +374,36 @@ export class NotificationsService {
       relatedId: userId,
       relatedType: "user",
     });
+  }
+
+  async getUnreadNotifications(userId: string): Promise<Notification[]> {
+    this.logger.debug(`📋 Fetching unread notifications for user: ${userId}`);
+    
+    const notifications = await this.notificationModel
+      .find({
+        userId,
+        isRead: false,
+        deletedAt: null,
+      })
+      .sort({ createdAt: -1 })
+      .populate("userId", "profile.firstName profile.lastName email")
+      .exec();
+    
+    this.logger.debug(`📋 Found ${notifications.length} unread notifications for user: ${userId}`);
+    return notifications.map(this.transformNotification);
+  }
+
+  private transformNotification(notification: Notification) {
+    const plainObj: any = notification.toObject();
+    return {
+      ...plainObj,
+      _id: plainObj._id?.toString() || plainObj._id,
+      userId: plainObj.userId && typeof plainObj.userId === 'object' && '_id' in plainObj.userId ? {
+        _id: plainObj.userId._id?.toString() || plainObj.userId._id,
+        email: plainObj.userId.email,
+        profile: plainObj.userId.profile
+      } : plainObj.userId,
+      relatedId: plainObj.relatedId?.toString() || plainObj.relatedId
+    };
   }
 }

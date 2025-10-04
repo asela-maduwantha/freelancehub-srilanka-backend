@@ -1,0 +1,316 @@
+{
+  "info": {
+    "name": "FreelanceHub Messaging System",
+    "description": "Complete API collection for testing the real-time messaging system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "contract_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversation_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestone_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Message (Start Conversation)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"content\": \"Hello! I have a question about the project requirements.\",\n  \"messageType\": \"text\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/messages",
+          "host": ["{{base_url}}"],
+          "path": ["messages"]
+        },
+        "description": "Creates a new message and automatically creates/finds a conversation for the contract."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Message with Milestone",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contractId\": \"{{contract_id}}\",\n  \"milestoneId\": \"{{milestone_id}}\",\n  \"content\": \"I have a question about this milestone's deliverables.\",\n  \"messageType\": \"text\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/messages",
+          "host": ["{{base_url}}"],
+          "path": ["messages"]
+        },
+        "description": "Creates a message in a milestone-specific conversation."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Get All Conversations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/messages/conversations?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Get all conversations for the authenticated user with pagination."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Get Conversations by Contract",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/messages/conversations?contractId={{contract_id}}&page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations"],
+          "query": [
+            {
+              "key": "contractId",
+              "value": "{{contract_id}}"
+            },
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Filter conversations by a specific contract."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Get Conversation Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/messages/conversations/{{conversation_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations", "{{conversation_id}}"]
+        },
+        "description": "Get detailed information about a specific conversation."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Get Messages in Conversation",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/messages/conversations/{{conversation_id}}/messages?page=1&limit=50",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations", "{{conversation_id}}", "messages"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "description": "Retrieve paginated messages for a conversation (sorted newest first)."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Get Messages Before ID (Infinite Scroll)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/messages/conversations/{{conversation_id}}/messages?before=MESSAGE_ID_HERE&limit=50",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations", "{{conversation_id}}", "messages"],
+          "query": [
+            {
+              "key": "before",
+              "value": "MESSAGE_ID_HERE"
+            },
+            {
+              "key": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "description": "Load older messages before a specific message ID (for infinite scroll)."
+      },
+      "response": []
+    },
+    {
+      "name": "8. Send Message in Existing Conversation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Thanks for the clarification! I'll get started on this right away.\",\n  \"messageType\": \"text\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/messages/conversations/{{conversation_id}}/messages",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations", "{{conversation_id}}", "messages"]
+        },
+        "description": "Send a message in an existing conversation."
+      },
+      "response": []
+    },
+    {
+      "name": "9. Send Message with Attachments",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Here are the design files you requested.\",\n  \"messageType\": \"file\",\n  \"attachments\": [\n    {\n      \"filename\": \"design-mockup.pdf\",\n      \"url\": \"https://example.com/files/design-mockup.pdf\",\n      \"size\": 2048576,\n      \"type\": \"application/pdf\"\n    },\n    {\n      \"filename\": \"logo.png\",\n      \"url\": \"https://example.com/files/logo.png\",\n      \"size\": 512000,\n      \"type\": \"image/png\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/messages/conversations/{{conversation_id}}/messages",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations", "{{conversation_id}}", "messages"]
+        },
+        "description": "Send a message with file attachments."
+      },
+      "response": []
+    },
+    {
+      "name": "10. Mark Messages as Read",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/messages/conversations/{{conversation_id}}/read",
+          "host": ["{{base_url}}"],
+          "path": ["messages", "conversations", "{{conversation_id}}", "read"]
+        },
+        "description": "Mark all unread messages in a conversation as read."
+      },
+      "response": []
+    }
+  ]
+}

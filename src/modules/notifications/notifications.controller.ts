@@ -15,6 +15,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
+import { NotificationsGateway } from './notifications.gateway';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { NotificationFilters } from './dto/notification-filters.dto';
 import { MarkReadDto } from './dto/mark-read.dto';
@@ -25,7 +26,10 @@ import { Notification as NotificationSchema } from '../../database/schemas/notif
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new notification' })
@@ -106,5 +110,56 @@ export class NotificationsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.notificationsService.remove(id, userId);
+  }
+
+  // Socket diagnostic endpoints
+  @Get('socket/connection-info')
+  @ApiOperation({ summary: 'Get socket connection information for debugging' })
+  @ApiResponse({ status: 200, description: 'Socket connection info retrieved successfully' })
+  async getConnectionInfo(@CurrentUser('id') userId: string) {
+    const connectionInfo = this.notificationsGateway.getConnectionInfo();
+    const userConnected = this.notificationsGateway.isUserConnected(userId);
+    
+    return {
+      ...connectionInfo,
+      currentUserConnected: userConnected,
+      currentUserId: userId
+    };
+  }
+
+  @Post('socket/test-connection')
+  @ApiOperation({ summary: 'Test socket connection for current user' })
+  @ApiResponse({ status: 200, description: 'Connection test completed' })
+  async testConnection(@CurrentUser('id') userId: string) {
+    const isConnected = await this.notificationsGateway.testConnectionToUser(userId);
+    return {
+      userId,
+      connected: isConnected,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Post('socket/test-notification')
+  @ApiOperation({ summary: 'Send test notification via socket' })
+  @ApiResponse({ status: 200, description: 'Test notification sent' })
+  async sendTestNotification(@CurrentUser('id') userId: string) {
+    // Create a test notification
+    const testNotification = await this.notificationsService.create({
+      userId,
+      type: 'SYSTEM' as any,
+      title: 'Socket Test Notification',
+      message: `Test notification sent at ${new Date().toISOString()}`,
+      relatedType: 'test',
+      relatedId: 'socket-test-' + Date.now()
+    });
+
+    // Send via socket
+    await this.notificationsGateway.sendNotificationToUser(userId, testNotification);
+
+    return {
+      message: 'Test notification sent',
+      notification: testNotification,
+      socketConnected: this.notificationsGateway.isUserConnected(userId)
+    };
   }
 }

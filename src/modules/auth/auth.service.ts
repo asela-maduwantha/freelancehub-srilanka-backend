@@ -123,10 +123,15 @@ export class AuthService {
     // Create and send login notification
     try {
       const userId = String(user._id);
+      console.log(`🔍 [AuthService] Creating login notification for userId: "${userId}" (length: ${userId.length})`);
+      
       const notification = await this.notificationsService.notifyUserLogin(
         userId,
         user.email
       );
+      
+      console.log(`🔍 [AuthService] Notification created with ID: ${notification._id}`);
+      console.log(`🔍 [AuthService] Sending to gateway with userId: "${userId}"`);
       
       // Send real-time notification to user
       await this.notificationsGateway.sendNotificationToUser(
