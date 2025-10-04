@@ -26,8 +26,6 @@ export class NotificationsService {
   }
 
   async findAll(userId: string, filters: NotificationFilters = {}) {
-    this.logger.debug(`📋 Fetching notifications for user: ${userId}, filters: ${JSON.stringify(filters)}`);
-    
     const query: any = { userId, deletedAt: null };
     if (filters.type) query.type = filters.type;
     if (filters.isRead !== undefined) query.isRead = filters.isRead;
@@ -36,8 +34,6 @@ export class NotificationsService {
     const page = filters.page || 1;
     const limit = filters.limit || 10;
     const skip = (page - 1) * limit;
-
-    this.logger.debug(`🔍 Executing notification query: ${JSON.stringify(query)}, page: ${page}, limit: ${limit}`);
 
     const [notifications, total] = await Promise.all([
       this.notificationModel
@@ -50,8 +46,6 @@ export class NotificationsService {
       this.notificationModel.countDocuments(query).exec(),
     ]);
     
-    this.logger.debug(`📊 Retrieved ${notifications.length} notifications out of ${total} total for user: ${userId}`);
-
     // Convert to plain objects with proper serialization
     const serializedNotifications = notifications.map(notification => {
       const plainObj: any = notification.toObject();
@@ -79,8 +73,6 @@ export class NotificationsService {
   }
 
   async findOne(id: string, userId: string): Promise<Notification> {
-    this.logger.debug(`🔍 Finding notification: ${id} for user: ${userId}`);
-    
     const notification = await this.notificationModel
       .findOne({ _id: id, userId, deletedAt: null })
       .populate("userId", "profile.firstName profile.lastName email")
@@ -90,8 +82,6 @@ export class NotificationsService {
       this.logger.warn(`❌ Notification not found: ${id} for user: ${userId}`);
       throw new NotFoundException("Notification not found");
     }
-    
-    this.logger.debug(`✅ Found notification: ${id} for user: ${userId}, type: ${notification.type}`);
     
     // Convert to plain object with proper serialization
     const plainObj: any = notification.toObject();
@@ -108,21 +98,16 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    this.logger.debug(`📊 Counting unread notifications for user: ${userId}`);
-    
     const count = await this.notificationModel.countDocuments({
       userId,
       isRead: false,
       deletedAt: null,
     }).exec();
     
-    this.logger.debug(`📊 User ${userId} has ${count} unread notifications`);
     return count;
   }
 
   async markAsRead(id: string, userId: string): Promise<Notification | null> {
-    this.logger.debug(`✓ Marking notification as read: ${id} for user: ${userId}`);
-    
     const notification = await this.notificationModel
       .findOneAndUpdate(
         { _id: id, userId, deletedAt: null },
@@ -140,16 +125,12 @@ export class NotificationsService {
   }
 
   async markAllAsRead(userId: string): Promise<any> {
-    this.logger.debug(`✓ Marking all notifications as read for user: ${userId}`);
-    
     // First get the count of unread notifications
     const unreadCount = await this.notificationModel.countDocuments({
       userId, 
       isRead: false, 
       deletedAt: null
     }).exec();
-    
-    this.logger.debug(`📊 Found ${unreadCount} unread notifications to mark as read for user: ${userId}`);
     
     const result = await this.notificationModel
       .updateMany(
@@ -163,8 +144,6 @@ export class NotificationsService {
   }
 
   async remove(id: string, userId: string): Promise<Notification> {
-    this.logger.debug(`🗑️ Attempting to delete notification: ${id} for user: ${userId}`);
-    
     const notification = await this.notificationModel
       .findOneAndDelete({ _id: id, userId })
       .exec();
@@ -377,8 +356,6 @@ export class NotificationsService {
   }
 
   async getUnreadNotifications(userId: string): Promise<Notification[]> {
-    this.logger.debug(`📋 Fetching unread notifications for user: ${userId}`);
-    
     const notifications = await this.notificationModel
       .find({
         userId,
@@ -389,7 +366,6 @@ export class NotificationsService {
       .populate("userId", "profile.firstName profile.lastName email")
       .exec();
     
-    this.logger.debug(`📋 Found ${notifications.length} unread notifications for user: ${userId}`);
     return notifications.map(this.transformNotification);
   }
 

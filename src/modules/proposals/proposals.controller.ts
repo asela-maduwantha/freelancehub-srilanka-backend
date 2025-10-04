@@ -33,16 +33,20 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ProposalStatus } from '../../common/enums/proposal-status.enum';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { MessageResponseDto } from 'src/common/dto';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/enums/user-role.enum';
 
 @ApiTags('Proposals')
 @Controller('proposals')
-@UseGuards(JwtAuthGuard, ThrottlerGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 @ApiBearerAuth()
 export class ProposalsController {
   constructor(private readonly proposalsService: ProposalsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.FREELANCER)
   @ApiOperation({ summary: 'Create a new proposal' })
   @ApiResponse({
     status: HttpStatus.CREATED,

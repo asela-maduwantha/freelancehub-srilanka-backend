@@ -38,7 +38,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     private readonly jwtService: JwtService,
   ) {
     this.connectedClients = new Map<string, string>();
-    this.logger.log('🏗️ NotificationsGateway constructor called, connectedClients initialized');
   }
 
   // Getter to ensure Map is always available
@@ -61,25 +60,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     this.logger.log(`📡 Socket.IO namespace: /notifications`);
     
     this.server = server;
-    this.logger.debug(`🔧 Server assignment - this.server exists: ${!!this.server}`);
-    
-    // Log namespace information
-    this.logger.log(`🔧 Namespace server type: ${this.server.constructor?.name}`);
-    this.logger.log(`🔧 Server has sockets: ${!!(this.server as any).sockets}`);
-    
-    const corsConfig = {
-      origin: true,
-      credentials: true
-    };
-    this.logger.log(`🌐 CORS configuration: ${JSON.stringify(corsConfig)}`);
-    
-    try {
-      if (server.adapter) {
-        this.logger.log(`🔧 Socket.IO adapter: ${server.adapter.constructor?.name || 'Unknown'}`);
-      }
-    } catch (error) {
-      this.logger.warn(`⚠️ Could not access adapter details: ${error.message}`);
-    }
     
     // Set up server-level event listeners
     server.on('connection', (socket) => {
@@ -112,12 +92,9 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
         return;
       }
 
-      this.logger.debug(`🔐 Verifying JWT token for client: ${client.id}`);
       const payload = this.jwtService.verify(token);
       client.userId = payload.sub;
       
-      this.logger.debug(`📋 JWT payload - User ID: ${client.userId}`);
-
       if (!client.userId) {
         this.logger.warn(`❌ JWT token valid but no user ID found: ${client.id}`);
         client.disconnect();
@@ -143,7 +120,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
       // Send unread count
       const unreadCount = await this.notificationsService.getUnreadCount(client.userId);
       client.emit('unread_count', { count: unreadCount });
-      this.logger.debug(`📤 Sent initial unread count: ${unreadCount}`);
 
       // Send unread notifications
       if (unreadCount > 0) {
@@ -176,8 +152,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     @MessageBody() data: { notificationId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    this.logger.debug(`📨 mark_as_read from user ${client.userId}, notificationId: ${data.notificationId}`);
-    
     if (!client.userId) {
       this.logger.warn(`❌ mark_as_read ignored - no user ID`);
       return;
@@ -192,8 +166,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
         notificationId: data.notificationId,
         action: 'marked_read'
       });
-
-      this.logger.debug(`✅ Notification marked as read, new count: ${unreadCount}`);
     } catch (error) {
       this.logger.error(`❌ Failed to mark as read: ${error.message}`, error.stack);
       client.emit('error', { message: 'Failed to mark notification as read' });
@@ -229,7 +201,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     try {
       const unreadCount = await this.notificationsService.getUnreadCount(client.userId);
       client.emit('unread_count', { count: unreadCount });
-      this.logger.debug(`📤 Sent unread count: ${unreadCount}`);
     } catch (error) {
       this.logger.error(`❌ Failed to get unread count: ${error.message}`, error.stack);
       client.emit('error', { message: 'Failed to get unread count' });
@@ -247,8 +218,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
 
   // Public methods for sending notifications
   async sendNotificationToUser(userId: string, notification: any) {
-    this.logger.debug(`📤 Sending notification to user: ${userId}, type: ${notification?.type}`);
-    
     if (!this.isInitialized) {
       this.logger.warn(`⚠️ Gateway not initialized`);
       return;
@@ -258,11 +227,8 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     const connectedClients = this.getConnectedClients();
     const socketId = connectedClients.get(cleanUserId);
     
-    this.logger.debug(`🔍 SocketId lookup: ${socketId}, Map size: ${connectedClients.size}`);
-    
     if (!socketId) {
       this.logger.warn(`⚠️ User ${cleanUserId} not connected`);
-      this.logger.debug(`🔍 Connected users: ${Array.from(connectedClients.keys()).join(', ')}`);
       return;
     }
     
@@ -273,7 +239,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     
     // Get the sockets Map - THIS IS THE KEY FIX
     const socketsMap = this.getSocketsMap();
-    this.logger.debug(`🔍 Sockets Map size: ${socketsMap.size}`);
     
     const socket = socketsMap.get(socketId);
     if (!socket) {
@@ -284,11 +249,9 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     
     try {
       socket.emit('notification', notification);
-      this.logger.debug(`✅ Emitted notification to socket ${socketId}`);
 
       const unreadCount = await this.notificationsService.getUnreadCount(cleanUserId);
       socket.emit('unread_count', { count: unreadCount });
-      this.logger.debug(`✅ Emitted unread count: ${unreadCount}`);
 
       this.logger.log(`🚀 Successfully sent notification to user: ${cleanUserId}, type: ${notification?.type}`);
     } catch (error) {
@@ -311,7 +274,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     
     try {
       socket.emit(event, data);
-      this.logger.debug(`✅ Broadcast '${event}' to user ${userId}`);
     } catch (error) {
       this.logger.error(`❌ Broadcast failed: ${error.message}`, error.stack);
     }
@@ -333,7 +295,6 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     try {
       const unreadCount = await this.notificationsService.getUnreadCount(userId);
       socket.emit('unread_count', { count: unreadCount });
-      this.logger.debug(`✅ Updated unread count: ${unreadCount}`);
     } catch (error) {
       this.logger.error(`❌ Failed to update unread count: ${error.message}`, error.stack);
     }
@@ -406,20 +367,17 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
     const connectedClients = this.getConnectedClients();
     const socketId = connectedClients.get(userId);
     if (!socketId) {
-      this.logger.debug(`❌ User ${userId} not in connected clients`);
       return false;
     }
 
     const socket = this.getSocketsMap().get(socketId);
     if (!socket || !socket.connected) {
-      this.logger.debug(`❌ Socket not found or not connected`);
       connectedClients.delete(userId);
       return false;
     }
 
     try {
       socket.emit('ping', { timestamp: Date.now() });
-      this.logger.debug(`✅ Connection test successful for user ${userId}`);
       return true;
     } catch (error) {
       this.logger.error(`❌ Connection test failed: ${error.message}`);
