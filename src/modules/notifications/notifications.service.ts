@@ -315,4 +315,25 @@ export class NotificationsService {
       relatedType: "withdrawal",
     });
   }
+
+  async notifyUserLogin(userId: string, userEmail: string): Promise<Notification> {
+    const now = new Date();
+    const timeString = now.toLocaleString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    return this.create({
+      userId,
+      type: NotificationType.LOGIN,
+      title: "Welcome Back!",
+      message: `You logged in successfully on ${timeString}.`,
+      relatedId: userId,
+      relatedType: "user",
+    });
+  }
 }

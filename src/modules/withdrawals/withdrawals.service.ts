@@ -214,30 +214,52 @@ export class WithdrawalsService {
       throw new BadRequestException('Withdrawal is not in processing status');
     }
 
-    const updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
-      id,
-      { status: WithdrawalStatus.COMPLETED },
-      { new: true }
-    ).populate('freelancerId', 'firstName lastName email');
+    // Start MongoDB transaction for atomicity
+    const session = await this.withdrawalModel.db.startSession();
+    session.startTransaction();
 
-    // Deduct withdrawal amount from user's available balance
+    let updatedWithdrawal: Withdrawal;
+
     try {
-      await this.userModel.findByIdAndUpdate(
+      // Update withdrawal status with transaction
+      updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
+        id,
+        { status: WithdrawalStatus.COMPLETED },
+        { new: true, session }
+      ).populate('freelancerId', 'firstName lastName email') as any;
+
+      // Deduct withdrawal amount from user's available balance (with transaction)
+      const result = await this.userModel.findByIdAndUpdate(
         withdrawal.freelancerId,
         { 
           $inc: { 
             'freelancerData.availableBalance': -withdrawal.amount 
           } 
-        }
+        },
+        { session, new: true }
       );
+
+      if (!result) {
+        throw new Error('User not found or balance update failed');
+      }
+
       this.logger.log(`Deducted $${withdrawal.amount} from user ${withdrawal.freelancerId} balance`);
-    } catch (balanceError) {
-      this.logger.error(`Failed to update user balance after withdrawal: ${balanceError.message}`);
-      // This is critical - withdrawal was completed but balance not updated
-      // Should trigger manual reconciliation
+
+      // Commit transaction
+      await session.commitTransaction();
+      this.logger.log(`Transaction committed successfully for withdrawal ${id}`);
+
+    } catch (error) {
+      // Rollback transaction on any error
+      await session.abortTransaction();
+      this.logger.error(`Transaction rolled back for withdrawal ${id}: ${error.message}`, error.stack);
+      this.logger.error(`CRITICAL: Withdrawal ${id} failed - balance not deducted, requires manual reconciliation`);
+      throw error;
+    } finally {
+      session.endSession();
     }
 
-    // Update transaction log to completed
+    // Update transaction log to completed (outside transaction - non-critical)
     try {
       await this.transactionLogService.updateByRelatedEntity(
         id,

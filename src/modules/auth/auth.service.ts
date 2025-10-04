@@ -36,6 +36,8 @@ import { HashUtil } from '../../common/utils/hash.util';
 import { OtpUtil } from '../../common/utils/otp.util';
 import { EmailService } from '../../services/email/email.service';
 import { MessageResponseDto } from 'src/common/dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class AuthService {
@@ -47,6 +49,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   // Register new user
@@ -115,6 +119,24 @@ export class AuthService {
     // Update last login time
     user.lastLoginAt = new Date();
     await user.save();
+
+    // Create and send login notification
+    try {
+      const userId = String(user._id);
+      const notification = await this.notificationsService.notifyUserLogin(
+        userId,
+        user.email
+      );
+      
+      // Send real-time notification to user
+      await this.notificationsGateway.sendNotificationToUser(
+        userId,
+        notification
+      );
+    } catch (notificationError) {
+      // Log error but don't fail the login
+      console.error('Failed to send login notification:', notificationError);
+    }
 
     // Generate tokens
     const tokens = await this.generateTokens(user, rememberMe);

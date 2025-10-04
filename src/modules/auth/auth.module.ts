@@ -16,6 +16,7 @@ import {
 } from '../../database/schemas/otp-verification.schema';
 
 import { EmailModule } from '../../services/email/email.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -45,6 +46,9 @@ import { EmailModule } from '../../services/email/email.module';
 
     // Email module
     EmailModule,
+
+    // Notifications module
+    NotificationsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, LocalStrategy],

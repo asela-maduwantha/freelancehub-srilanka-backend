@@ -65,6 +65,8 @@ export class PaymentService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Job.name) private jobModel: Model<Job>,
     @InjectModel(Proposal.name) private proposalModel: Model<Proposal>,
+    @InjectModel('ProcessedWebhookEvent') private processedWebhookEventModel: Model<any>,
+    @InjectModel('FailedBalanceUpdate') private failedBalanceUpdateModel: Model<any>,
     private transactionLogService: TransactionLogService,
     private stripeService: StripeService,
     private notificationsService: NotificationsService,
@@ -516,13 +518,25 @@ export class PaymentService {
       throw new BadRequestException('Payment is not in pending or processing status');
     }
 
-    const updatedPayment = await this.updateById(id, {
-      status: PaymentStatus.COMPLETED,
-      stripePaymentIntentId,
-      stripeChargeId,
-      stripeTransferId,
-      stripeFee,
-    });
+    // Start MongoDB transaction for atomicity
+    const session = await this.paymentModel.db.startSession();
+    session.startTransaction();
+
+    let updatedPayment: Payment;
+
+    try {
+      // Update payment status with transaction
+      updatedPayment = await this.paymentModel.findByIdAndUpdate(
+        id,
+        {
+          status: PaymentStatus.COMPLETED,
+          stripePaymentIntentId,
+          stripeChargeId,
+          stripeTransferId,
+          stripeFee,
+        },
+        { new: true, session }
+      ).exec() as any;
 
     // Log the completed payment transaction
     try {
@@ -585,57 +599,57 @@ export class PaymentService {
       this.logger.error(`Failed to log transactions for completed payment ${id}: ${logError.message}`, logError.stack);
     }
 
-    // Update contract totalPaid for upfront payments and activate contract
-    if (payment.metadata?.type === 'contract_upfront' && payment.contractId) {
-      try {
-        // Update contract: set as ACTIVE and update totalPaid
+      // Update contract totalPaid for upfront payments and activate contract
+      if (payment.metadata?.type === 'contract_upfront' && payment.contractId) {
+        // Update contract: set as ACTIVE and update totalPaid (with transaction)
         const contract = await this.contractModel.findByIdAndUpdate(
           payment.contractId,
           {
             totalPaid: payment.amount,
             status: ContractStatus.ACTIVE
           },
-          { new: true }
+          { new: true, session }
         ).populate('jobId', 'title');
         
         if (contract) {
           this.logger.log(`Contract ${payment.contractId} ACTIVATED after successful payment: ${payment.amount}`);
 
-          // Update freelancer's pending balance
-          // Full contract amount goes to pending balance (will move to available when milestones are approved)
-          try {
-            const freelancerAmountAfterFee = payment.amount - payment.platformFee;
-            await this.contractModel.db.model('User').findByIdAndUpdate(
-              payment.payeeId,
-              { 
-                $inc: { 
-                  'freelancerData.pendingBalance': freelancerAmountAfterFee
-                } 
-              }
-            );
-            this.logger.log(`Updated freelancer ${payment.payeeId} pending balance: +$${freelancerAmountAfterFee}`);
-          } catch (balanceError) {
-            this.logger.error(`Failed to update freelancer balance: ${balanceError.message}`, balanceError.stack);
-            // Critical - payment completed but balance not updated, needs reconciliation
-          }
+          // Update freelancer's pending balance (with transaction)
+          const freelancerAmountAfterFee = payment.amount - payment.platformFee;
+          await this.userModel.findByIdAndUpdate(
+            payment.payeeId,
+            { 
+              $inc: { 
+                'freelancerData.pendingBalance': freelancerAmountAfterFee
+              } 
+            },
+            { session }
+          );
+          this.logger.log(`Updated freelancer ${payment.payeeId} pending balance: +$${freelancerAmountAfterFee}`);
 
-          // Update associated job status to CONTRACTED
+          // Update associated job status to CONTRACTED (with transaction)
           if (payment.metadata?.jobId) {
-            try {
-              await this.jobModel.findByIdAndUpdate(
-                payment.metadata.jobId,
-                {
-                  status: JobStatus.CONTRACTED
-                }
-              );
-              this.logger.log(`Job ${payment.metadata.jobId} status set to CONTRACTED after successful payment`);
-            } catch (jobError) {
-              this.logger.error(`Failed to update job ${payment.metadata.jobId} status: ${jobError.message}`, jobError.stack);
-            }
+            await this.jobModel.findByIdAndUpdate(
+              payment.metadata.jobId,
+              {
+                status: JobStatus.CONTRACTED
+              },
+              { session }
+            );
+            this.logger.log(`Job ${payment.metadata.jobId} status set to CONTRACTED after successful payment`);
           }
+        }
+      }
 
-          // NOW send notification to freelancer - contract is ready and paid
-          try {
+      // Commit transaction
+      await session.commitTransaction();
+      this.logger.log(`Transaction committed successfully for payment ${id}`);
+
+      // Send notifications AFTER transaction committed (non-critical operations)
+      if (payment.metadata?.type === 'contract_upfront' && payment.contractId) {
+        try {
+          const contract = await this.contractModel.findById(payment.contractId).populate('jobId', 'title');
+          if (contract) {
             const jobTitle = (contract.jobId as any)?.title || 'a contract';
             await this.notificationsService.notifyContractCreated(
               payment.contractId.toString(),
@@ -643,14 +657,105 @@ export class PaymentService {
               payment.payeeId.toString()
             );
             this.logger.log(`Sent contract notification to freelancer ${payment.payeeId} after payment completion`);
-          } catch (notificationError) {
-            this.logger.error(`Failed to send contract notification: ${notificationError.message}`, notificationError.stack);
           }
+        } catch (notificationError) {
+          this.logger.error(`Failed to send contract notification: ${notificationError.message}`, notificationError.stack);
+          // Don't fail - notification is non-critical
         }
-      } catch (contractError) {
-        this.logger.error(`Failed to activate contract ${payment.contractId} after payment: ${contractError.message}`, contractError.stack);
-        // Don't fail payment completion if contract update fails
       }
+
+    } catch (error) {
+      // Rollback transaction on any error
+      await session.abortTransaction();
+      this.logger.error(`Transaction rolled back for payment ${id}: ${error.message}`, error.stack);
+
+      // If balance update failed, log for manual reconciliation
+      if (error.message.includes('balance') || error.message.includes('freelancer')) {
+        try {
+          await this.failedBalanceUpdateModel.create({
+            paymentId: payment._id,
+            freelancerId: payment.payeeId,
+            amount: payment.amount - payment.platformFee,
+            currency: payment.currency,
+            error: error.message,
+            status: 'pending',
+            retryCount: 0,
+            metadata: {
+              stripePaymentIntentId,
+              stripeChargeId,
+            }
+          });
+          this.logger.error(`CRITICAL: Logged failed balance update for payment ${payment._id} - requires manual reconciliation`);
+        } catch (logError) {
+          this.logger.error(`Failed to log failed balance update: ${logError.message}`);
+        }
+      }
+
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    // Log completed transactions (outside transaction - non-critical)
+    try {
+      await this.transactionLogService.updateByStripeId(stripePaymentIntentId, {
+        status: 'completed',
+        stripeId: stripeChargeId,
+        description: `Payment completed - Charge: ${stripeChargeId}`,
+        metadata: {
+          stripeFee,
+          stripeTransferId,
+        },
+      });
+
+      // Log platform fee as separate transaction
+      if (payment.platformFee > 0) {
+        await this.transactionLogService.create({
+          transactionId: `fee_${payment._id}_${Date.now()}`,
+          type: 'fee',
+          fromUserId: payment.payerId,
+          toUserId: undefined,
+          amount: payment.platformFee,
+          currency: payment.currency,
+          fee: 0,
+          netAmount: payment.platformFee,
+          relatedId: payment._id as Types.ObjectId,
+          relatedType: 'contract',
+          stripeId: stripeChargeId,
+          description: `Platform fee for payment ${payment._id}`,
+          metadata: {
+            paymentId: payment._id,
+            feeType: 'platform',
+            feePercentage: (payment.platformFee / payment.amount) * 100,
+          },
+        });
+      }
+
+      // Log Stripe fee if applicable
+      if (stripeFee > 0) {
+        await this.transactionLogService.create({
+          transactionId: `stripe_fee_${payment._id}_${Date.now()}`,
+          type: 'fee',
+          fromUserId: payment.payerId,
+          toUserId: undefined,
+          amount: stripeFee / 100,
+          currency: payment.currency,
+          fee: 0,
+          netAmount: stripeFee / 100,
+          relatedId: payment._id as Types.ObjectId,
+          relatedType: 'contract',
+          stripeId: stripeChargeId,
+          description: `Stripe processing fee for payment ${payment._id}`,
+          metadata: {
+            paymentId: payment._id,
+            feeType: 'stripe',
+            stripeFeeCents: stripeFee,
+          },
+        });
+      }
+    } catch (logError) {
+      this.logger.error(`Failed to log transactions for completed payment ${id}: ${logError.message}`, logError.stack);
+      // Don't fail - logging is non-critical
     }
 
     return updatedPayment;
@@ -956,7 +1061,7 @@ export class PaymentService {
     webhookData: StripeWebhookDto,
     rawBody: string,
     signature: string
-  ): Promise<{ received: boolean }> {
+  ): Promise<{ received: boolean; skipped?: boolean }> {
     try {
       // TEMPORARILY DISABLE SIGNATURE VERIFICATION FOR TESTING
       const skipSignatureVerification = this.configService.get<string>('STRIPE_SKIP_SIGNATURE_VERIFICATION') === 'true';
@@ -978,9 +1083,16 @@ export class PaymentService {
         event = this.stripeService.constructEvent(rawBody, signature, webhookSecret);
       }
 
-      const { type, data } = event;
+      const { type, data, id: eventId } = event;
 
-      this.logger.log(`Received and verified Stripe webhook: ${type}`);
+      // IDEMPOTENCY CHECK: Verify if this event has already been processed
+      const existingEvent = await this.processedWebhookEventModel.findOne({ stripeEventId: eventId });
+      if (existingEvent) {
+        this.logger.log(`Webhook event ${eventId} (${type}) already processed at ${existingEvent.processedAt}, skipping`);
+        return { received: true, skipped: true };
+      }
+
+      this.logger.log(`Processing Stripe webhook: ${type} (Event ID: ${eventId})`)
 
       switch (type) {
         case 'payment_intent.succeeded':
@@ -1030,6 +1142,18 @@ export class PaymentService {
         default:
           this.logger.log(`Unhandled webhook type: ${type}`);
       }
+
+      // Mark event as processed to prevent duplicate processing
+      await this.processedWebhookEventModel.create({
+        stripeEventId: eventId,
+        eventType: type,
+        processedAt: new Date(),
+        metadata: {
+          objectId: data?.object?.id,
+        }
+      });
+
+      this.logger.log(`Successfully processed and recorded webhook event ${eventId} (${type})`);
 
       return { received: true };
     } catch (error) {
