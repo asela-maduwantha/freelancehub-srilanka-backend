@@ -11,12 +11,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 export class UpdateFreelancerProfileDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsNumber()
-  @Min(0)
-  hourlyRate?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsEnum(['full-time', 'part-time', 'contract'])
   availability?: string;
 
@@ -40,4 +34,9 @@ export class UpdateFreelancerProfileDto {
   @IsOptional()
   @IsString()
   overview?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }

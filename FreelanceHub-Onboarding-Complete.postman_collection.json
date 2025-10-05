@@ -1,0 +1,1281 @@
+{
+	"info": {
+		"_postman_id": "onboarding-endpoints-collection",
+		"name": "FreelanceHub - Complete Onboarding Endpoints",
+		"description": "Complete collection of endpoints for client and freelancer onboarding, including authentication, profile management, and payment methods",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Check Email Availability",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/check-email",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"check-email"
+							]
+						},
+						"description": "Check if email is available for registration"
+					}
+				},
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store user details for later use",
+									"if (pm.response.code === 201) {",
+									"    pm.environment.set('registered_email', pm.request.body.raw ? JSON.parse(pm.request.body.raw).email : '');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"role\": \"{{user_role}}\",\n  \"firstName\": \"{{first_name}}\",\n  \"lastName\": \"{{last_name}}\",\n  \"phone\": \"{{phone_number}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user (client or freelancer)"
+					}
+				},
+				{
+					"name": "Send Email Verification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{registered_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/send-verification",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"send-verification"
+							]
+						},
+						"description": "Send verification OTP to email"
+					}
+				},
+				{
+					"name": "Verify Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store access token from response",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('access_token', response.accessToken);",
+									"    pm.environment.set('user_id', response.user.id);",
+									"    pm.environment.set('user_role', response.user.role);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{registered_email}}\",\n  \"otp\": \"{{verification_otp}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/verify-email",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"verify-email"
+							]
+						},
+						"description": "Verify email with OTP and get access token"
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store access token from response",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('access_token', response.accessToken);",
+									"    pm.environment.set('user_id', response.user.id);",
+									"    pm.environment.set('user_role', response.user.role);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login user and get access token"
+					}
+				}
+			],
+			"description": "Authentication endpoints for user registration, verification, and login"
+		},
+		{
+			"name": "Profile Management",
+			"item": [
+				{
+					"name": "Get Current User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						},
+						"description": "Get complete profile of authenticated user"
+					}
+				},
+				{
+					"name": "Update Basic Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"{{first_name}}\",\n  \"lastName\": \"{{last_name}}\",\n  \"phone\": \"{{phone_number}}\",\n  \"bio\": \"Updated bio description\",\n  \"location\": {\n    \"country\": \"Sri Lanka\",\n    \"city\": \"Colombo\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						},
+						"description": "Update basic user profile information"
+					}
+				},
+				{
+					"name": "Upload Avatar",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Profile picture file"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/users/upload-avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"upload-avatar"
+							]
+						},
+						"description": "Upload profile picture"
+					}
+				},
+				{
+					"name": "Delete Avatar",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"avatar"
+							]
+						},
+						"description": "Delete profile avatar"
+					}
+				}
+			],
+			"description": "Basic profile management endpoints"
+		},
+		{
+			"name": "Freelancer Onboarding",
+			"item": [
+				{
+					"name": "Update Freelancer Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"hourlyRate\": 75,\n  \"availability\": \"full-time\",\n  \"experience\": \"intermediate\",\n  \"languages\": [\"English\", \"Sinhala\"],\n  \"title\": \"Full Stack Developer\",\n  \"overview\": \"I am an experienced full-stack developer with expertise in modern web technologies. I specialize in building scalable applications using React, Node.js, and cloud technologies.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"profile"
+							]
+						},
+						"description": "Update freelancer-specific profile data"
+					}
+				},
+				{
+					"name": "Add Skills",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"skills\": [\"JavaScript\", \"React\", \"Node.js\", \"MongoDB\", \"TypeScript\", \"Express.js\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"skills"
+							]
+						},
+						"description": "Add skills to freelancer profile"
+					}
+				},
+				{
+					"name": "Remove Skill",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/skills/{{skill_to_remove}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"skills",
+								"{{skill_to_remove}}"
+							]
+						},
+						"description": "Remove a specific skill from freelancer profile"
+					}
+				},
+				{
+					"name": "Add Portfolio Item",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"E-commerce Website\",\n  \"description\": \"A full-stack e-commerce website built with React and Node.js, featuring user authentication, product catalog, shopping cart, and payment integration.\",\n  \"images\": [\"https://example.com/portfolio/ecommerce-1.jpg\", \"https://example.com/portfolio/ecommerce-2.jpg\"],\n  \"url\": \"https://myecommercesite.com\",\n  \"technologies\": [\"React\", \"Node.js\", \"MongoDB\", \"Stripe API\", \"JWT\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/portfolio",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"portfolio"
+							]
+						},
+						"description": "Add portfolio project to freelancer profile"
+					}
+				},
+				{
+					"name": "Update Portfolio Item",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated E-commerce Website\",\n  \"description\": \"Updated description of the e-commerce project\",\n  \"images\": [\"https://example.com/portfolio/updated-image.jpg\"],\n  \"url\": \"https://updated-url.com\",\n  \"technologies\": [\"React\", \"Node.js\", \"MongoDB\", \"Redux\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/portfolio/{{portfolio_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"portfolio",
+								"{{portfolio_id}}"
+							]
+						},
+						"description": "Update existing portfolio item"
+					}
+				},
+				{
+					"name": "Delete Portfolio Item",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/portfolio/{{portfolio_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"portfolio",
+								"{{portfolio_id}}"
+							]
+						},
+						"description": "Delete portfolio item"
+					}
+				},
+				{
+					"name": "Add Education",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"degree\": \"Bachelor of Computer Science\",\n  \"institution\": \"University of Colombo\",\n  \"startDate\": \"2018-01-01\",\n  \"endDate\": \"2022-12-01\",\n  \"description\": \"Focused on software engineering, algorithms, and database systems. Graduated with First Class Honors.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/education",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"education"
+							]
+						},
+						"description": "Add educational background to freelancer profile"
+					}
+				},
+				{
+					"name": "Update Education",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"degree\": \"Bachelor of Computer Science\",\n  \"institution\": \"University of Colombo\",\n  \"startDate\": \"2018-01-01\",\n  \"endDate\": \"2022-12-01\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/education/{{education_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"education",
+								"{{education_id}}"
+							]
+						},
+						"description": "Update existing education record"
+					}
+				},
+				{
+					"name": "Delete Education",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/education/{{education_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"education",
+								"{{education_id}}"
+							]
+						},
+						"description": "Delete education record"
+					}
+				},
+				{
+					"name": "Add Certification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"AWS Certified Developer - Associate\",\n  \"issuer\": \"Amazon Web Services\",\n  \"issueDate\": \"2023-01-15\",\n  \"expiryDate\": \"2026-01-15\",\n  \"credentialId\": \"AWS-ASA-123456789\",\n  \"credentialUrl\": \"https://aws.amazon.com/verification/123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/certification",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"certification"
+							]
+						},
+						"description": "Add professional certification to freelancer profile"
+					}
+				},
+				{
+					"name": "Update Certification",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"AWS Certified Developer - Associate\",\n  \"issuer\": \"Amazon Web Services\",\n  \"issueDate\": \"2023-01-15\",\n  \"expiryDate\": \"2026-01-15\",\n  \"credentialId\": \"AWS-ASA-123456789\",\n  \"credentialUrl\": \"https://aws.amazon.com/verification/123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/certification/{{certification_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"certification",
+								"{{certification_id}}"
+							]
+						},
+						"description": "Update existing certification"
+					}
+				},
+				{
+					"name": "Delete Certification",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/freelancer/certification/{{certification_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancer",
+								"certification",
+								"{{certification_id}}"
+							]
+						},
+						"description": "Delete certification"
+					}
+				}
+			],
+			"description": "Freelancer-specific onboarding endpoints"
+		},
+		{
+			"name": "Client Onboarding",
+			"item": [
+				{
+					"name": "Update Client Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"companyName\": \"Tech Solutions Lanka Pvt Ltd\",\n  \"companySize\": \"51-200\",\n  \"industry\": \"Information Technology\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/client/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"client",
+								"profile"
+							]
+						},
+						"description": "Update client-specific profile information"
+					}
+				},
+				{
+					"name": "Get Client Public Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/clients/{{client_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"clients",
+								"{{client_id}}"
+							]
+						},
+						"description": "Get public profile of a client"
+					}
+				}
+			],
+			"description": "Client-specific onboarding endpoints"
+		},
+		{
+			"name": "Payment Methods",
+			"item": [
+				{
+					"name": "Create Setup Intent",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store client secret for payment method setup",
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('setup_intent_client_secret', response.client_secret);",
+									"    pm.environment.set('setup_intent_id', response.setup_intent_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payment-methods/setup-intent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-methods",
+								"setup-intent"
+							]
+						},
+						"description": "Create Stripe setup intent for adding payment methods"
+					}
+				},
+				{
+					"name": "Save Payment Method",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paymentMethodId\": \"{{stripe_payment_method_id}}\",\n  \"isDefault\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/payment-methods",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-methods"
+							]
+						},
+						"description": "Save payment method after successful Stripe setup"
+					}
+				},
+				{
+					"name": "Get Payment Methods",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payment-methods",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-methods"
+							]
+						},
+						"description": "Get all saved payment methods for the user"
+					}
+				},
+				{
+					"name": "Set Default Payment Method",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payment-methods/{{payment_method_id}}/default",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-methods",
+								"{{payment_method_id}}",
+								"default"
+							]
+						},
+						"description": "Set a payment method as default"
+					}
+				},
+				{
+					"name": "Delete Payment Method",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-methods",
+								"{{payment_method_id}}"
+							]
+						},
+						"description": "Delete a payment method"
+					}
+				}
+			],
+			"description": "Payment method management for clients"
+		},
+		{
+			"name": "Stripe Connected Account (Freelancers)",
+			"item": [
+				{
+					"name": "Create Stripe Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store Stripe account ID",
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('stripe_account_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country\": \"LK\",\n  \"type\": \"express\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/stripe-account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"stripe-account"
+							]
+						},
+						"description": "Create Stripe connected account for freelancer to receive payments"
+					}
+				},
+				{
+					"name": "Create Account Onboarding Link",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store onboarding URL",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('stripe_onboarding_url', response.url);",
+									"    console.log('Onboarding URL: ' + response.url);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshUrl\": \"{{frontend_url}}/onboarding/refresh\",\n  \"returnUrl\": \"{{frontend_url}}/onboarding/complete\",\n  \"type\": \"account_onboarding\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/stripe-account/onboard",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"stripe-account",
+								"onboard"
+							]
+						},
+						"description": "Generate onboarding link for Stripe account setup"
+					}
+				},
+				{
+					"name": "Get Stripe Account Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/stripe-account/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"stripe-account",
+								"status"
+							]
+						},
+						"description": "Check Stripe connected account setup status"
+					}
+				},
+				{
+					"name": "Delete Stripe Account",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/stripe-account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"stripe-account"
+							]
+						},
+						"description": "Delete Stripe connected account"
+					}
+				}
+			],
+			"description": "Stripe connected account management for freelancers"
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Client Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/dashboard/client",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"dashboard",
+								"client"
+							]
+						},
+						"description": "Get client dashboard data with statistics and recent activity"
+					}
+				},
+				{
+					"name": "Get Freelancer Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/dashboard/freelancer",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"dashboard",
+								"freelancer"
+							]
+						},
+						"description": "Get freelancer dashboard data with statistics and recent activity"
+					}
+				}
+			],
+			"description": "Dashboard endpoints for both clients and freelancers"
+		},
+		{
+			"name": "Search & Discovery",
+			"item": [
+				{
+					"name": "Search Freelancers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/freelancers?skills=JavaScript,React&minRate=50&maxRate=100&availability=full-time&experience=intermediate&page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancers"
+							],
+							"query": [
+								{
+									"key": "skills",
+									"value": "JavaScript,React",
+									"description": "Comma-separated skills"
+								},
+								{
+									"key": "minRate",
+									"value": "50",
+									"description": "Minimum hourly rate"
+								},
+								{
+									"key": "maxRate",
+									"value": "100",
+									"description": "Maximum hourly rate"
+								},
+								{
+									"key": "availability",
+									"value": "full-time",
+									"description": "Availability type"
+								},
+								{
+									"key": "experience",
+									"value": "intermediate",
+									"description": "Experience level"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Items per page"
+								}
+							]
+						},
+						"description": "Search and filter freelancers"
+					}
+				},
+				{
+					"name": "Get Freelancer Public Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/freelancers/{{freelancer_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"freelancers",
+								"{{freelancer_id}}"
+							]
+						},
+						"description": "Get public profile of a specific freelancer"
+					}
+				}
+			],
+			"description": "Search and discovery endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-add Bearer token if available",
+					"const token = pm.environment.get('access_token');",
+					"if (token && !pm.request.headers.has('Authorization')) {",
+					"    pm.request.headers.add({",
+					"        key: 'Authorization',",
+					"        value: 'Bearer ' + token",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"description": "Base URL for the API"
+		},
+		{
+			"key": "frontend_url",
+			"value": "http://localhost:3001",
+			"description": "Frontend URL for redirects"
+		},
+		{
+			"key": "test_email",
+			"value": "test@example.com",
+			"description": "Test email for registration"
+		},
+		{
+			"key": "test_password",
+			"value": "TestPassword123!",
+			"description": "Test password for registration"
+		},
+		{
+			"key": "user_role",
+			"value": "freelancer",
+			"description": "User role: freelancer or client"
+		},
+		{
+			"key": "first_name",
+			"value": "John",
+			"description": "Test first name"
+		},
+		{
+			"key": "last_name",
+			"value": "Doe",
+			"description": "Test last name"
+		},
+		{
+			"key": "phone_number",
+			"value": "+94771234567",
+			"description": "Test phone number"
+		},
+		{
+			"key": "verification_otp",
+			"value": "123456",
+			"description": "Email verification OTP (get from email)"
+		},
+		{
+			"key": "skill_to_remove",
+			"value": "JavaScript",
+			"description": "Skill name to remove"
+		},
+		{
+			"key": "portfolio_id",
+			"value": "",
+			"description": "Portfolio item ID (set after creating)"
+		},
+		{
+			"key": "education_id",
+			"value": "",
+			"description": "Education record ID (set after creating)"
+		},
+		{
+			"key": "certification_id",
+			"value": "",
+			"description": "Certification ID (set after creating)"
+		},
+		{
+			"key": "client_id",
+			"value": "",
+			"description": "Client user ID"
+		},
+		{
+			"key": "freelancer_id",
+			"value": "",
+			"description": "Freelancer user ID"
+		},
+		{
+			"key": "payment_method_id",
+			"value": "",
+			"description": "Payment method ID"
+		},
+		{
+			"key": "stripe_payment_method_id",
+			"value": "",
+			"description": "Stripe payment method ID (from frontend)"
+		}
+	]
+}

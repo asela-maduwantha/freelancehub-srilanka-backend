@@ -378,10 +378,6 @@ export class UsersService {
     }
 
     // Update freelancer-specific fields
-    if (updateFreelancerProfileDto.hourlyRate !== undefined) {
-      user.freelancerData!.hourlyRate = updateFreelancerProfileDto.hourlyRate;
-    }
-
     if (updateFreelancerProfileDto.availability !== undefined) {
       user.freelancerData!.availability =
         updateFreelancerProfileDto.availability;
@@ -407,6 +403,10 @@ export class UsersService {
 
     if (updateFreelancerProfileDto.overview !== undefined) {
       user.freelancerData!.overview = updateFreelancerProfileDto.overview;
+    }
+
+    if (updateFreelancerProfileDto.avatar !== undefined) {
+      user.profile!.avatar = updateFreelancerProfileDto.avatar;
     }
 
     await user.save();
@@ -976,6 +976,9 @@ export class UsersService {
     if (updateClientProfileDto.industry !== undefined) {
       user.clientData.industry = updateClientProfileDto.industry;
     }
+    if (updateClientProfileDto.logo !== undefined) {
+      user.clientData.logo = updateClientProfileDto.logo;
+    }
 
     await user.save();
 
@@ -998,8 +1001,6 @@ export class UsersService {
       location,
       experienceLevel,
       availability,
-      minHourlyRate,
-      maxHourlyRate,
       page = 1,
       limit = 10,
     } = searchDto;
@@ -1012,8 +1013,6 @@ export class UsersService {
       location,
       experienceLevel,
       availability,
-      minHourlyRate,
-      maxHourlyRate,
       page,
       limit,
     })}`;
@@ -1062,17 +1061,6 @@ export class UsersService {
     // Experience level filter
     if (experienceLevel) {
       filter['freelancerData.experience'] = experienceLevel;
-    }
-
-    // Hourly rate filter
-    if (minHourlyRate !== undefined || maxHourlyRate !== undefined) {
-      filter['freelancerData.hourlyRate'] = {};
-      if (minHourlyRate !== undefined) {
-        filter['freelancerData.hourlyRate'].$gte = minHourlyRate;
-      }
-      if (maxHourlyRate !== undefined) {
-        filter['freelancerData.hourlyRate'].$lte = maxHourlyRate;
-      }
     }
 
     // Calculate skip value for pagination
@@ -1182,7 +1170,6 @@ export class UsersService {
       location: freelancerDoc.location,
       bio: freelancerDoc.bio,
       skills: freelancerDoc.freelancerData?.skills || [],
-      hourlyRate: freelancerDoc.freelancerData?.hourlyRate,
       rating: freelancerDoc.freelancerData?.rating || 0,
       reviewCount: freelancerDoc.freelancerData?.reviewCount || 0,
       totalEarned: freelancerDoc.freelancerData?.totalEarned || 0,

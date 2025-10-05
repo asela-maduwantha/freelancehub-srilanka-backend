@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsEnum, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEnum, IsUrl, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateStripeAccountDto {
@@ -26,7 +26,9 @@ export class CreateAccountLinkDto {
     example: 'http://localhost:3000/onboarding/refresh',
   })
   @IsNotEmpty()
-  @IsUrl()
+  @Matches(/^https?:\/\/.+$/, {
+    message: 'refreshUrl must be a valid URL starting with http:// or https://'
+  })
   refreshUrl: string;
 
   @ApiProperty({
@@ -34,7 +36,9 @@ export class CreateAccountLinkDto {
     example: 'http://localhost:3000/onboarding/complete',
   })
   @IsNotEmpty()
-  @IsUrl()
+  @Matches(/^https?:\/\/.+$/, {
+    message: 'returnUrl must be a valid URL starting with http:// or https://'
+  })
   returnUrl: string;
 
   @ApiPropertyOptional({

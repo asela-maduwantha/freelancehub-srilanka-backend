@@ -46,9 +46,6 @@ export class FreelancerDataResponseDto {
   @ApiProperty({ type: [String] })
   skills: string[];
 
-  @ApiPropertyOptional()
-  hourlyRate?: number;
-
   @ApiPropertyOptional({ enum: ['full-time', 'part-time', 'contract'] })
   availability?: string;
 

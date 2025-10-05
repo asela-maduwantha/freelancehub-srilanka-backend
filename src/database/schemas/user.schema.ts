@@ -167,6 +167,9 @@ export class ClientData {
   @Prop()
   industry?: string;
 
+  @Prop()
+  logo?: string;
+
   @Prop({ default: 0, min: 0 })
   totalSpent: number;
 

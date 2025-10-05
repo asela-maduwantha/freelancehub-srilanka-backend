@@ -66,35 +66,13 @@ export class SearchFreelancersDto {
   experienceLevel?: string;
 
   @ApiPropertyOptional({
-    description: 'Availability filter',
+    description: 'Freelancer availability',
     enum: ['full-time', 'part-time', 'contract'],
     example: 'full-time',
   })
   @IsOptional()
   @IsIn(['full-time', 'part-time', 'contract'])
   availability?: string;
-
-  @ApiPropertyOptional({
-    description: 'Minimum hourly rate',
-    example: 50,
-    minimum: 0,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  minHourlyRate?: number;
-
-  @ApiPropertyOptional({
-    description: 'Maximum hourly rate',
-    example: 100,
-    minimum: 0,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  maxHourlyRate?: number;
 
   @ApiPropertyOptional({
     description: 'Page number for pagination',

@@ -54,20 +54,12 @@ export class FreelancerPublicProfileDto {
   })
   bio?: string;
 
-  @ApiProperty({
+    @ApiProperty({
     description: 'Freelancer skills',
-    example: ['JavaScript', 'React', 'Node.js'],
     type: [String],
     required: false,
   })
   skills?: string[];
-
-  @ApiProperty({
-    description: 'Freelancer hourly rate',
-    example: 75,
-    required: false,
-  })
-  hourlyRate?: number;
 
   @ApiProperty({
     description: 'Freelancer availability',

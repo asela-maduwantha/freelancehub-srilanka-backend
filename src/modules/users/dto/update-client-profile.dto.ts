@@ -26,4 +26,12 @@ export class UpdateClientProfileDto {
   @IsOptional()
   @IsString()
   industry?: string;
+
+  @ApiPropertyOptional({
+    description: 'Company logo URL',
+    example: 'https://example.com/logo.png',
+  })
+  @IsOptional()
+  @IsString()
+  logo?: string;
 }
