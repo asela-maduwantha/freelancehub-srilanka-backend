@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Patc
 import { WithdrawalsService } from './withdrawals.service';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
+import { WithdrawalResponseDto } from './dto/withdrawal-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,7 +37,7 @@ export class WithdrawalsController {
     const withdrawal = await this.withdrawalsService.findById(id);
 
     // Check if user has permission to view this withdrawal
-    if (user.role !== UserRole.ADMIN && withdrawal.freelancerId.toString() !== user._id.toString()) {
+    if (user.role !== UserRole.ADMIN && withdrawal.freelancerId?.id !== user._id.toString()) {
       throw new ForbiddenException('Access denied');
     }
 

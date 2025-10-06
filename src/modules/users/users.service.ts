@@ -64,6 +64,8 @@ export class UsersService {
   ) {}
 
   async getCurrentUser(userId: string): Promise<CompleteUserResponseDto> {
+    console.log('getCurrentUser called with userId:', userId, typeof userId);
+
     // Try to get from cache first
     const cacheKey = `user_${userId}`;
     const cachedUser = await this.cacheManager.get<CompleteUserResponseDto>(cacheKey);
@@ -72,13 +74,32 @@ export class UsersService {
       return cachedUser;
     }
 
+    // Validate userId format
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      console.error('Invalid userId format:', userId);
+      throw new BadRequestException('Invalid user ID format');
+    }
+
+    console.log('Querying database for userId:', userId);
     const user = await this.userModel
       .findById(userId)
       .select('-password -deletedAt')
       .exec();
 
+    console.log('Database query result:', user ? 'User found' : 'User not found');
+    if (user) {
+      console.log('User _id:', user._id, 'User email:', user.email);
+    }
+
     if (!user) {
+      console.error(`User not found for ID: ${userId}`);
       throw new NotFoundException(RESPONSE_MESSAGES.USER.NOT_FOUND);
+    }
+
+    // Check if user has _id (before transformation)
+    if (!user._id) {
+      console.error(`User found but missing _id for userId: ${userId}`, user);
+      throw new NotFoundException('User data is corrupted');
     }
 
     const userResponse = this.mapToUserResponseDto(user);
@@ -282,10 +303,22 @@ export class UsersService {
   }
 
   private mapToUserResponseDto(user: any): CompleteUserResponseDto {
+    if (!user) {
+      throw new BadRequestException('User data is required');
+    }
+
     const plainUser = user.toObject ? user.toObject() : user;
 
+    // Ensure id exists (transformed from _id by schema)
+    if (!plainUser.id && !plainUser._id) {
+      console.error('User object missing id/_id:', plainUser);
+      throw new BadRequestException('User data is corrupted - missing ID');
+    }
+
+    const userId = plainUser.id || plainUser._id.toString();
+
     return {
-      id: plainUser._id.toString(),
+      id: userId,
       email: plainUser.email,
       role: plainUser.role,
       isEmailVerified: plainUser.isEmailVerified,

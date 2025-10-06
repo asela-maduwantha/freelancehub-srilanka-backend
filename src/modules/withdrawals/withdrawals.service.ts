@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Withdrawal } from '../../database/schemas/withdrawal.schema';
 import { User } from '../../database/schemas/user.schema';
 import { CreateWithdrawalDto, WithdrawalMethod } from './dto/create-withdrawal.dto';
+import { WithdrawalResponseDto } from './dto/withdrawal-response.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
 import { WithdrawalStatus } from '../../common/enums/withdrawal-status.enum';
 import { TransactionLogService } from '../payments/transaction-log.service';
@@ -311,26 +312,57 @@ export class WithdrawalsService {
     }
   }
 
-  async findAll(userId?: string): Promise<Withdrawal[]> {
+  async findAll(userId?: string): Promise<WithdrawalResponseDto[]> {
     const query: any = { deletedAt: null };
     if (userId) {
       query.freelancerId = new Types.ObjectId(userId);
     }
 
-    return this.withdrawalModel
+    const withdrawals = await this.withdrawalModel
       .find(query)
       .populate('freelancerId', 'firstName lastName email')
       .sort({ requestedAt: -1 })
       .lean()
       .exec();
+
+    // Manually transform the lean results to match WithdrawalResponseDto
+    return withdrawals.map((withdrawal: any) => ({
+      id: withdrawal._id.toString(),
+      freelancerId: withdrawal.freelancerId ? {
+        id: withdrawal.freelancerId._id.toString(),
+        email: withdrawal.freelancerId.email,
+        firstName: withdrawal.freelancerId.firstName,
+        lastName: withdrawal.freelancerId.lastName,
+      } : undefined,
+      amount: withdrawal.amount,
+      currency: withdrawal.currency,
+      stripeTransferId: withdrawal.stripeTransferId,
+      stripePayoutId: withdrawal.stripePayoutId,
+      stripeAccountId: withdrawal.stripeAccountId,
+      bankAccount: withdrawal.bankAccount,
+      status: withdrawal.status,
+      processingFee: withdrawal.processingFee,
+      finalAmount: withdrawal.finalAmount,
+      description: withdrawal.description,
+      adminNotes: withdrawal.adminNotes,
+      metadata: withdrawal.metadata,
+      requestedAt: withdrawal.requestedAt,
+      processedAt: withdrawal.processedAt,
+      completedAt: withdrawal.completedAt,
+      failedAt: withdrawal.failedAt,
+      cancelledAt: withdrawal.cancelledAt,
+      errorMessage: withdrawal.errorMessage,
+      createdAt: withdrawal.createdAt || new Date(),
+      updatedAt: withdrawal.updatedAt || new Date(),
+    }));
   }
 
-  async findById(id: string): Promise<Withdrawal> {
+  async findById(id: string): Promise<WithdrawalResponseDto> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid withdrawal ID');
     }
 
-    const withdrawal = await this.withdrawalModel
+    const withdrawal: any = await this.withdrawalModel
       .findOne({ _id: id, deletedAt: null })
       .populate('freelancerId', 'firstName lastName email')
       .lean()
@@ -340,7 +372,36 @@ export class WithdrawalsService {
       throw new NotFoundException('Withdrawal not found');
     }
 
-    return withdrawal;
+    // Manually transform the lean result to match WithdrawalResponseDto
+    return {
+      id: withdrawal._id.toString(),
+      freelancerId: withdrawal.freelancerId ? {
+        id: withdrawal.freelancerId._id.toString(),
+        email: withdrawal.freelancerId.email,
+        firstName: withdrawal.freelancerId.firstName,
+        lastName: withdrawal.freelancerId.lastName,
+      } : undefined,
+      amount: withdrawal.amount,
+      currency: withdrawal.currency,
+      stripeTransferId: withdrawal.stripeTransferId,
+      stripePayoutId: withdrawal.stripePayoutId,
+      stripeAccountId: withdrawal.stripeAccountId,
+      bankAccount: withdrawal.bankAccount,
+      status: withdrawal.status,
+      processingFee: withdrawal.processingFee,
+      finalAmount: withdrawal.finalAmount,
+      description: withdrawal.description,
+      adminNotes: withdrawal.adminNotes,
+      metadata: withdrawal.metadata,
+      requestedAt: withdrawal.requestedAt,
+      processedAt: withdrawal.processedAt,
+      completedAt: withdrawal.completedAt,
+      failedAt: withdrawal.failedAt,
+      cancelledAt: withdrawal.cancelledAt,
+      errorMessage: withdrawal.errorMessage,
+      createdAt: withdrawal.createdAt || new Date(),
+      updatedAt: withdrawal.updatedAt || new Date(),
+    };
   }
 
   async processWithdrawal(id: string, processDto: ProcessWithdrawalDto): Promise<Withdrawal> {
@@ -363,7 +424,7 @@ export class WithdrawalsService {
           withdrawal.currency.toLowerCase(),
           {
             withdrawalId: id,
-            freelancerId: withdrawal.freelancerId.toString(),
+            freelancerId: withdrawal.freelancerId?.id || '',
             description: withdrawal.description || 'Withdrawal payout',
           }
         );
