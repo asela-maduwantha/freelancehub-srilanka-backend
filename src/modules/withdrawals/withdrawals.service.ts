@@ -13,6 +13,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 @Injectable()
 export class WithdrawalsService {
   private readonly logger = new Logger(WithdrawalsService.name);
+  
+  // Configuration: Set to true to auto-process withdrawals, false to require admin approval
+  private readonly AUTO_PROCESS_WITHDRAWALS = true;
 
   constructor(
     @InjectModel(Withdrawal.name) private withdrawalModel: Model<Withdrawal>,
@@ -20,7 +23,9 @@ export class WithdrawalsService {
     private transactionLogService: TransactionLogService,
     private stripeService: StripeService,
     private notificationsService: NotificationsService,
-  ) {}
+  ) {
+    this.logger.log(`Withdrawal auto-processing: ${this.AUTO_PROCESS_WITHDRAWALS ? 'ENABLED' : 'DISABLED'}`);
+  }
 
   async create(createWithdrawalDto: CreateWithdrawalDto): Promise<Withdrawal> {
     try {
@@ -170,8 +175,135 @@ export class WithdrawalsService {
       }
 
       this.logger.log(`Withdrawal created: ${savedWithdrawal._id} for user: ${createWithdrawalDto.userId}`);
+
+      // AUTO-PROCESS: Automatically process Stripe transfer without admin approval
+      if (this.AUTO_PROCESS_WITHDRAWALS && createWithdrawalDto.stripeAccountId && createWithdrawalDto.method === WithdrawalMethod.STRIPE) {
+        try {
+          this.logger.log(`Auto-processing withdrawal ${savedWithdrawal._id} with Stripe transfer...`);
+          
+          // Create Stripe transfer immediately
+          const transfer = await this.stripeService.createTransfer(
+            finalAmount,
+            createWithdrawalDto.stripeAccountId,
+            (createWithdrawalDto.currency || 'USD').toLowerCase(),
+            {
+              withdrawalId: (savedWithdrawal._id as Types.ObjectId).toString(),
+              freelancerId: createWithdrawalDto.userId!.toString(),
+              description: createWithdrawalDto.description || 'Withdrawal payout',
+            }
+          );
+
+          this.logger.log(`Stripe transfer created automatically: ${transfer.id} for withdrawal: ${(savedWithdrawal._id as Types.ObjectId).toString()}`);
+
+          // Update withdrawal with transfer ID and set to processing
+          const processedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
+            savedWithdrawal._id,
+            {
+              status: WithdrawalStatus.PROCESSING,
+              stripeTransferId: transfer.id,
+              processedAt: new Date(),
+            },
+            { new: true }
+          ).lean();
+
+          // Update transaction log
+          try {
+            await this.transactionLogService.updateByRelatedEntity(
+              (savedWithdrawal._id as Types.ObjectId).toString(),
+              'withdrawal',
+              {
+                status: 'pending',
+                stripeId: transfer.id,
+                description: `Withdrawal auto-processed - Transfer ID: ${transfer.id}`,
+              }
+            );
+          } catch (logError) {
+            this.logger.error(`Failed to update transaction log: ${logError.message}`);
+          }
+
+          // Mark as completed immediately (funds are transferred)
+          const completedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
+            savedWithdrawal._id,
+            {
+              status: WithdrawalStatus.COMPLETED,
+              completedAt: new Date(),
+            },
+            { new: true }
+          ).lean();
+
+          // Update transaction log to completed
+          try {
+            await this.transactionLogService.updateByRelatedEntity(
+              (savedWithdrawal._id as Types.ObjectId).toString(),
+              'withdrawal',
+              {
+                status: 'completed',
+                description: `Withdrawal completed successfully via auto-processing`,
+              }
+            );
+          } catch (logError) {
+            this.logger.error(`Failed to update transaction log: ${logError.message}`);
+          }
+
+          // Send completion notification
+          try {
+            await this.notificationsService.notifyWithdrawalCompleted(
+              (savedWithdrawal._id as Types.ObjectId).toString(),
+              finalAmount,
+              savedWithdrawal.freelancerId.toString()
+            );
+          } catch (notificationError) {
+            this.logger.error(`Failed to send completion notification: ${notificationError.message}`);
+          }
+
+          this.logger.log(`Withdrawal ${(savedWithdrawal._id as Types.ObjectId).toString()} auto-processed and completed successfully`);
+
+          // Return completed withdrawal
+          return completedWithdrawal as any;
+
+        } catch (transferError) {
+          // If Stripe transfer fails, mark withdrawal as failed and refund balance
+          this.logger.error(`Auto-processing failed for withdrawal ${savedWithdrawal._id}: ${transferError.message}`);
+          
+          try {
+            // Refund the balance
+            await this.userModel.findByIdAndUpdate(
+              createWithdrawalDto.userId,
+              { $inc: { 'freelancerData.availableBalance': createWithdrawalDto.amount } }
+            );
+
+            // Mark withdrawal as failed
+            await this.withdrawalModel.findByIdAndUpdate(
+              savedWithdrawal._id,
+              {
+                status: WithdrawalStatus.FAILED,
+                errorMessage: `Auto-processing failed: ${transferError.message}`,
+                failedAt: new Date(),
+              }
+            );
+
+            // Update transaction log
+            await this.transactionLogService.updateByRelatedEntity(
+              (savedWithdrawal._id as Types.ObjectId).toString(),
+              'withdrawal',
+              {
+                status: 'failed',
+                errorMessage: transferError.message,
+                description: `Auto-processing failed: ${transferError.message}. Balance refunded.`,
+              }
+            );
+
+            this.logger.log(`Refunded $${createWithdrawalDto.amount} to user ${createWithdrawalDto.userId} after auto-processing failure`);
+          } catch (refundError) {
+            this.logger.error(`CRITICAL: Failed to refund after auto-processing failure: ${refundError.message}`);
+          }
+
+          throw new BadRequestException(`Withdrawal failed: ${transferError.message}. Your balance has been refunded.`);
+        }
+      }
       
       // Return the withdrawal as a plain object to avoid serialization issues
+      // (This is only reached if not Stripe or auto-processing is disabled)
       return savedWithdrawal.toObject();
     } catch (error) {
       this.logger.error(`Failed to create withdrawal: ${error.message}`, error.stack);
