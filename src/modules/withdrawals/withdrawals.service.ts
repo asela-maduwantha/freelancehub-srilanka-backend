@@ -34,6 +34,32 @@ export class WithdrawalsService {
         throw new ForbiddenException('Only freelancers can request withdrawals');
       }
 
+      // Check for idempotency - prevent duplicate withdrawals
+      if (createWithdrawalDto.idempotencyKey) {
+        const existingWithdrawal = await this.withdrawalModel.findOne({
+          freelancerId: createWithdrawalDto.userId,
+          'metadata.idempotencyKey': createWithdrawalDto.idempotencyKey,
+          deletedAt: null,
+        });
+        if (existingWithdrawal) {
+          this.logger.log(`Duplicate withdrawal request detected with idempotency key: ${createWithdrawalDto.idempotencyKey}`);
+          return existingWithdrawal;
+        }
+      }
+
+      // Check for maximum pending withdrawals (limit to 3)
+      const pendingWithdrawals = await this.withdrawalModel.countDocuments({
+        freelancerId: createWithdrawalDto.userId,
+        status: { $in: [WithdrawalStatus.PENDING, WithdrawalStatus.PROCESSING] },
+        deletedAt: null,
+      });
+
+      if (pendingWithdrawals >= 3) {
+        throw new BadRequestException(
+          'Maximum pending withdrawals limit reached. Please wait for existing withdrawals to complete.'
+        );
+      }
+
       // Check user's available balance from user schema
       const availableBalance = user.freelancerData?.availableBalance || 0;
       if (availableBalance < createWithdrawalDto.amount) {
@@ -54,6 +80,29 @@ export class WithdrawalsService {
         throw new BadRequestException('Minimum withdrawal amount after fees is $10');
       }
 
+      // CRITICAL FIX: Deduct balance ATOMICALLY when creating withdrawal
+      // This prevents race conditions where multiple withdrawals could be created for the same funds
+      const updatedUser = await this.userModel.findOneAndUpdate(
+        {
+          _id: createWithdrawalDto.userId,
+          'freelancerData.availableBalance': { $gte: createWithdrawalDto.amount }, // Ensure sufficient balance
+        },
+        {
+          $inc: { 'freelancerData.availableBalance': -createWithdrawalDto.amount },
+        },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        throw new BadRequestException(
+          'Failed to reserve withdrawal amount. Please try again or check your balance.'
+        );
+      }
+
+      this.logger.log(
+        `Reserved $${createWithdrawalDto.amount} from user ${createWithdrawalDto.userId} balance. New balance: $${updatedUser.freelancerData?.availableBalance}`
+      );
+
       const withdrawal = new this.withdrawalModel({
         freelancerId: createWithdrawalDto.userId,
         amount: createWithdrawalDto.amount,
@@ -69,9 +118,23 @@ export class WithdrawalsService {
           bankName: createWithdrawalDto.bankName!,
           country: 'US', // Default to US
         } : undefined,
+        metadata: createWithdrawalDto.idempotencyKey ? {
+          idempotencyKey: createWithdrawalDto.idempotencyKey,
+        } : undefined,
       });
 
-      const savedWithdrawal = await withdrawal.save();
+      let savedWithdrawal: Withdrawal;
+      try {
+        savedWithdrawal = await withdrawal.save();
+      } catch (saveError) {
+        // CRITICAL: If withdrawal save fails, refund the balance
+        this.logger.error(`Failed to save withdrawal, refunding balance: ${saveError.message}`);
+        await this.userModel.findByIdAndUpdate(
+          createWithdrawalDto.userId,
+          { $inc: { 'freelancerData.availableBalance': createWithdrawalDto.amount } }
+        );
+        throw new BadRequestException('Failed to create withdrawal. Your balance has been refunded.');
+      }
 
       // Create transaction log for the withdrawal request
       try {
@@ -177,14 +240,24 @@ export class WithdrawalsService {
     }
 
     // Update status to processing
+    // Validate that processing fee hasn't been tampered with
+    if (processDto.processingFee && processDto.processingFee !== withdrawal.processingFee) {
+      this.logger.warn(
+        `Attempted to change processing fee for withdrawal ${id} from ${withdrawal.processingFee} to ${processDto.processingFee}. Fee is immutable.`
+      );
+      throw new BadRequestException(
+        'Processing fee cannot be changed after withdrawal creation. Cancel and create a new withdrawal if fee adjustment is needed.'
+      );
+    }
+
     const updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
       id,
       {
         status: WithdrawalStatus.PROCESSING,
         stripeTransferId: transferId,
         stripePayoutId: payoutId,
-        processingFee: processDto.processingFee || withdrawal.processingFee,
         externalTransactionId: processDto.externalTransactionId,
+        processedAt: new Date(),
       },
       { new: true }
     ).populate('freelancerId', 'firstName lastName email');
@@ -214,50 +287,21 @@ export class WithdrawalsService {
       throw new BadRequestException('Withdrawal is not in processing status');
     }
 
-    // Start MongoDB transaction for atomicity
-    const session = await this.withdrawalModel.db.startSession();
-    session.startTransaction();
+    // NOTE: Balance was already deducted when withdrawal was created (PENDING status)
+    // This method only updates the status to COMPLETED
 
-    let updatedWithdrawal: Withdrawal;
+    const updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
+      id,
+      { 
+        status: WithdrawalStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+      { new: true }
+    ).populate('freelancerId', 'firstName lastName email') as Withdrawal;
 
-    try {
-      // Update withdrawal status with transaction
-      updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
-        id,
-        { status: WithdrawalStatus.COMPLETED },
-        { new: true, session }
-      ).populate('freelancerId', 'firstName lastName email') as any;
-
-      // Deduct withdrawal amount from user's available balance (with transaction)
-      const result = await this.userModel.findByIdAndUpdate(
-        withdrawal.freelancerId,
-        { 
-          $inc: { 
-            'freelancerData.availableBalance': -withdrawal.amount 
-          } 
-        },
-        { session, new: true }
-      );
-
-      if (!result) {
-        throw new Error('User not found or balance update failed');
-      }
-
-      this.logger.log(`Deducted $${withdrawal.amount} from user ${withdrawal.freelancerId} balance`);
-
-      // Commit transaction
-      await session.commitTransaction();
-      this.logger.log(`Transaction committed successfully for withdrawal ${id}`);
-
-    } catch (error) {
-      // Rollback transaction on any error
-      await session.abortTransaction();
-      this.logger.error(`Transaction rolled back for withdrawal ${id}: ${error.message}`, error.stack);
-      this.logger.error(`CRITICAL: Withdrawal ${id} failed - balance not deducted, requires manual reconciliation`);
-      throw error;
-    } finally {
-      session.endSession();
-    }
+    this.logger.log(
+      `Withdrawal ${id} completed successfully. Balance was already deducted at creation.`
+    );
 
     // Update transaction log to completed (outside transaction - non-critical)
     try {
@@ -294,11 +338,32 @@ export class WithdrawalsService {
       throw new BadRequestException('Withdrawal cannot be failed in current status');
     }
 
+    // CRITICAL FIX: Refund the balance since withdrawal failed
+    // Balance was deducted when withdrawal was created
+    try {
+      await this.userModel.findByIdAndUpdate(
+        withdrawal.freelancerId,
+        {
+          $inc: { 'freelancerData.availableBalance': withdrawal.amount },
+        }
+      );
+      this.logger.log(
+        `Refunded $${withdrawal.amount} to user ${withdrawal.freelancerId} after withdrawal failure`
+      );
+    } catch (refundError) {
+      this.logger.error(
+        `CRITICAL: Failed to refund balance for failed withdrawal ${id}: ${refundError.message}. Manual reconciliation required!`,
+        refundError.stack
+      );
+      // Continue to update withdrawal status even if refund fails - admin needs to handle manually
+    }
+
     const updatedWithdrawal = await this.withdrawalModel.findByIdAndUpdate(
       id,
       {
         status: WithdrawalStatus.FAILED,
         errorMessage,
+        failedAt: new Date(),
       },
       { new: true }
     ).populate('freelancerId', 'firstName lastName email');
@@ -311,7 +376,7 @@ export class WithdrawalsService {
         {
           status: 'failed',
           errorMessage,
-          description: `Withdrawal failed: ${errorMessage}`,
+          description: `Withdrawal failed: ${errorMessage}. Balance refunded to user.`,
         }
       );
     } catch (logError) {

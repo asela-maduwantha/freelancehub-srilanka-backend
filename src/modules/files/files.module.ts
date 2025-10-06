@@ -7,13 +7,17 @@ import { AzureModule } from '../../services/azure/azure.module';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { User, UserSchema } from '../../database/schemas/user.schema';
+import { File, FileSchema } from '../../database/schemas/file.schema';
 
 @Module({
   imports: [
     AuthModule,
     UsersModule,
     AzureModule,
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: File.name, schema: FileSchema },
+    ]),
     MulterModule.register({
       // Configure multer for in-memory storage since we're uploading directly to Azure
       storage: require('multer').memoryStorage(),

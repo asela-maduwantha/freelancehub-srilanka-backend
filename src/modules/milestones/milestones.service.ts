@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Milestone, Contract } from 'src/database/schemas';
@@ -17,6 +17,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class MilestoneService {
+  private readonly logger = new Logger(MilestoneService.name);
+
   constructor(
     @InjectModel(Milestone.name) private milestoneModel: Model<Milestone>,
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
@@ -342,28 +344,60 @@ export class MilestoneService {
       throw new BadRequestException('Insufficient contract balance to release this milestone amount');
     }
 
+    // CRITICAL FIX: Validate freelancer has sufficient pending balance BEFORE transferring
+    const freelancer = await this.contractModel.db.model('User').findById(contract!.freelancerId);
+    if (!freelancer) {
+      throw new NotFoundException('Freelancer not found');
+    }
+
+    const currentPendingBalance = freelancer.freelancerData?.pendingBalance || 0;
+    if (currentPendingBalance < milestone.amount) {
+      this.logger.error(
+        `CRITICAL: Freelancer ${contract!.freelancerId} has insufficient pending balance (${currentPendingBalance}) for milestone release (${milestone.amount}). Manual reconciliation required!`
+      );
+      throw new BadRequestException(
+        `Insufficient pending balance to release milestone. Expected: $${milestone.amount}, Available: $${currentPendingBalance}. Please contact support.`
+      );
+    }
+
     // Update contract released amount
     await this.contractModel.findByIdAndUpdate(
       milestone.contractId,
       { $inc: { releasedAmount: milestone.amount } }
     );
 
-    // Update freelancer's available balance
+    // Update freelancer's available balance ATOMICALLY
     // The milestone amount is released from pending to available
     try {
-      await this.contractModel.db.model('User').findByIdAndUpdate(
-        contract!.freelancerId,
+      const updatedUser = await this.contractModel.db.model('User').findOneAndUpdate(
+        {
+          _id: contract!.freelancerId,
+          'freelancerData.pendingBalance': { $gte: milestone.amount }, // Atomic validation
+        },
         { 
           $inc: { 
             'freelancerData.availableBalance': milestone.amount,
             'freelancerData.pendingBalance': -milestone.amount
           } 
-        }
+        },
+        { new: true }
       );
-      console.log(`Updated freelancer balance: +$${milestone.amount} available, -$${milestone.amount} pending`);
+
+      if (!updatedUser) {
+        throw new Error('Failed to update freelancer balance - insufficient pending balance or user not found');
+      }
+
+      this.logger.log(
+        `Updated freelancer ${contract!.freelancerId} balance: +$${milestone.amount} available, -$${milestone.amount} pending. New balances - Available: $${updatedUser.freelancerData?.availableBalance}, Pending: $${updatedUser.freelancerData?.pendingBalance}`
+      );
     } catch (balanceError) {
-      console.error('Failed to update freelancer balance:', balanceError);
-      // Don't fail milestone approval if balance update fails, but log for reconciliation
+      this.logger.error(
+        `CRITICAL: Failed to update freelancer balance for milestone ${milestone._id}: ${balanceError.message}. Manual reconciliation required!`,
+        balanceError.stack
+      );
+      throw new BadRequestException(
+        'Failed to release milestone funds. Please contact support for manual processing.'
+      );
     }
 
     // Create transaction log for the release
@@ -460,8 +494,11 @@ export class MilestoneService {
 
     // Check if milestone can be marked as in progress
     if (milestone.status !== MilestoneStatus.PENDING && milestone.status !== MilestoneStatus.REJECTED) {
-      throw new BadRequestException('Only pending or rejected milestones can be marked as in progress');
+      console.log(`Milestone ${id} status is ${milestone.status}, cannot mark as in progress`);
+      throw new BadRequestException(`Only pending or rejected milestones can be marked as in progress. Current status: ${milestone.status}`);
     }
+
+    console.log(`Marking milestone ${id} as in progress for user ${userId}`);
 
     const updatedMilestone = await this.milestoneModel
       .findByIdAndUpdate(
@@ -469,6 +506,8 @@ export class MilestoneService {
         { status: MilestoneStatus.IN_PROGRESS },
         { new: true, runValidators: true }
       );
+
+    console.log(`Milestone ${id} successfully updated to status: ${updatedMilestone!.status}`);
 
     // Invalidate cache for this milestone and contract
     await this.invalidateMilestoneCache(id);

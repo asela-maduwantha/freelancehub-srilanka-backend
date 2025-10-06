@@ -42,6 +42,13 @@ export class FileUploadResponseDto {
     example: 'application/pdf',
   })
   type: string;
+
+  @ApiProperty({
+    description: 'Database file record ID',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  fileId?: string;
 }
 
 export class UploadFileSuccessResponseDto {

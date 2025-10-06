@@ -21,7 +21,10 @@ export class Payment extends Document {
   payeeId: Types.ObjectId;
 
   @Prop({ required: true, min: 0 })
-  amount: number;
+  amount: number; // Contract/milestone amount (what freelancer receives)
+
+  @Prop({ min: 0 })
+  totalClientCharge?: number; // Total amount charged to client (amount + platformFee)
 
   @Prop({ default: 'USD' })
   currency: string;
@@ -39,7 +42,7 @@ export class Payment extends Document {
   stripeTransferId?: string;
 
   @Prop({ required: true, min: 0 })
-  platformFee: number;
+  platformFee: number; // Platform's fee (added to client's charge)
 
   @Prop({ min: 0, max: 100, default: 10 })
   platformFeePercentage: number;

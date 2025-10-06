@@ -4,6 +4,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,7 +21,12 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { 
   ClientDashboardResponseDto,
-  FreelancerDashboardResponseDto 
+  FreelancerDashboardResponseDto,
+  ChartDataDto,
+  ChartDataResponseDto,
+  ActivityFeedResponseDto,
+  QuickStatsResponseDto,
+  DeadlinesResponseDto,
 } from './dto';
 
 @ApiTags('Dashboard')
@@ -74,5 +80,88 @@ export class DashboardController {
     @CurrentUser('id') freelancerId: string,
   ): Promise<FreelancerDashboardResponseDto> {
     return this.dashboardService.getFreelancerDashboard(freelancerId);
+  }
+
+  @Get('analytics/charts')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CLIENT, UserRole.FREELANCER)
+  @ApiOperation({ summary: 'Get chart data for analytics' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Chart data retrieved successfully',
+    type: ChartDataResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid query parameters',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async getChartData(
+    @CurrentUser('id') userId: string,
+    @Query() dto: ChartDataDto,
+  ): Promise<ChartDataResponseDto> {
+    return this.dashboardService.getChartData(userId, dto);
+  }
+
+  @Get('analytics/recent-activity')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CLIENT, UserRole.FREELANCER)
+  @ApiOperation({ summary: 'Get recent activity feed' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Activity feed retrieved successfully',
+    type: ActivityFeedResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async getRecentActivity(
+    @CurrentUser('id') userId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<ActivityFeedResponseDto> {
+    return this.dashboardService.getRecentActivity(userId, page, limit);
+  }
+
+  @Get('analytics/quick-stats')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CLIENT, UserRole.FREELANCER)
+  @ApiOperation({ summary: 'Get quick statistics' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Quick stats retrieved successfully',
+    type: QuickStatsResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async getQuickStats(
+    @CurrentUser('id') userId: string,
+  ): Promise<QuickStatsResponseDto> {
+    return this.dashboardService.getQuickStats(userId);
+  }
+
+  @Get('analytics/upcoming-deadlines')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CLIENT, UserRole.FREELANCER)
+  @ApiOperation({ summary: 'Get upcoming deadlines' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Upcoming deadlines retrieved successfully',
+    type: DeadlinesResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async getUpcomingDeadlines(
+    @CurrentUser('id') userId: string,
+  ): Promise<DeadlinesResponseDto> {
+    return this.dashboardService.getUpcomingDeadlines(userId);
   }
 }

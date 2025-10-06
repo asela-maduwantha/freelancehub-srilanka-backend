@@ -139,6 +139,12 @@ export class ContractsService {
       throw new BadRequestException('This job already has a contract. Only one contract is allowed per job.');
     }
 
+    // Check if a contract already exists for this proposal
+    const existingContract = await this.contractModel.findOne({ proposalId: contractData.proposalId });
+    if (existingContract) {
+      throw new BadRequestException('A contract already exists for this proposal');
+    }
+
     // Validate job status - accept both IN_PROGRESS (legacy) and AWAITING_CONTRACT (new workflow)
     if (job.status !== JobStatus.IN_PROGRESS && job.status !== JobStatus.AWAITING_CONTRACT) {
       throw new BadRequestException('Can only create contract for jobs awaiting contract or in-progress');
@@ -338,9 +344,28 @@ export class ContractsService {
           stripePaymentIntentId: contract.stripePaymentIntentId,
           status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] }
         });
-        
+
         if (existingPayment) {
-          throw new BadRequestException('A payment is already in progress for this contract');
+          // Check if the payment was created more than 30 minutes ago (allow retry for stale payments)
+          const paymentAge = Date.now() - (existingPayment as any).createdAt.getTime();
+          const thirtyMinutes = 30 * 60 * 1000;
+
+          if (paymentAge < thirtyMinutes) {
+            throw new BadRequestException('A payment is already in progress for this contract. Please wait or contact support if this persists.');
+          } else {
+            // Allow retry for stale payments - cancel the old payment intent and proceed
+            try {
+              await this.stripeService.cancelPaymentIntent(contract.stripePaymentIntentId);
+              this.logger.log(`Cancelled stale payment intent: ${contract.stripePaymentIntentId}`, 'ContractsService');
+
+              // Update the old payment status to cancelled
+              existingPayment.status = PaymentStatus.CANCELLED;
+              await existingPayment.save();
+            } catch (cancelError) {
+              this.logger.warn(`Failed to cancel stale payment intent: ${cancelError.message}`, 'ContractsService');
+              // Continue anyway - the new payment will create a new intent
+            }
+          }
         }
       }
 
@@ -625,11 +650,27 @@ export class ContractsService {
   }
 
   async completeContract(contractId: string, userId: string): Promise<Contract> {
-    const session: ClientSession = await this.contractModel.db.startSession();
-    session.startTransaction();
+    // Try to start a session for transaction (only works with replica sets)
+    let session: ClientSession | null = null;
+    let useTransaction = false;
 
     try {
-      const contract = await this.contractModel.findById(contractId).session(session);
+      session = await this.contractModel.db.startSession();
+      session.startTransaction();
+      useTransaction = true;
+    } catch (error) {
+      // Transactions not supported (standalone MongoDB), continue without transaction
+      this.logger.warn('MongoDB transactions not supported, continuing without transaction');
+      session = null;
+      useTransaction = false;
+    }
+
+    try {
+      const contractQuery = this.contractModel.findById(contractId);
+      const contract = useTransaction 
+        ? await contractQuery.session(session).exec()
+        : await contractQuery.exec();
+      
       if (!contract) {
         throw new NotFoundException('Contract not found');
       }
@@ -642,7 +683,10 @@ export class ContractsService {
         throw new UnauthorizedException('Unauthorized: Only the client can complete this contract');
       }
 
-      const freelancer = await this.userModel.findById(contract.freelancerId).session(session);
+      const freelancerQuery = this.userModel.findById(contract.freelancerId);
+      const freelancer = useTransaction 
+        ? await freelancerQuery.session(session).exec()
+        : await freelancerQuery.exec();
 
       if (!freelancer) {
         throw new NotFoundException('Associated user not found');
@@ -650,14 +694,16 @@ export class ContractsService {
 
       contract.status = ContractStatus.COMPLETED;
       contract.endDate = new Date();
-      await contract.save({ session });
+      await contract.save(useTransaction ? { session } : {});
 
       if (freelancer.freelancerData) {
         freelancer.freelancerData.completedJobs = (freelancer.freelancerData.completedJobs || 0) + 1;
-        await freelancer.save({ session });
+        await freelancer.save(useTransaction ? { session } : {});
       }
 
-      await session.commitTransaction();
+      if (useTransaction && session) {
+        await session.commitTransaction();
+      }
 
       // Send notification to freelancer about contract completion
       try {
@@ -693,11 +739,15 @@ export class ContractsService {
 
       return result;
     } catch (error) {
-      await session.abortTransaction();
+      if (useTransaction && session) {
+        await session.abortTransaction();
+      }
       this.logger.error(`Failed to complete contract ${contractId}: ${error.message}`, error.stack, 'ContractsService');
       throw error;
     } finally {
-      session.endSession();
+      if (session) {
+        session.endSession();
+      }
     }
   }
 

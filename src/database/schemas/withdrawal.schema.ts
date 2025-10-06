@@ -65,6 +65,9 @@ export class Withdrawal extends Document {
   @Prop()
   adminNotes?: string;
 
+  @Prop({ type: Object })
+  metadata?: Record<string, any>; // For idempotency keys and other metadata
+
   @Prop({ default: Date.now })
   requestedAt: Date;
 
@@ -96,6 +99,7 @@ WithdrawalSchema.index({ requestedAt: -1 });
 WithdrawalSchema.index({ stripeTransferId: 1 }, { sparse: true });
 WithdrawalSchema.index({ freelancerId: 1, status: 1 });
 WithdrawalSchema.index({ deletedAt: 1 }, { sparse: true });
+WithdrawalSchema.index({ 'metadata.idempotencyKey': 1 }, { sparse: true, unique: true }); // Idempotency support
 
 // Add virtual fields
 WithdrawalSchema.virtual('isPending').get(function () {

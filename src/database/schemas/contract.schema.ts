@@ -59,6 +59,15 @@ export class Contract extends Document {
   @Prop({ default: 10, min: 0, max: 20 })
   platformFeePercentage: number;
 
+  @Prop({ min: 0 })
+  platformFeeAmount?: number; // Calculated platform fee in dollars
+
+  @Prop({ min: 0 })
+  totalClientCharge?: number; // Total amount client pays (contract + platform fee)
+
+  @Prop({ default: false })
+  usesLegacyFeeCalculation?: boolean; // For backwards compatibility with old contracts
+
   @Prop({ default: 0, min: 0 })
   milestoneCount: number;
 

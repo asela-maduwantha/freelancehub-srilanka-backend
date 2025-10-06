@@ -121,13 +121,20 @@ export class PaymentService {
         throw new BadRequestException('Payment amount must be positive');
       }
 
-      // Calculate platform fee and freelancer amount
+      // CORRECT FEE CALCULATION:
+      // Platform fee is ADDED to contract amount (client pays contract + fee)
+      // Freelancer receives the FULL contract amount
       const platformFee = (createPaymentDto.amount * createPaymentDto.platformFeePercentage) / 100;
-      const freelancerAmount = createPaymentDto.amount - platformFee;
+      const totalClientCharge = createPaymentDto.amount + platformFee; // Client pays this
+      const freelancerAmount = createPaymentDto.amount; // Freelancer gets full contract amount
 
-      // Create Stripe Payment Intent
+      this.logger.log(
+        `Payment calculation - Contract: $${createPaymentDto.amount}, Platform Fee: $${platformFee} (${createPaymentDto.platformFeePercentage}%), Total Client Charge: $${totalClientCharge}`
+      );
+
+      // Create Stripe Payment Intent for TOTAL amount (contract + fee)
       const paymentIntent = await this.stripeService.createPaymentIntent(
-        createPaymentDto.amount,
+        totalClientCharge, // Client pays contract amount + platform fee
         createPaymentDto.currency || 'usd',
         {
           contractId: createPaymentDto.contractId.toString(),
@@ -143,6 +150,7 @@ export class PaymentService {
         ...createPaymentDto,
         platformFee,
         freelancerAmount,
+        totalClientCharge, // Track total amount charged to client
         currency: createPaymentDto.currency || 'USD',
         stripePaymentIntentId: paymentIntent.id,
       });
@@ -264,10 +272,16 @@ export class PaymentService {
       // Get or create Stripe customer for the user
       const stripeCustomerId = await this.getOrCreateStripeCustomer(userId);
 
-      // Calculate platform fee (use contract's fee or default to 10%)
+      // CORRECT FEE CALCULATION:
+      // Platform fee is ADDED to contract amount (client pays contract + fee)
       const platformFeePercentage = contract.platformFeePercentage || 10;
       const platformFee = (createIntentDto.amount * platformFeePercentage) / 100;
-      const freelancerAmount = createIntentDto.amount - platformFee;
+      const totalClientCharge = createIntentDto.amount + platformFee; // Client pays this
+      const freelancerAmount = createIntentDto.amount; // Freelancer gets full contract amount
+
+      this.logger.log(
+        `Payment intent - Contract: $${createIntentDto.amount}, Platform Fee: $${platformFee} (${platformFeePercentage}%), Total Client Charge: $${totalClientCharge}`
+      );
 
       // Create metadata for the payment intent
       const metadata: { [key: string]: string } = {
@@ -276,13 +290,16 @@ export class PaymentService {
         contractId: contract._id.toString(),
         freelancerId: contract.freelancerId.toString(),
         platformFeePercentage: platformFeePercentage.toString(),
+        contractAmount: createIntentDto.amount.toString(),
+        platformFeeAmount: platformFee.toString(),
+        totalCharge: totalClientCharge.toString(),
         stripeCustomerId,
         ...createIntentDto.metadata,
       };
 
-      // Create the payment intent with optional payment method
+      // Create the payment intent for TOTAL amount (contract + fee)
       const paymentIntent = await this.stripeService.createPaymentIntent(
-        createIntentDto.amount,
+        totalClientCharge, // Client pays contract amount + platform fee
         createIntentDto.currency || 'USD',
         metadata,
         createIntentDto.paymentMethodId
@@ -296,7 +313,8 @@ export class PaymentService {
         milestoneId: null, // Contract-level payment, not milestone-specific
         payerId: new Types.ObjectId(userId),
         payeeId: contract.freelancerId,
-        amount: createIntentDto.amount,
+        amount: createIntentDto.amount, // Contract amount (what freelancer receives)
+        totalClientCharge, // Total charged to client (amount + platform fee)
         currency: (createIntentDto.currency || 'USD').toUpperCase(),
         paymentType: 'milestone', // Contract payment type
         stripePaymentIntentId: paymentIntent.id,
@@ -307,6 +325,8 @@ export class PaymentService {
         status: PaymentStatus.PENDING,
         description: createIntentDto.description || `Payment for contract ${contract.title || contract._id}`,
         metadata: {
+          type: 'contract_upfront',
+          jobId: (contract.jobId as Types.ObjectId).toString(),
           paymentMethodId: createIntentDto.paymentMethodId,
           ...createIntentDto.metadata,
         },
@@ -518,14 +538,25 @@ export class PaymentService {
       throw new BadRequestException('Payment is not in pending or processing status');
     }
 
-    // Start MongoDB transaction for atomicity
-    const session = await this.paymentModel.db.startSession();
-    session.startTransaction();
+    // Try to start MongoDB transaction for atomicity (only works with replica sets)
+    let session: any = null;
+    let useTransaction = false;
+
+    try {
+      session = await this.paymentModel.db.startSession();
+      session.startTransaction();
+      useTransaction = true;
+    } catch (error) {
+      // Transactions not supported (standalone MongoDB), continue without transaction
+      this.logger.warn('MongoDB transactions not supported, continuing without transaction');
+      session = null;
+      useTransaction = false;
+    }
 
     let updatedPayment: Payment;
 
     try {
-      // Update payment status with transaction
+      // Update payment status
       updatedPayment = await this.paymentModel.findByIdAndUpdate(
         id,
         {
@@ -535,7 +566,7 @@ export class PaymentService {
           stripeTransferId,
           stripeFee,
         },
-        { new: true, session }
+        useTransaction ? { new: true, session } : { new: true }
       ).exec() as any;
 
     // Log the completed payment transaction
@@ -614,36 +645,40 @@ export class PaymentService {
         if (contract) {
           this.logger.log(`Contract ${payment.contractId} ACTIVATED after successful payment: ${payment.amount}`);
 
-          // Update freelancer's pending balance (with transaction)
-          const freelancerAmountAfterFee = payment.amount - payment.platformFee;
+          // CORRECT BALANCE UPDATE:
+          // Freelancer receives FULL contract amount (platform fee already paid by client)
           await this.userModel.findByIdAndUpdate(
             payment.payeeId,
             { 
               $inc: { 
-                'freelancerData.pendingBalance': freelancerAmountAfterFee
+                'freelancerData.pendingBalance': payment.amount // Full contract amount
               } 
             },
-            { session }
+            useTransaction ? { session } : {}
           );
-          this.logger.log(`Updated freelancer ${payment.payeeId} pending balance: +$${freelancerAmountAfterFee}`);
+          this.logger.log(
+            `Updated freelancer ${payment.payeeId} pending balance: +$${payment.amount} (full contract amount, platform fee paid separately by client)`
+          );
 
-          // Update associated job status to CONTRACTED (with transaction)
+          // Update associated job status to CONTRACTED
           if (payment.metadata?.jobId) {
             await this.jobModel.findByIdAndUpdate(
               payment.metadata.jobId,
               {
                 status: JobStatus.CONTRACTED
               },
-              { session }
+              useTransaction ? { session } : {}
             );
             this.logger.log(`Job ${payment.metadata.jobId} status set to CONTRACTED after successful payment`);
           }
         }
       }
 
-      // Commit transaction
-      await session.commitTransaction();
-      this.logger.log(`Transaction committed successfully for payment ${id}`);
+      // Commit transaction if using transactions
+      if (useTransaction && session) {
+        await session.commitTransaction();
+        this.logger.log(`Transaction committed successfully for payment ${id}`);
+      }
 
       // Send notifications AFTER transaction committed (non-critical operations)
       if (payment.metadata?.type === 'contract_upfront' && payment.contractId) {
@@ -665,9 +700,11 @@ export class PaymentService {
       }
 
     } catch (error) {
-      // Rollback transaction on any error
-      await session.abortTransaction();
-      this.logger.error(`Transaction rolled back for payment ${id}: ${error.message}`, error.stack);
+      // Rollback transaction on any error if using transactions
+      if (useTransaction && session) {
+        await session.abortTransaction();
+      }
+      this.logger.error(`Operation failed for payment ${id}: ${error.message}`, error.stack);
 
       // If balance update failed, log for manual reconciliation
       if (error.message.includes('balance') || error.message.includes('freelancer')) {
@@ -693,7 +730,9 @@ export class PaymentService {
 
       throw error;
     } finally {
-      session.endSession();
+      if (session) {
+        session.endSession();
+      }
     }
 
     // Log completed transactions (outside transaction - non-critical)

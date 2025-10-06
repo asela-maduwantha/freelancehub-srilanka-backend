@@ -1,12 +1,16 @@
 import {
   Controller,
   Post,
+  Get,
+  Put,
+  Delete,
   UseInterceptors,
   UploadedFile,
   Body,
   HttpStatus,
   UseGuards,
-  Get,
+  Param,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -16,11 +20,18 @@ import {
   ApiConsumes,
   ApiBody,
   ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { FilesService } from './files.service';
 import {
   UploadFileDto,
   UploadFileSuccessResponseDto,
+  ListFilesDto,
+  FileListResponseDto,
+  FileResponseDto,
+  UpdateFileMetadataDto,
+  DownloadUrlResponseDto,
 } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -98,7 +109,7 @@ export class FilesController {
     @Body() uploadDto: Pick<UploadFileDto, 'description'>,
     @CurrentUser('id') userId: string,
   ): Promise<UploadFileSuccessResponseDto> {
-    return this.filesService.uploadDocument(file, uploadDto.description);
+    return this.filesService.uploadDocument(file, userId, uploadDto.description);
   }
 
   @Get('supported-types')
@@ -150,5 +161,162 @@ export class FilesController {
         maxFileSizeMB: Math.round(maxFileSize / (1024 * 1024)),
       },
     };
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'List user files',
+    description: 'Get a list of files uploaded by the user with filtering and pagination',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Files retrieved successfully',
+    type: FileListResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated',
+  })
+  async listFiles(
+    @CurrentUser('id') userId: string,
+    @Query() dto: ListFilesDto,
+  ): Promise<FileListResponseDto> {
+    return this.filesService.listFiles(userId, dto);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get file by ID',
+    description: 'Retrieve detailed information about a specific file',
+  })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'File retrieved successfully',
+    type: FileResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'File not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Access denied to this file',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated',
+  })
+  async getFileById(
+    @Param('id') fileId: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<FileResponseDto> {
+    return this.filesService.getFileById(fileId, userId);
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete file',
+    description: 'Soft delete a file (or permanently delete from storage)',
+  })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiQuery({
+    name: 'hardDelete',
+    required: false,
+    type: Boolean,
+    description: 'Whether to permanently delete from Azure Blob Storage',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'File deleted successfully',
+    type: FileResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'File not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Permission denied',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated',
+  })
+  async deleteFile(
+    @Param('id') fileId: string,
+    @CurrentUser('id') userId: string,
+    @Query('hardDelete') hardDelete?: boolean,
+  ): Promise<FileResponseDto> {
+    return this.filesService.deleteFile(fileId, userId, hardDelete);
+  }
+
+  @Get(':id/download-url')
+  @ApiOperation({
+    summary: 'Get download URL',
+    description: 'Generate a presigned URL for downloading the file',
+  })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiQuery({
+    name: 'expiresInMinutes',
+    required: false,
+    type: Number,
+    description: 'URL expiration time in minutes (default 60)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Download URL generated successfully',
+    type: DownloadUrlResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'File not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Access denied',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated',
+  })
+  async getDownloadUrl(
+    @Param('id') fileId: string,
+    @CurrentUser('id') userId: string,
+    @Query('expiresInMinutes') expiresInMinutes?: number,
+  ): Promise<DownloadUrlResponseDto> {
+    return this.filesService.getDownloadUrl(fileId, userId, expiresInMinutes);
+  }
+
+  @Put(':id/metadata')
+  @ApiOperation({
+    summary: 'Update file metadata',
+    description: 'Update file description and file type',
+  })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiBody({ type: UpdateFileMetadataDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'File metadata updated successfully',
+    type: FileResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'File not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Permission denied',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated',
+  })
+  async updateFileMetadata(
+    @Param('id') fileId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateFileMetadataDto,
+  ): Promise<FileResponseDto> {
+    return this.filesService.updateFileMetadata(fileId, userId, dto);
   }
 }

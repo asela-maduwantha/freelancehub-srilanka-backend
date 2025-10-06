@@ -33,6 +33,8 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
 import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { DisputesModule } from './modules/disputes/disputes.module';
 import { StripeModule } from './services/stripe/stripe.module';
 
 @Module({
@@ -84,6 +86,8 @@ import { StripeModule } from './services/stripe/stripe.module';
     WithdrawalsModule,
     PaymentMethodsModule,
     MessagesModule,
+    AdminModule,
+    DisputesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

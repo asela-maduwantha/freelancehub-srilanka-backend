@@ -19,6 +19,10 @@ export class CreateWithdrawalDto {
   @IsOptional()
   currency?: string = 'USD';
 
+  @IsString()
+  @IsOptional()
+  idempotencyKey?: string; // Prevents duplicate withdrawal requests
+
   @IsEnum(WithdrawalMethod)
   method: WithdrawalMethod;
 
