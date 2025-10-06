@@ -1427,6 +1427,34 @@ export class UsersService {
     }
   }
 
+  async getStripeAccount(userId: string): Promise<StripeAccountResponseDto> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.stripeAccountId) {
+      throw new NotFoundException('User does not have a Stripe connected account');
+    }
+
+    try {
+      const account = await this.stripeService.retrieveAccount(user.stripeAccountId);
+
+      return {
+        id: account.id,
+        email: account.email || user.email,
+        country: account.country || 'US',
+        chargesEnabled: account.charges_enabled || false,
+        payoutsEnabled: account.payouts_enabled || false,
+        detailsSubmitted: account.details_submitted || false,
+        type: account.type || 'express',
+        created: account.created || Math.floor(Date.now() / 1000),
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to retrieve Stripe account: ${error.message}`);
+    }
+  }
+
   async getStripeAccountStatus(userId: string): Promise<StripeAccountStatusDto> {
     const user = await this.userModel.findById(userId);
     if (!user) {

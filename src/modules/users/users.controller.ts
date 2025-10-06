@@ -115,6 +115,107 @@ export class UsersController {
     return this.usersService.updateCurrentUser(userId, updateProfileDto);
   }
 
+  // Stripe Connected Account Endpoints (placed before parameterized routes)
+  @Post('stripe-account')
+  @Roles(UserRole.FREELANCER)
+  @UseGuards(RolesGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create Stripe connected account for freelancer' })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Stripe connected account created successfully',
+    type: StripeAccountResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'User already has a Stripe account or creation failed',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Only freelancers can create connected accounts',
+  })
+  async createStripeAccount(
+    @CurrentUser('id') userId: string,
+    @Body(ValidationPipe) createDto: CreateStripeAccountDto,
+  ): Promise<StripeAccountResponseDto> {
+    return this.usersService.createStripeAccount(userId, createDto);
+  }
+
+  @Get('stripe-account')
+  @Roles(UserRole.FREELANCER)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get Stripe connected account details' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Account details retrieved successfully',
+    type: StripeAccountResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User does not have a Stripe account',
+  })
+  async getStripeAccount(
+    @CurrentUser('id') userId: string,
+  ): Promise<StripeAccountResponseDto> {
+    return this.usersService.getStripeAccount(userId);
+  }
+
+  @Get('stripe-account/status')
+  @Roles(UserRole.FREELANCER)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get Stripe connected account status' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Account status retrieved successfully',
+    type: StripeAccountStatusDto,
+  })
+  async getStripeAccountStatus(
+    @CurrentUser('id') userId: string,
+  ): Promise<StripeAccountStatusDto> {
+    return this.usersService.getStripeAccountStatus(userId);
+  }
+
+  @Post('stripe-account/onboard')
+  @Roles(UserRole.FREELANCER)
+  @UseGuards(RolesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Create onboarding link for Stripe account setup' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Account onboarding link created successfully',
+    type: AccountLinkResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'User does not have a Stripe account',
+  })
+  async createAccountLink(
+    @CurrentUser('id') userId: string,
+    @Body(ValidationPipe) createDto: CreateAccountLinkDto,
+  ): Promise<AccountLinkResponseDto> {
+    return this.usersService.createAccountLink(userId, createDto);
+  }
+
+  @Delete('stripe-account')
+  @Roles(UserRole.FREELANCER)
+  @UseGuards(RolesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete Stripe connected account' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Stripe account deleted successfully',
+    type: MessageResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'User does not have a Stripe account',
+  })
+  async deleteStripeAccount(
+    @CurrentUser('id') userId: string,
+  ): Promise<MessageResponseDto> {
+    return this.usersService.deleteStripeAccount(userId);
+  }
+
   @Get('freelancers')
   @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
@@ -794,87 +895,5 @@ export class UsersController {
     @CurrentUser('id') userId: string,
   ): Promise<MessageResponseDto> {
     return this.usersService.deleteAccount(userId);
-  }
-
-  // Stripe Connected Account Endpoints
-  @Post('stripe-account')
-  @Roles(UserRole.FREELANCER)
-  @UseGuards(RolesGuard)
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create Stripe connected account for freelancer' })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Stripe connected account created successfully',
-    type: StripeAccountResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'User already has a Stripe account or creation failed',
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Only freelancers can create connected accounts',
-  })
-  async createStripeAccount(
-    @CurrentUser('id') userId: string,
-    @Body(ValidationPipe) createDto: CreateStripeAccountDto,
-  ): Promise<StripeAccountResponseDto> {
-    return this.usersService.createStripeAccount(userId, createDto);
-  }
-
-  @Post('stripe-account/onboard')
-  @Roles(UserRole.FREELANCER)
-  @UseGuards(RolesGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Create onboarding link for Stripe account setup' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Account onboarding link created successfully',
-    type: AccountLinkResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'User does not have a Stripe account',
-  })
-  async createAccountLink(
-    @CurrentUser('id') userId: string,
-    @Body(ValidationPipe) createDto: CreateAccountLinkDto,
-  ): Promise<AccountLinkResponseDto> {
-    return this.usersService.createAccountLink(userId, createDto);
-  }
-
-  @Get('stripe-account/status')
-  @Roles(UserRole.FREELANCER)
-  @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Get Stripe connected account status' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Account status retrieved successfully',
-    type: StripeAccountStatusDto,
-  })
-  async getStripeAccountStatus(
-    @CurrentUser('id') userId: string,
-  ): Promise<StripeAccountStatusDto> {
-    return this.usersService.getStripeAccountStatus(userId);
-  }
-
-  @Delete('stripe-account')
-  @Roles(UserRole.FREELANCER)
-  @UseGuards(RolesGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Delete Stripe connected account' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Stripe account deleted successfully',
-    type: MessageResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'User does not have a Stripe account',
-  })
-  async deleteStripeAccount(
-    @CurrentUser('id') userId: string,
-  ): Promise<MessageResponseDto> {
-    return this.usersService.deleteStripeAccount(userId);
   }
 }

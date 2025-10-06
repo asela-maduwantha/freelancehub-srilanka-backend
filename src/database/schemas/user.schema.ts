@@ -297,6 +297,22 @@ UserSchema.pre('save', function (next) {
   next();
 });
 
-// Ensure virtuals are included in JSON
-UserSchema.set('toJSON', { virtuals: true });
-UserSchema.set('toObject', { virtuals: true });
+// Ensure virtuals are included in JSON and properly serialize _id
+UserSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret: any) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});
+UserSchema.set('toObject', {
+  virtuals: true,
+  transform: function (doc, ret: any) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});

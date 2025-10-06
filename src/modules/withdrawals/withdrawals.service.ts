@@ -170,7 +170,9 @@ export class WithdrawalsService {
       }
 
       this.logger.log(`Withdrawal created: ${savedWithdrawal._id} for user: ${createWithdrawalDto.userId}`);
-      return savedWithdrawal;
+      
+      // Return the withdrawal as a plain object to avoid serialization issues
+      return savedWithdrawal.toObject();
     } catch (error) {
       this.logger.error(`Failed to create withdrawal: ${error.message}`, error.stack);
       throw error;
@@ -187,6 +189,7 @@ export class WithdrawalsService {
       .find(query)
       .populate('freelancerId', 'firstName lastName email')
       .sort({ requestedAt: -1 })
+      .lean()
       .exec();
   }
 
@@ -198,6 +201,7 @@ export class WithdrawalsService {
     const withdrawal = await this.withdrawalModel
       .findOne({ _id: id, deletedAt: null })
       .populate('freelancerId', 'firstName lastName email')
+      .lean()
       .exec();
 
     if (!withdrawal) {
@@ -260,7 +264,7 @@ export class WithdrawalsService {
         processedAt: new Date(),
       },
       { new: true }
-    ).populate('freelancerId', 'firstName lastName email');
+    ).populate('freelancerId', 'firstName lastName email').lean();
 
     // Update transaction log
     try {
@@ -297,7 +301,7 @@ export class WithdrawalsService {
         completedAt: new Date(),
       },
       { new: true }
-    ).populate('freelancerId', 'firstName lastName email') as Withdrawal;
+    ).populate('freelancerId', 'firstName lastName email').lean() as any;
 
     this.logger.log(
       `Withdrawal ${id} completed successfully. Balance was already deducted at creation.`
@@ -366,7 +370,7 @@ export class WithdrawalsService {
         failedAt: new Date(),
       },
       { new: true }
-    ).populate('freelancerId', 'firstName lastName email');
+    ).populate('freelancerId', 'firstName lastName email').lean();
 
     // Update transaction log to failed
     try {

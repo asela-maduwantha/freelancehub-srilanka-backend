@@ -214,8 +214,14 @@ export class AdminService {
       this.userModel.countDocuments(query),
     ]);
 
+    // Transform users to ensure _id is properly serialized as string
+    const transformedUsers = users.map((user: any) => ({
+      ...user,
+      _id: user._id.toString(),
+    }));
+
     return {
-      users,
+      users: transformedUsers,
       pagination: {
         total,
         page,
@@ -226,7 +232,7 @@ export class AdminService {
   }
 
   async getUserDetails(id: string) {
-    const user = await this.userModel.findById(id).select('-password').lean();
+    const user: any = await this.userModel.findById(id).select('-password').lean();
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -247,8 +253,15 @@ export class AdminService {
       this.reviewModel.find({ revieweeId: id }).limit(10).lean(),
     ]);
 
+    // Transform reviews to ensure _id is properly serialized
+    const transformedReviews = reviews.map((review: any) => ({
+      ...review,
+      _id: review._id.toString(),
+    }));
+
     return {
       ...user,
+      _id: user._id.toString(),
       statistics: {
         jobsPosted,
         contractsAsClient,
@@ -257,7 +270,7 @@ export class AdminService {
         totalEarned,
         reviewCount: reviews.length,
       },
-      recentReviews: reviews,
+      recentReviews: transformedReviews,
     };
   }
 

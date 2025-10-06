@@ -8,8 +8,9 @@ export enum WithdrawalMethod {
 }
 
 export class CreateWithdrawalDto {
-  @IsNotEmpty()
-  userId: Types.ObjectId;
+  // userId is set by the controller from authenticated user, not from request body
+  @IsOptional()
+  userId?: Types.ObjectId;
 
   @IsNumber()
   @Min(1)
