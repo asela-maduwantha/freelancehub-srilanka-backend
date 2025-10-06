@@ -109,6 +109,16 @@ ContractSchema.index({ clientId: 1, status: 1 });
 ContractSchema.index({ freelancerId: 1, status: 1 });
 ContractSchema.index({ status: 1, createdAt: -1 });
 
+// UNIQUE CONSTRAINTS to prevent duplicate contracts
+// Only one contract per proposal (prevents duplicate contract creation)
+ContractSchema.index({ proposalId: 1 }, { unique: true, sparse: false });
+// Only one active contract per job (prevents multiple contracts for same job)
+ContractSchema.index({ jobId: 1, deletedAt: 1 }, { 
+  unique: true, 
+  partialFilterExpression: { deletedAt: null },
+  name: 'unique_active_contract_per_job'
+});
+
 
 ContractSchema.virtual('remainingAmount').get(function () {
   return Math.max(0, this.totalAmount - this.releasedAmount);

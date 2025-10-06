@@ -134,24 +134,48 @@ export class ContractsService {
       throw new NotFoundException('Job not found');
     }
 
-    // CRITICAL: Check if job already has a contract - enforce one contract per job
-    if (job.contractId) {
-      throw new BadRequestException('This job already has a contract. Only one contract is allowed per job.');
-    }
-
-    // Check if a contract already exists for this proposal
-    const existingContract = await this.contractModel.findOne({ proposalId: contractData.proposalId });
-    if (existingContract) {
-      throw new BadRequestException('A contract already exists for this proposal');
-    }
-
-    // Validate job status - accept both IN_PROGRESS (legacy) and AWAITING_CONTRACT (new workflow)
-    if (job.status !== JobStatus.IN_PROGRESS && job.status !== JobStatus.AWAITING_CONTRACT) {
-      throw new BadRequestException('Can only create contract for jobs awaiting contract or in-progress');
-    }
-
     if (job.clientId.toString() !== clientId) {
       throw new BadRequestException('Unauthorized: Client does not own this job');
+    }
+
+    // ATOMIC CHECK: Use findOneAndUpdate to atomically check and update job
+    // This prevents race conditions where multiple requests try to create contracts simultaneously
+    const updatedJob = await this.jobModel.findOneAndUpdate(
+      {
+        _id: job._id,
+        contractId: null, // Only update if contractId is still null
+        status: { $in: [JobStatus.IN_PROGRESS, JobStatus.AWAITING_CONTRACT] } // Validate status atomically
+      },
+      {
+        $set: { 
+          contractId: new Types.ObjectId(), // Temporary placeholder - will update with real ID later
+          _contractCreationInProgress: true
+        }
+      },
+      { new: true }
+    );
+
+    // If update failed, it means another request already created a contract
+    if (!updatedJob) {
+      // Double-check what happened
+      const currentJob = await this.jobModel.findById(job._id);
+      if (currentJob?.contractId) {
+        throw new BadRequestException('This job already has a contract. Only one contract is allowed per job.');
+      }
+      if (currentJob && currentJob.status !== JobStatus.IN_PROGRESS && currentJob.status !== JobStatus.AWAITING_CONTRACT) {
+        throw new BadRequestException('Can only create contract for jobs awaiting contract or in-progress');
+      }
+      throw new BadRequestException('Failed to create contract due to concurrent modification. Please try again.');
+    }
+
+    // Check if a contract already exists for this proposal (additional safety check)
+    const existingContract = await this.contractModel.findOne({ proposalId: contractData.proposalId });
+    if (existingContract) {
+      // Rollback the job update
+      await this.jobModel.findByIdAndUpdate(job._id, { 
+        $unset: { contractId: 1, _contractCreationInProgress: 1 } 
+      });
+      throw new BadRequestException('A contract already exists for this proposal');
     }
 
     // Validate date ranges
@@ -263,9 +287,11 @@ export class ContractsService {
     // DON'T send notification to freelancer yet - wait until payment is complete
     // DON'T update job status yet - wait until payment is complete
     
-    // Update job with contract reference only
-    job.contractId = contract._id as Types.ObjectId;
-    await job.save();
+    // Update job with the actual contract ID (replace the placeholder)
+    await this.jobModel.findByIdAndUpdate(job._id, { 
+      contractId: contract._id,
+      $unset: { _contractCreationInProgress: 1 }
+    });
 
     this.logger.log(`Contract created successfully with PENDING_PAYMENT status: ${contract._id}`, 'ContractsService');
 
@@ -307,6 +333,18 @@ export class ContractsService {
     return contractObject;
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
+    
+    // Handle MongoDB duplicate key errors
+    if (error.code === 11000 || error.name === 'MongoServerError') {
+      if (error.message?.includes('proposalId')) {
+        throw new BadRequestException('A contract already exists for this proposal. Each proposal can only have one contract.');
+      }
+      if (error.message?.includes('jobId')) {
+        throw new BadRequestException('This job already has an active contract. Only one active contract is allowed per job.');
+      }
+      throw new BadRequestException('A duplicate contract already exists. Please refresh and try again.');
+    }
+    
     throw error;
   }
 }

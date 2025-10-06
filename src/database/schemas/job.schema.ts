@@ -42,6 +42,9 @@ export class Attachment {
 
   @Prop({ required: true })
   type: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'File' })
+  fileId?: Types.ObjectId;
 }
 
 // Main Job Schema

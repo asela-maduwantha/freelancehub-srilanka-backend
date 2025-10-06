@@ -1,5 +1,5 @@
-import { IsString, IsNumber, IsNotEmpty, Min } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNumber, IsNotEmpty, Min, IsOptional, IsMongoId } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDeliverableDto {
   @ApiProperty({ description: 'Filename of the deliverable' })
@@ -21,4 +21,9 @@ export class CreateDeliverableDto {
   @IsString()
   @IsNotEmpty()
   type: string;
+
+  @ApiPropertyOptional({ description: 'Optional reference to File document ID' })
+  @IsOptional()
+  @IsMongoId()
+  fileId?: string;
 }

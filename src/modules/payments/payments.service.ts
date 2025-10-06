@@ -532,7 +532,69 @@ export class PaymentService {
     stripeTransferId?: string,
     stripeFee: number = 0
   ): Promise<Payment> {
+    // Implement retry logic for MongoDB write conflicts
+    const maxRetries = 3;
+    let lastError: any = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.completePaymentWithRetry(
+          id,
+          stripePaymentIntentId,
+          stripeChargeId,
+          stripeTransferId,
+          stripeFee
+        );
+      } catch (error) {
+        lastError = error;
+        
+        // Check if it's a write conflict error
+        if (
+          error.code === 112 || // WriteConflict
+          error.message?.includes('Write conflict') ||
+          error.message?.includes('write conflict')
+        ) {
+          this.logger.warn(
+            `Write conflict on attempt ${attempt}/${maxRetries} for payment ${id}. Retrying...`
+          );
+          
+          // Wait with exponential backoff before retrying
+          await this.sleep(Math.min(100 * Math.pow(2, attempt - 1), 1000));
+          
+          if (attempt === maxRetries) {
+            this.logger.error(
+              `Failed to complete payment ${id} after ${maxRetries} attempts due to write conflicts`
+            );
+            throw error;
+          }
+        } else {
+          // Not a write conflict, throw immediately
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async completePaymentWithRetry(
+    id: string,
+    stripePaymentIntentId: string,
+    stripeChargeId?: string,
+    stripeTransferId?: string,
+    stripeFee: number = 0
+  ): Promise<Payment> {
     const payment = await this.findById(id);
+
+    // Check if payment is already completed (idempotency)
+    if (payment.status === PaymentStatus.COMPLETED) {
+      this.logger.log(`Payment ${id} already completed, skipping duplicate processing`);
+      return payment;
+    }
 
     if (payment.status !== PaymentStatus.PROCESSING && payment.status !== PaymentStatus.PENDING) {
       throw new BadRequestException('Payment is not in pending or processing status');
@@ -556,9 +618,12 @@ export class PaymentService {
     let updatedPayment: Payment;
 
     try {
-      // Update payment status
-      updatedPayment = await this.paymentModel.findByIdAndUpdate(
-        id,
+      // Update payment status with optimistic locking
+      updatedPayment = await this.paymentModel.findOneAndUpdate(
+        {
+          _id: id,
+          status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] } // Optimistic lock
+        },
         {
           status: PaymentStatus.COMPLETED,
           stripePaymentIntentId,
@@ -568,6 +633,15 @@ export class PaymentService {
         },
         useTransaction ? { new: true, session } : { new: true }
       ).exec() as any;
+
+      // If payment was already processed by another webhook, skip
+      if (!updatedPayment) {
+        this.logger.warn(`Payment ${id} was already processed or not found`);
+        if (useTransaction && session) {
+          await session.abortTransaction();
+        }
+        return await this.findById(id);
+      }
 
     // Log the completed payment transaction
     try {
@@ -1131,55 +1205,65 @@ export class PaymentService {
         return { received: true, skipped: true };
       }
 
-      this.logger.log(`Processing Stripe webhook: ${type} (Event ID: ${eventId})`)
+      this.logger.log(`Processing Stripe webhook: ${type} (Event ID: ${eventId})`);
 
-      switch (type) {
-        case 'payment_intent.succeeded':
-          await this.handlePaymentIntentSucceeded(data.object);
-          break;
+      // Process the webhook event with error handling
+      try {
+        switch (type) {
+          case 'payment_intent.succeeded':
+            await this.handlePaymentIntentSucceeded(data.object);
+            break;
 
-        case 'payment_intent.payment_failed':
-          await this.handlePaymentIntentFailed(data.object);
-          break;
+          case 'payment_intent.payment_failed':
+            await this.handlePaymentIntentFailed(data.object);
+            break;
 
-        case 'charge.succeeded':
-          await this.handleChargeSucceeded(data.object);
-          break;
+          case 'charge.succeeded':
+            await this.handleChargeSucceeded(data.object);
+            break;
 
-        case 'charge.dispute.created':
-          await this.handleChargeDispute(data.object);
-          break;
+          case 'charge.dispute.created':
+            await this.handleChargeDispute(data.object);
+            break;
 
-        case 'account.updated':
-          await this.handleAccountUpdated(data.object);
-          break;
+          case 'account.updated':
+            await this.handleAccountUpdated(data.object);
+            break;
 
-        case 'account.application.deauthorized':
-          await this.handleAccountDeauthorized(data.object);
-          break;
+          case 'account.application.deauthorized':
+            await this.handleAccountDeauthorized(data.object);
+            break;
 
-        case 'transfer.created':
-          await this.handleTransferCreated(data.object);
-          break;
+          case 'transfer.created':
+            await this.handleTransferCreated(data.object);
+            break;
 
-        case 'transfer.updated':
-          await this.handleTransferUpdated(data.object);
-          break;
+          case 'transfer.updated':
+            await this.handleTransferUpdated(data.object);
+            break;
 
-        case 'transfer.failed':
-          await this.handleTransferFailed(data.object);
-          break;
+          case 'transfer.failed':
+            await this.handleTransferFailed(data.object);
+            break;
 
-        case 'payout.paid':
-          await this.handlePayoutPaid(data.object);
-          break;
+          case 'payout.paid':
+            await this.handlePayoutPaid(data.object);
+            break;
 
-        case 'payout.failed':
-          await this.handlePayoutFailed(data.object);
-          break;
+          case 'payout.failed':
+            await this.handlePayoutFailed(data.object);
+            break;
 
-        default:
-          this.logger.log(`Unhandled webhook type: ${type}`);
+          default:
+            this.logger.log(`Unhandled webhook type: ${type}`);
+        }
+      } catch (eventError) {
+        this.logger.error(
+          `Failed to process webhook event ${eventId} (${type}): ${eventError.message}`,
+          eventError.stack
+        );
+        // Re-throw to prevent marking as processed
+        throw eventError;
       }
 
       // Mark event as processed to prevent duplicate processing
@@ -1211,6 +1295,12 @@ export class PaymentService {
       return;
     }
 
+    // Idempotency check - skip if already completed
+    if (payment.status === PaymentStatus.COMPLETED) {
+      this.logger.log(`Payment ${payment._id} already completed for charge ${charge.id}, skipping webhook`);
+      return;
+    }
+
     if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
       await this.completePayment(
         (payment._id as any).toString(),
@@ -1229,6 +1319,12 @@ export class PaymentService {
 
     if (!payment) {
       this.logger.warn(`Payment not found for PaymentIntent: ${paymentIntent.id}`);
+      return;
+    }
+
+    // Idempotency check - skip if already completed
+    if (payment.status === PaymentStatus.COMPLETED) {
+      this.logger.log(`Payment ${payment._id} already completed for PaymentIntent ${paymentIntent.id}, skipping webhook`);
       return;
     }
 

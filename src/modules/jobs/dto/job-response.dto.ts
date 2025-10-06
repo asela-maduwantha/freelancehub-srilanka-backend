@@ -39,6 +39,9 @@ export class AttachmentResponseDto {
 
   @ApiProperty()
   type: string;
+
+  @ApiPropertyOptional()
+  fileId?: string;
 }
 
 export class JobLocationResponseDto {

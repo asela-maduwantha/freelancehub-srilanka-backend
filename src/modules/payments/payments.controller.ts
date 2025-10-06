@@ -326,18 +326,31 @@ export class PaymentsController {
     @Body() webhookData: StripeWebhookDto,
     @Req() request: any
   ) {
-    const signature = request.headers['stripe-signature'];
+    try {
+      const signature = request.headers['stripe-signature'];
 
-    // TEMPORARILY DISABLE SIGNATURE VERIFICATION FOR TESTING
-    const skipSignatureVerification = this.configService.get<string>('STRIPE_SKIP_SIGNATURE_VERIFICATION') === 'true';
+      // TEMPORARILY DISABLE SIGNATURE VERIFICATION FOR TESTING
+      const skipSignatureVerification = this.configService.get<string>('STRIPE_SKIP_SIGNATURE_VERIFICATION') === 'true';
 
-    if (!skipSignatureVerification && !signature) {
-      throw new BadRequestException('Missing Stripe signature');
+      if (!skipSignatureVerification && !signature) {
+        throw new BadRequestException('Missing Stripe signature');
+      }
+
+      // Use the raw body captured by middleware, fallback to request.rawBody
+      const rawBody = request.rawBody || request.body;
+
+      const result = await this.paymentService.handleStripeWebhook(webhookData, rawBody, signature || '');
+      
+      // Return 200 OK to Stripe even if webhook was skipped (already processed)
+      return result;
+    } catch (error) {
+      // Log the error but return 200 to Stripe to prevent retries for permanent failures
+      if (error.message?.includes('already processed') || error.message?.includes('already completed')) {
+        return { received: true, skipped: true };
+      }
+      
+      // For other errors, throw to return error response to Stripe
+      throw error;
     }
-
-    // Use the raw body captured by middleware, fallback to request.rawBody
-    const rawBody = request.rawBody || request.body;
-
-    return this.paymentService.handleStripeWebhook(webhookData, rawBody, signature || '');
   }
 }

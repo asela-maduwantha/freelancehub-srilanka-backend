@@ -16,6 +16,9 @@ export class Deliverable {
   @Prop({ required: true })
   type: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'File' })
+  fileId?: Types.ObjectId;
+
   @Prop({ default: Date.now })
   uploadedAt: Date;
 }

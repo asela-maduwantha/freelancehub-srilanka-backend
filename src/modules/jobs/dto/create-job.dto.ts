@@ -72,6 +72,11 @@ class AttachmentDto {
   @IsString()
   @IsNotEmpty()
   type: string;
+
+  @ApiPropertyOptional({ description: 'File ID reference (optional)' })
+  @IsOptional()
+  @IsString()
+  fileId?: string;
 }
 
 
