@@ -187,7 +187,7 @@ export class ProposalsService {
 
     const [proposals, total] = await Promise.all([
       this.proposalModel
-        .find({ jobId })
+        .find({ jobId, deletedAt: null })
         .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
         .populate({
           path: 'jobId',
@@ -202,7 +202,7 @@ export class ProposalsService {
         .skip(skip)
         .limit(limit)
         .exec(),
-      this.proposalModel.countDocuments({ jobId }).exec(),
+      this.proposalModel.countDocuments({ jobId, deletedAt: null }).exec(),
     ]);
 
     const totalPages = Math.ceil(total / limit);
@@ -240,7 +240,7 @@ export class ProposalsService {
 
     const skip = (page - 1) * limit;
 
-    const filter: any = { freelancerId };
+    const filter: any = { freelancerId, deletedAt: null };
     if (status) filter.status = status;
 
     const [proposals, total] = await Promise.all([
@@ -292,7 +292,7 @@ export class ProposalsService {
     }
 
     const proposal = await this.proposalModel
-      .findById(id)
+      .findOne({ _id: id, deletedAt: null })
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate({
         path: 'jobId',
@@ -332,7 +332,7 @@ export class ProposalsService {
     updateProposalDto: UpdateProposalDto,
     freelancerId: string,
   ): Promise<ProposalResponseDto> {
-    const proposal = await this.proposalModel.findById(id).exec();
+    const proposal = await this.proposalModel.findOne({ _id: id, deletedAt: null }).exec();
 
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
@@ -422,7 +422,22 @@ export class ProposalsService {
       throw new BadRequestException('Proposal cannot be deleted');
     }
 
-    await this.proposalModel.findByIdAndDelete(id).exec();
+    // Check if there's an active contract for this proposal
+    const activeContract = await this.contractModel.findOne({
+      proposalId: id,
+      status: { $nin: [ContractStatus.CANCELLED, ContractStatus.COMPLETED] }
+    }).exec();
+
+    if (activeContract) {
+      throw new BadRequestException('Cannot delete proposal with an active contract');
+    }
+
+    // Soft delete the proposal
+    await this.proposalModel.findByIdAndUpdate(
+      id,
+      { deletedAt: new Date() },
+      { new: true }
+    ).exec();
 
     // Decrement proposal count for the job
     await this.jobModel.findByIdAndUpdate(
@@ -449,7 +464,7 @@ export class ProposalsService {
   ): Promise<ProposalResponseDto> {
     // Find and validate proposal (without transaction - standalone MongoDB compatible)
     const proposal = await this.proposalModel
-      .findById(id)
+      .findOne({ _id: id, deletedAt: null })
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate({
         path: 'jobId',
@@ -486,7 +501,8 @@ export class ProposalsService {
       {
         jobId: job._id,
         _id: { $ne: id },
-        status: ProposalStatus.PENDING
+        status: ProposalStatus.PENDING,
+        deletedAt: null
       },
       { status: ProposalStatus.REJECTED }
     );
@@ -527,7 +543,8 @@ export class ProposalsService {
     const otherProposals = await this.proposalModel.find({
       jobId: job._id,
       _id: { $ne: id },
-      status: ProposalStatus.REJECTED
+      status: ProposalStatus.REJECTED,
+      deletedAt: null
     }, '_id freelancerId');
     
     for (const otherProposal of otherProposals) {
@@ -544,7 +561,7 @@ export class ProposalsService {
     clientId: string,
   ): Promise<ProposalResponseDto> {
     const proposal = await this.proposalModel
-      .findById(id)
+      .findOne({ _id: id, deletedAt: null })
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate({
         path: 'jobId',

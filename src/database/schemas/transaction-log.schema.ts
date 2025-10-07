@@ -42,6 +42,9 @@ export class TransactionLog extends Document {
   @Prop()
   stripeId?: string;
 
+  @Prop()
+  chargeId?: string;
+
   @Prop({
     required: true,
     enum: ['pending', 'completed', 'failed', 'cancelled'],

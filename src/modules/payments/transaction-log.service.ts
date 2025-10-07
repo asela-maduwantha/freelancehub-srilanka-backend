@@ -16,6 +16,7 @@ export interface CreateTransactionLogDto {
   relatedId?: Types.ObjectId;
   relatedType?: 'contract' | 'milestone' | 'withdrawal' | 'dispute';
   stripeId?: string;
+  chargeId?: string;
   description?: string;
   metadata?: Record<string, any>;
 }
@@ -23,6 +24,7 @@ export interface CreateTransactionLogDto {
 export interface UpdateTransactionLogDto {
   status?: 'pending' | 'completed' | 'failed' | 'cancelled';
   stripeId?: string;
+  chargeId?: string;
   description?: string;
   metadata?: Record<string, any>;
   errorMessage?: string;

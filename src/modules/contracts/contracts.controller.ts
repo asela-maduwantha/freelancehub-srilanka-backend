@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   Body,
   Query,
@@ -275,7 +276,7 @@ export class ContractsController {
     };
   }
 
-  @Post(':id/cancel')
+  @Delete(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cancel a contract' })
   @ApiParam({ name: 'id', description: 'Contract ID' })

@@ -17,11 +17,20 @@ export class ProcessedWebhookEvent extends Document {
   @Prop({ required: true, index: true })
   eventType: string;
 
+  @Prop({ enum: ['processing', 'completed', 'failed'], default: 'processing' })
+  status: string;
+
+  @Prop()
+  startedAt?: Date;
+
+  @Prop()
+  processedAt?: Date;
+
+  @Prop()
+  errorMessage?: string;
+
   @Prop({ type: Object })
   metadata?: Record<string, any>;
-
-  @Prop({ default: Date.now })
-  processedAt: Date;
 
   @Prop({ type: Date, default: Date.now, expires: 2592000 }) // Auto-delete after 30 days
   expiresAt: Date;

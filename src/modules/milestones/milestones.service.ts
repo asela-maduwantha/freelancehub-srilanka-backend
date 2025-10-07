@@ -437,12 +437,21 @@ export class MilestoneService {
           ? updatedContract.freelancerId 
           : (updatedContract.freelancerId as Types.ObjectId).toString();
 
-        // TODO: Add notifyContractCompleted method to NotificationsService
-        // await this.notificationsService.notifyContractCompleted(
-        //   (updatedContract._id as Types.ObjectId).toString(),
-        //   clientId,
-        //   freelancerId
-        // );
+        // Get job title for notification
+        const job = await this.contractModel.db.model('Job').findById(updatedContract.jobId);
+        const jobTitle = job?.title || 'Unknown Job';
+
+        // Notify both client and freelancer
+        await this.notificationsService.notifyContractCompleted(
+          (updatedContract._id as Types.ObjectId).toString(),
+          jobTitle,
+          clientId
+        );
+        await this.notificationsService.notifyContractCompleted(
+          (updatedContract._id as Types.ObjectId).toString(),
+          jobTitle,
+          freelancerId
+        );
       } catch (notificationError) {
         console.error('Failed to send contract completion notification:', notificationError);
       }

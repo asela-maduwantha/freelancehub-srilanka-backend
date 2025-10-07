@@ -78,6 +78,15 @@ export class Payment extends Document {
   retryCount: number;
 
   @Prop()
+  lastWebhookId?: string;
+
+  @Prop()
+  lastWebhookType?: string;
+
+  @Prop()
+  lastWebhookAt?: Date;
+
+  @Prop()
   deletedAt?: Date;
 
   // Virtual fields

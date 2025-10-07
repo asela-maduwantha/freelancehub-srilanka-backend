@@ -91,33 +91,34 @@ export class ContractsService {
     
     const sanitized = JSON.parse(JSON.stringify(contract));
     
-    // List of ObjectId fields that need conversion
-    const objectIdFields = ['_id', 'id'];
-    
-    objectIdFields.forEach(field => {
-      if (sanitized[field]) {
-        if (typeof sanitized[field] === 'string') {
-          // Already a string, keep as is
-          return;
-        } else if (sanitized[field]._id) {
-          // Mongoose document with _id
-          sanitized[field] = sanitized[field]._id.toString();
-        } else if (sanitized[field].toString) {
-          // ObjectId instance
-          sanitized[field] = sanitized[field].toString();
-        } else if (sanitized[field].buffer && sanitized[field].buffer.data) {
-          // Buffer object - convert back to ObjectId string
-          const bytes = sanitized[field].buffer.data;
-          const hex = bytes.map((b: number) => b.toString(16).padStart(2, '0')).join('');
-          sanitized[field] = hex;
+    // Recursively convert ObjectId instances to strings
+    const convertObjectIds = (obj: any) => {
+      for (const key in obj) {
+        if (obj[key] && typeof obj[key] === 'object') {
+          if (obj[key]._bsontype === 'ObjectId') {
+            obj[key] = obj[key].toString();
+          } else if (Array.isArray(obj[key])) {
+            obj[key].forEach((item: any) => {
+              if (typeof item === 'object' && item !== null) {
+                convertObjectIds(item);
+              }
+            });
+          } else if (typeof obj[key] === 'object' && obj[key] !== null && !obj[key]._bsontype) {
+            // It's a plain object, recurse into it
+            convertObjectIds(obj[key]);
+          }
         }
       }
-    });
+    };
     
+    convertObjectIds(sanitized);
     return sanitized;
   }
 
  async createContract(contractData: CreateContractDto, clientId: string): Promise<Contract> {
+  let jobId: Types.ObjectId | null = null; // Track jobId for cleanup in catch block
+  let placeholderSet = false; // Track if we set a placeholder
+
   try {
     const proposal = await this.proposalModel.findById(contractData.proposalId);
     if (!proposal) {
@@ -133,6 +134,8 @@ export class ContractsService {
     if (!job) {
       throw new NotFoundException('Job not found');
     }
+
+    jobId = job._id as Types.ObjectId; // Capture for cleanup
 
     if (job.clientId.toString() !== clientId) {
       throw new BadRequestException('Unauthorized: Client does not own this job');
@@ -155,16 +158,31 @@ export class ContractsService {
       { new: true }
     );
 
-    // If update failed, it means another request already created a contract
+    // Mark that we successfully set a placeholder (for cleanup if needed)
+    if (updatedJob) {
+      placeholderSet = true;
+    }
+
+    // If update failed, determine the specific reason
     if (!updatedJob) {
-      // Double-check what happened
+      // Re-fetch the current job to determine why the update failed
       const currentJob = await this.jobModel.findById(job._id);
-      if (currentJob?.contractId) {
+      
+      if (!currentJob) {
+        throw new NotFoundException('Job not found');
+      }
+      
+      // Check if another request already set a contract ID (race condition)
+      if (currentJob.contractId) {
         throw new BadRequestException('This job already has a contract. Only one contract is allowed per job.');
       }
-      if (currentJob && currentJob.status !== JobStatus.IN_PROGRESS && currentJob.status !== JobStatus.AWAITING_CONTRACT) {
-        throw new BadRequestException('Can only create contract for jobs awaiting contract or in-progress');
+      
+      // Check if job status is invalid
+      if (currentJob.status !== JobStatus.IN_PROGRESS && currentJob.status !== JobStatus.AWAITING_CONTRACT) {
+        throw new BadRequestException(`Cannot create contract for job with status: ${currentJob.status}. Job must be in IN_PROGRESS or AWAITING_CONTRACT status.`);
       }
+      
+      // If we get here, something unexpected happened
       throw new BadRequestException('Failed to create contract due to concurrent modification. Please try again.');
     }
 
@@ -175,6 +193,7 @@ export class ContractsService {
       await this.jobModel.findByIdAndUpdate(job._id, { 
         $unset: { contractId: 1, _contractCreationInProgress: 1 } 
       });
+      placeholderSet = false; // Mark cleanup as done
       throw new BadRequestException('A contract already exists for this proposal');
     }
 
@@ -282,6 +301,28 @@ export class ContractsService {
       // Update contract milestone count
       contract.milestoneCount = milestoneCount;
       await contract.save();
+    } else {
+      // Create default milestone with total contract amount
+      const defaultMilestone = {
+        contractId: contract._id,
+        title: 'Complete Project Delivery',
+        description: 'Payment for the complete project delivery and all deliverables',
+        amount: contract.totalAmount,
+        currency: contract.currency,
+        order: 1,
+        dueDate: contract.endDate,
+        status: MilestoneStatus.PENDING,
+        isCompleted: false,
+        completedAt: null,
+        deliverables: [],
+      };
+
+      await this.milestoneModel.create(defaultMilestone);
+      milestoneCount = 1;
+
+      // Update contract milestone count
+      contract.milestoneCount = milestoneCount;
+      await contract.save();
     }
 
     // DON'T send notification to freelancer yet - wait until payment is complete
@@ -292,6 +333,9 @@ export class ContractsService {
       contractId: contract._id,
       $unset: { _contractCreationInProgress: 1 }
     });
+
+    // Mark that placeholder has been successfully replaced - no need to clean up anymore
+    placeholderSet = false;
 
     this.logger.log(`Contract created successfully with PENDING_PAYMENT status: ${contract._id}`, 'ContractsService');
 
@@ -319,13 +363,14 @@ export class ContractsService {
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate('jobId', 'title category subcategory projectType budget')
       .populate('proposalId', 'proposedRate status')
+      .lean()
       .exec();
 
     if (!populatedContract) {
       throw new NotFoundException('Contract not found after creation');
     }
 
-    const contractObject = populatedContract.toObject() as any;
+    const contractObject = this.sanitizeContract(populatedContract) as any;
     
     // Add payment information to response
     contractObject.paymentIntent = paymentIntentData;
@@ -333,6 +378,26 @@ export class ContractsService {
     return contractObject;
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
+    
+    // CRITICAL: Clean up placeholder contractId if contract creation failed
+    // This prevents the job from being locked in a bad state
+    try {
+      // Only clean up if we successfully set a placeholder
+      if (placeholderSet && jobId) {
+        // Check if there's a placeholder that needs cleanup
+        const currentJob = await this.jobModel.findById(jobId).lean();
+        if (currentJob && (currentJob as any)._contractCreationInProgress) {
+          // This is our placeholder - clean it up
+          await this.jobModel.findByIdAndUpdate(jobId, {
+            $unset: { contractId: 1, _contractCreationInProgress: 1 }
+          });
+          this.logger.log(`Cleaned up placeholder contractId for job ${jobId} after error`, 'ContractsService');
+        }
+      }
+    } catch (cleanupError) {
+      // Log cleanup errors but don't let them mask the original error
+      this.logger.error(`Failed to cleanup placeholder contractId: ${cleanupError.message}`, cleanupError.stack, 'ContractsService');
+    }
     
     // Handle MongoDB duplicate key errors
     if (error.code === 11000 || error.name === 'MongoServerError') {
@@ -538,13 +603,14 @@ export class ContractsService {
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate('jobId', 'title category subcategory projectType budget')
       .populate('proposalId', 'proposedRate status')
+      .lean()
       .exec();
 
     if (!populatedContract) {
       throw new NotFoundException('Contract not found after update');
     }
 
-    const result = populatedContract.toObject();
+    const result = this.sanitizeContract(populatedContract);
 
     // Clear cache after starting contract
     await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
@@ -572,13 +638,14 @@ export class ContractsService {
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate('jobId', 'title category subcategory projectType budget')
       .populate('proposalId', 'proposedRate status')
+      .lean()
       .exec();
 
     if (!populatedContract) {
       throw new NotFoundException('Contract not found after update');
     }
 
-    const result = populatedContract.toObject();
+    const result = this.sanitizeContract(populatedContract);
 
     // Clear cache after signing contract
     await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
@@ -593,6 +660,7 @@ export class ContractsService {
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate('jobId', 'title category subcategory projectType budget')
       .populate('proposalId', 'proposedRate status')
+      .lean()
       .exec();
 
     if (!contract) {
@@ -602,10 +670,8 @@ export class ContractsService {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
 
-    const contractObject = contract.toObject();
-
     // Sanitize to ensure ObjectIds are strings
-    const sanitizedContract = this.sanitizeContract(contractObject);
+    const sanitizedContract = this.sanitizeContract(contract);
 
     return sanitizedContract;
   }
@@ -662,11 +728,12 @@ export class ContractsService {
         .populate('proposalId', 'proposedRate status')
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
       this.contractModel.countDocuments(filter),
     ]);
 
-    const contracts = contractDocs.map(contract => this.sanitizeContract(contract.toObject()));
+    const contracts = contractDocs.map(contract => this.sanitizeContract(contract));
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
@@ -764,13 +831,14 @@ export class ContractsService {
         .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
         .populate('jobId', 'title category subcategory projectType budget')
         .populate('proposalId', 'proposedRate status')
+        .lean()
         .exec();
 
       if (!populatedContract) {
         throw new NotFoundException('Contract not found after completion');
       }
 
-      const result = populatedContract.toObject();
+      const result = this.sanitizeContract(populatedContract);
 
       // Clear cache after completing contract
       await this.invalidateContractCaches(contractId, contract.clientId.toString(), contract.freelancerId.toString());
@@ -798,7 +866,25 @@ export class ContractsService {
     if (contract.clientId.toString() !== userId && contract.freelancerId.toString() !== userId) {
       throw new UnauthorizedException('Unauthorized: User is not part of this contract');
     }
+
+    // Add status validation
+    if (contract.status === ContractStatus.COMPLETED) {
+      throw new BadRequestException('Cannot cancel a completed contract');
+    }
+    if (contract.status === ContractStatus.CANCELLED) {
+      throw new BadRequestException('Contract is already cancelled');
+    }
+    if (contract.status === ContractStatus.DISPUTED) {
+      throw new BadRequestException('Cannot cancel a disputed contract. Please resolve the dispute first.');
+    }
+
+    // Handle active contract cancellation with refund logic
+    if (contract.status === ContractStatus.ACTIVE) {
+      await this.handleActiveContractCancellation(contract, userId);
+    }
+
     contract.status = ContractStatus.CANCELLED;
+    contract.cancelledAt = new Date();
     await contract.save();
 
     // Send notifications to both client and freelancer about contract cancellation
@@ -832,13 +918,14 @@ export class ContractsService {
       .populate('freelancerId', 'email profile.firstName profile.lastName profile.title profile.skills profile.avatar')
       .populate('jobId', 'title category subcategory projectType budget')
       .populate('proposalId', 'proposedRate status')
+      .lean()
       .exec();
 
     if (!populatedContract) {
       throw new NotFoundException('Contract not found after cancellation');
     }
 
-    const result = populatedContract.toObject();
+    const result = this.sanitizeContract(populatedContract);
 
     // Clear cache after cancelling contract
     await this.cacheManager.del(`contract:${contractId}`);
@@ -877,5 +964,104 @@ export class ContractsService {
 
     this.logger.log(`Comprehensive contract PDF generated for contract: ${contract._id}`, 'ContractsService');
     return pdfBuffer;
+  }
+
+  /**
+   * Handle cancellation of active contracts with proper refund logic
+   */
+  private async handleActiveContractCancellation(contract: Contract, cancelledByUserId: string): Promise<void> {
+    try {
+      // Calculate refund amount (total paid minus already released to freelancer)
+      const refundAmount = contract.totalPaid - contract.releasedAmount;
+
+      if (refundAmount <= 0) {
+        this.logger.log(`No refund needed for contract ${contract._id} - all funds already released`);
+        return;
+      }
+
+      this.logger.log(`Processing refund of $${refundAmount} for contract ${contract._id}`);
+
+      // NOTE: Since freelancers are only paid when milestones are completed,
+      // the unreleased funds are still held by the platform/system, not in freelancer's account.
+      // Therefore, we don't need to deduct from freelancer's balance - the refund comes from platform escrow.
+
+      let stripeRefundId: string | undefined;
+      let refundStatus: string = 'pending';
+
+      // Process actual Stripe refund if payment intent exists
+      if (contract.stripePaymentIntentId) {
+        try {
+          this.logger.log(`Creating Stripe refund for payment intent: ${contract.stripePaymentIntentId}`);
+
+          const refundResult = await this.stripeService.createRefund(
+            contract.stripePaymentIntentId,
+            refundAmount, // Amount in dollars (Stripe service converts to cents)
+            'requested_by_customer'
+          );
+
+          stripeRefundId = refundResult.id;
+          refundStatus = refundResult.status;
+
+          this.logger.log(`Stripe refund created successfully: ${stripeRefundId} with status: ${refundStatus}`);
+
+        } catch (stripeError) {
+          this.logger.error(`Failed to create Stripe refund for contract ${contract._id}: ${stripeError.message}`, stripeError.stack);
+          // Continue with transaction logging even if Stripe refund fails
+          // This allows manual reconciliation later
+          refundStatus = 'failed';
+        }
+      } else {
+        this.logger.warn(`No Stripe payment intent found for contract ${contract._id} - cannot process automatic refund`);
+      }
+
+      // Create refund transaction log (from platform escrow back to client)
+      try {
+        await this.transactionLogService.create({
+          transactionId: `contract_cancel_refund_${contract._id}_${Date.now()}`,
+          type: 'refund',
+          // fromUserId: omitted for platform escrow refunds
+          toUserId: contract.clientId, // To client
+          amount: refundAmount,
+          currency: contract.currency,
+          fee: 0, // No fee on refunds
+          netAmount: refundAmount,
+          relatedId: contract._id as Types.ObjectId,
+          relatedType: 'contract',
+          stripeId: stripeRefundId, // Store Stripe refund ID if available
+          description: `Contract cancellation refund: ${contract.title}`,
+          metadata: {
+            contractId: (contract._id as Types.ObjectId).toString(),
+            cancellationReason: 'contract_cancelled',
+            cancelledBy: cancelledByUserId,
+            originalPayment: contract.totalPaid,
+            releasedAmount: contract.releasedAmount,
+            refundSource: 'platform_escrow',
+            stripeRefundId: stripeRefundId,
+            refundStatus: refundStatus,
+            stripePaymentIntentId: contract.stripePaymentIntentId
+          },
+        });
+      } catch (logError) {
+        this.logger.error(`Failed to log contract cancellation refund: ${logError.message}`, logError.stack);
+        // Don't throw - logging failure shouldn't break cancellation
+      }
+
+      // Send refund notification to client
+      try {
+        await this.notificationsService.notifyPaymentRefunded(
+          (contract._id as Types.ObjectId).toString(),
+          refundAmount,
+          contract.clientId.toString()
+        );
+      } catch (notificationError) {
+        this.logger.error(`Failed to send refund notification: ${notificationError.message}`, notificationError.stack);
+      }
+
+      this.logger.log(`Successfully processed refund of $${refundAmount} for cancelled contract ${contract._id} from platform escrow`);
+
+    } catch (error) {
+      this.logger.error(`Failed to process active contract cancellation for ${contract._id}: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 }

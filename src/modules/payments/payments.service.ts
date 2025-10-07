@@ -643,69 +643,10 @@ export class PaymentService {
         return await this.findById(id);
       }
 
-    // Log the completed payment transaction
-    try {
-      await this.transactionLogService.updateByStripeId(stripePaymentIntentId, {
-        status: 'completed',
-        stripeId: stripeChargeId,
-        description: `Payment completed - Charge: ${stripeChargeId}`,
-        metadata: {
-          stripeFee,
-          stripeTransferId,
-        },
-      });
-
-      // Log platform fee as separate transaction
-      if (payment.platformFee > 0) {
-        await this.transactionLogService.create({
-          transactionId: `fee_${payment._id}_${Date.now()}`,
-          type: 'fee',
-          fromUserId: payment.payerId,
-          toUserId: undefined, // Platform fee goes to platform
-          amount: payment.platformFee,
-          currency: payment.currency,
-          fee: 0,
-          netAmount: payment.platformFee,
-          relatedId: payment._id as Types.ObjectId,
-          relatedType: 'contract',
-          stripeId: stripeChargeId,
-          description: `Platform fee for payment ${payment._id}`,
-          metadata: {
-            paymentId: payment._id,
-            feeType: 'platform',
-            feePercentage: (payment.platformFee / payment.amount) * 100,
-          },
-        });
-      }
-
-      // Log Stripe fee if applicable
-      if (stripeFee > 0) {
-        await this.transactionLogService.create({
-          transactionId: `stripe_fee_${payment._id}_${Date.now()}`,
-          type: 'fee',
-          fromUserId: payment.payerId,
-          toUserId: undefined, // Stripe fee goes to Stripe
-          amount: stripeFee / 100, // Convert from cents
-          currency: payment.currency,
-          fee: 0,
-          netAmount: stripeFee / 100,
-          relatedId: payment._id as Types.ObjectId,
-          relatedType: 'contract',
-          stripeId: stripeChargeId,
-          description: `Stripe processing fee for payment ${payment._id}`,
-          metadata: {
-            paymentId: payment._id,
-            feeType: 'stripe',
-            stripeFeeCents: stripeFee,
-          },
-        });
-      }
-    } catch (logError) {
-      this.logger.error(`Failed to log transactions for completed payment ${id}: ${logError.message}`, logError.stack);
-    }
-
       // Update contract totalPaid for upfront payments and activate contract
       if (payment.metadata?.type === 'contract_upfront' && payment.contractId) {
+        this.logger.log(`Updating contract ${payment.contractId} for upfront payment completion`);
+
         // Update contract: set as ACTIVE and update totalPaid (with transaction)
         const contract = await this.contractModel.findByIdAndUpdate(
           payment.contractId,
@@ -717,7 +658,7 @@ export class PaymentService {
         ).populate('jobId', 'title');
         
         if (contract) {
-          this.logger.log(`Contract ${payment.contractId} ACTIVATED after successful payment: ${payment.amount}`);
+          this.logger.log(`Contract ${(payment.contractId as Types.ObjectId).toString()} ACTIVATED after successful payment: ${payment.amount}. Previous status: ${contract.status}`);
 
           // CORRECT BALANCE UPDATE:
           // Freelancer receives FULL contract amount (platform fee already paid by client)
@@ -731,7 +672,7 @@ export class PaymentService {
             useTransaction ? { session } : {}
           );
           this.logger.log(
-            `Updated freelancer ${payment.payeeId} pending balance: +$${payment.amount} (full contract amount, platform fee paid separately by client)`
+            `Updated freelancer ${(payment.payeeId as Types.ObjectId).toString()} pending balance: +$${payment.amount} (full contract amount, platform fee paid separately by client)`
           );
 
           // Update associated job status to CONTRACTED
@@ -745,6 +686,8 @@ export class PaymentService {
             );
             this.logger.log(`Job ${payment.metadata.jobId} status set to CONTRACTED after successful payment`);
           }
+        } else {
+          this.logger.error(`Failed to find and update contract ${payment.contractId} after payment completion`);
         }
       }
 
@@ -761,11 +704,11 @@ export class PaymentService {
           if (contract) {
             const jobTitle = (contract.jobId as any)?.title || 'a contract';
             await this.notificationsService.notifyContractCreated(
-              payment.contractId.toString(),
+              (payment.contractId as Types.ObjectId).toString(),
               jobTitle,
-              payment.payeeId.toString()
+              (payment.payeeId as Types.ObjectId).toString()
             );
-            this.logger.log(`Sent contract notification to freelancer ${payment.payeeId} after payment completion`);
+            this.logger.log(`Sent contract notification to freelancer ${(payment.payeeId as Types.ObjectId).toString()} after payment completion`);
           }
         } catch (notificationError) {
           this.logger.error(`Failed to send contract notification: ${notificationError.message}`, notificationError.stack);
@@ -813,11 +756,12 @@ export class PaymentService {
     try {
       await this.transactionLogService.updateByStripeId(stripePaymentIntentId, {
         status: 'completed',
-        stripeId: stripeChargeId,
+        chargeId: stripeChargeId,
         description: `Payment completed - Charge: ${stripeChargeId}`,
         metadata: {
           stripeFee,
           stripeTransferId,
+          stripeChargeId,
         },
       });
 
@@ -1198,11 +1142,54 @@ export class PaymentService {
 
       const { type, data, id: eventId } = event;
 
-      // IDEMPOTENCY CHECK: Verify if this event has already been processed
-      const existingEvent = await this.processedWebhookEventModel.findOne({ stripeEventId: eventId });
-      if (existingEvent) {
-        this.logger.log(`Webhook event ${eventId} (${type}) already processed at ${existingEvent.processedAt}, skipping`);
-        return { received: true, skipped: true };
+      // Check for existing processed event first
+      const existingEventRecord = await this.processedWebhookEventModel.findOne({
+        stripeEventId: eventId
+      });
+
+      this.logger.log(`Webhook event ${eventId} (${type}) - Existing record: ${existingEventRecord ? 'found' : 'not found'}`);
+
+      if (existingEventRecord) {
+        this.logger.log(`Existing event status: ${existingEventRecord.status}, processedAt: ${existingEventRecord.processedAt}`);
+
+        // Event was already processed
+        if (existingEventRecord.status === 'completed' && existingEventRecord.processedAt) {
+          this.logger.log(`Webhook event ${eventId} (${type}) already processed at ${existingEventRecord.processedAt}, skipping`);
+          return { received: true, skipped: true };
+        }
+
+        // Event is currently being processed by another instance
+        if (existingEventRecord.status === 'processing' && existingEventRecord.startedAt && 
+            (Date.now() - existingEventRecord.startedAt.getTime() < 30000)) { // Less than 30 seconds old
+          this.logger.log(`Webhook event ${eventId} (${type}) is currently being processed (started ${existingEventRecord.startedAt}), skipping`);
+          return { received: true, skipped: true };
+        }
+
+        // Update existing record to processing status
+        await this.processedWebhookEventModel.findOneAndUpdate(
+          { stripeEventId: eventId },
+          {
+            status: 'processing',
+            startedAt: new Date(),
+            eventType: type,
+            metadata: {
+              objectId: data?.object?.id,
+            }
+          }
+        );
+        this.logger.log(`Updated existing event record to processing status`);
+      } else {
+        // Create new event record
+        await this.processedWebhookEventModel.create({
+          stripeEventId: eventId,
+          eventType: type,
+          status: 'processing',
+          startedAt: new Date(),
+          metadata: {
+            objectId: data?.object?.id,
+          }
+        });
+        this.logger.log(`Created new event record for processing`);
       }
 
       this.logger.log(`Processing Stripe webhook: ${type} (Event ID: ${eventId})`);
@@ -1257,26 +1244,38 @@ export class PaymentService {
           default:
             this.logger.log(`Unhandled webhook type: ${type}`);
         }
+
+        // Mark event as completed after successful processing
+        await this.processedWebhookEventModel.findOneAndUpdate(
+          { stripeEventId: eventId },
+          {
+            status: 'completed',
+            processedAt: new Date(),
+          }
+        );
+
+        this.logger.log(`Successfully processed and recorded webhook event ${eventId} (${type})`);
+
       } catch (eventError) {
         this.logger.error(
           `Failed to process webhook event ${eventId} (${type}): ${eventError.message}`,
           eventError.stack
         );
-        // Re-throw to prevent marking as processed
+        
+        // Mark event as failed
+        await this.processedWebhookEventModel.findOneAndUpdate(
+          { stripeEventId: eventId },
+          {
+            status: 'failed',
+            processedAt: new Date(),
+            errorMessage: eventError.message,
+          },
+          { upsert: true }
+        );
+
+        // Re-throw to signal webhook failure
         throw eventError;
       }
-
-      // Mark event as processed to prevent duplicate processing
-      await this.processedWebhookEventModel.create({
-        stripeEventId: eventId,
-        eventType: type,
-        processedAt: new Date(),
-        metadata: {
-          objectId: data?.object?.id,
-        }
-      });
-
-      this.logger.log(`Successfully processed and recorded webhook event ${eventId} (${type})`);
 
       return { received: true };
     } catch (error) {
@@ -1286,22 +1285,39 @@ export class PaymentService {
   }
 
   private async handleChargeSucceeded(charge: any): Promise<void> {
-    const payment = await this.paymentModel.findOne({
-      stripePaymentIntentId: charge.payment_intent
-    });
+    // Use atomic findOneAndUpdate to claim payment processing
+    const payment = await this.paymentModel.findOneAndUpdate(
+      {
+        stripePaymentIntentId: charge.payment_intent,
+        status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] }
+      },
+      {
+        $set: {
+          status: PaymentStatus.PROCESSING,
+          lastWebhookId: charge.id,
+          lastWebhookType: 'charge.succeeded',
+          lastWebhookAt: new Date(),
+        }
+      },
+      { new: false } // Return original document to check previous status
+    );
 
     if (!payment) {
-      this.logger.warn(`Payment not found for charge: ${charge.id} with PaymentIntent: ${charge.payment_intent}`);
+      // Either payment not found or already completed
+      const existingPayment = await this.paymentModel.findOne({
+        stripePaymentIntentId: charge.payment_intent
+      });
+      
+      if (!existingPayment) {
+        this.logger.warn(`Payment not found for charge: ${charge.id} with PaymentIntent: ${charge.payment_intent}`);
+      } else if (existingPayment.status === PaymentStatus.COMPLETED) {
+        this.logger.log(`Payment ${existingPayment._id} already completed for charge ${charge.id}, skipping webhook`);
+      }
       return;
     }
 
-    // Idempotency check - skip if already completed
-    if (payment.status === PaymentStatus.COMPLETED) {
-      this.logger.log(`Payment ${payment._id} already completed for charge ${charge.id}, skipping webhook`);
-      return;
-    }
-
-    if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+    // Process the payment completion
+    try {
       await this.completePayment(
         (payment._id as any).toString(),
         charge.payment_intent,
@@ -1309,31 +1325,55 @@ export class PaymentService {
         undefined, // transfer_data not available in charge
         charge.fee_details?.[0]?.amount || 0
       );
+    } catch (error) {
+      // If completion fails, revert status to allow retry
+      this.logger.error(`Failed to complete payment for charge ${charge.id}: ${error.message}`);
+      await this.paymentModel.findByIdAndUpdate(payment._id, {
+        status: payment.status, // Revert to original status
+      });
+      throw error;
     }
   }
 
   private async handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
-    const payment = await this.paymentModel.findOne({
-      stripePaymentIntentId: paymentIntent.id
-    });
+    // Use atomic findOneAndUpdate to claim payment processing
+    const payment = await this.paymentModel.findOneAndUpdate(
+      {
+        stripePaymentIntentId: paymentIntent.id,
+        status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] }
+      },
+      {
+        $set: {
+          status: PaymentStatus.PROCESSING,
+          lastWebhookId: paymentIntent.id,
+          lastWebhookType: 'payment_intent.succeeded',
+          lastWebhookAt: new Date(),
+        }
+      },
+      { new: false } // Return original document to check previous status
+    );
 
     if (!payment) {
-      this.logger.warn(`Payment not found for PaymentIntent: ${paymentIntent.id}`);
+      // Either payment not found or already completed
+      const existingPayment = await this.paymentModel.findOne({
+        stripePaymentIntentId: paymentIntent.id
+      });
+      
+      if (!existingPayment) {
+        this.logger.warn(`Payment not found for PaymentIntent: ${paymentIntent.id}`);
+      } else if (existingPayment.status === PaymentStatus.COMPLETED) {
+        this.logger.log(`Payment ${existingPayment._id} already completed for PaymentIntent ${paymentIntent.id}, skipping webhook`);
+      }
       return;
     }
 
-    // Idempotency check - skip if already completed
-    if (payment.status === PaymentStatus.COMPLETED) {
-      this.logger.log(`Payment ${payment._id} already completed for PaymentIntent ${paymentIntent.id}, skipping webhook`);
-      return;
-    }
+    // Extract charge details safely - charges might not be expanded in payment_intent events
+    const chargeId = paymentIntent.charges?.data?.[0]?.id || paymentIntent.latest_charge;
+    const stripeFee = paymentIntent.charges?.data?.[0]?.fee_details?.[0]?.amount || 0;
+    const transferDestination = paymentIntent.transfer_data?.destination;
 
-    if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
-      // Extract charge details safely - charges might not be expanded in payment_intent events
-      const chargeId = paymentIntent.charges?.data?.[0]?.id || paymentIntent.latest_charge;
-      const stripeFee = paymentIntent.charges?.data?.[0]?.fee_details?.[0]?.amount || 0;
-      const transferDestination = paymentIntent.transfer_data?.destination;
-
+    // Process the payment completion
+    try {
       await this.completePayment(
         (payment._id as any).toString(),
         paymentIntent.id,
@@ -1341,10 +1381,17 @@ export class PaymentService {
         transferDestination,
         stripeFee
       );
-
-      // Note: Milestone payment processing is now handled through upfront contract payments
-      // Individual milestone payments are no longer created
+    } catch (error) {
+      // If completion fails, revert status to allow retry
+      this.logger.error(`Failed to complete payment for PaymentIntent ${paymentIntent.id}: ${error.message}`);
+      await this.paymentModel.findByIdAndUpdate(payment._id, {
+        status: payment.status, // Revert to original status
+      });
+      throw error;
     }
+
+    // Note: Milestone payment processing is now handled through upfront contract payments
+    // Individual milestone payments are no longer created
   }
 
   private async handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
