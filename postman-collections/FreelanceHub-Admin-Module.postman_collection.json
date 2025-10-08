@@ -1,0 +1,1506 @@
+{
+	"info": {
+		"_postman_id": "admin-module-collection-001",
+		"name": "FreelanceHub Admin Module",
+		"description": "Complete collection of admin endpoints for FreelanceHub Sri Lanka platform. All endpoints require JWT authentication with ADMIN role.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "freelancehub-admin"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{admin_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "payment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "withdrawal_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "contract_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "review_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "skill_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "transaction_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Dashboard & Statistics",
+			"item": [
+				{
+					"name": "Get Admin Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "dashboard"]
+						},
+						"description": "Get overview statistics for the admin dashboard including users, jobs, contracts, revenue, and pending items."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Platform Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/statistics?startDate=2025-01-01&endDate=2025-10-07",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "statistics"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-01-01",
+									"description": "Start date (ISO string)"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07",
+									"description": "End date (ISO string)"
+								}
+							]
+						},
+						"description": "Get detailed platform statistics with optional date range including user growth, job stats, payment stats, and contract stats."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Revenue Analytics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/revenue/analytics?period=monthly&startDate=2025-01-01&endDate=2025-10-07",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "revenue", "analytics"],
+							"query": [
+								{
+									"key": "period",
+									"value": "monthly",
+									"description": "Grouping period: daily, weekly, monthly, yearly"
+								},
+								{
+									"key": "startDate",
+									"value": "2025-01-01",
+									"description": "Start date (ISO string)"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07",
+									"description": "End date (ISO string)"
+								}
+							]
+						},
+						"description": "Get detailed revenue analytics grouped by period (daily, weekly, monthly, yearly)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get System Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/system/health",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "system", "health"]
+						},
+						"description": "Get system health metrics including failed payments, withdrawals, open disputes, and flagged content."
+					},
+					"response": []
+				}
+			],
+			"description": "Dashboard and statistics endpoints for admin overview"
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/users?page=1&limit=20&role=freelancer&status=active&search=&sortBy=createdAt&sortOrder=desc",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Items per page"
+								},
+								{
+									"key": "role",
+									"value": "freelancer",
+									"description": "Filter by role: freelancer, client, admin"
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filter by status: active, inactive"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by email or name"
+								},
+								{
+									"key": "sortBy",
+									"value": "createdAt",
+									"description": "Sort field"
+								},
+								{
+									"key": "sortOrder",
+									"value": "desc",
+									"description": "Sort order: asc, desc"
+								}
+							]
+						},
+						"description": "Get paginated list of all users with filtering and sorting options."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}"]
+						},
+						"description": "Get detailed information about a specific user including statistics and recent reviews."
+					},
+					"response": []
+				},
+				{
+					"name": "Suspend User",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Violation of terms of service\",\n  \"duration\": 30\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}/suspend",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}", "suspend"]
+						},
+						"description": "Suspend a user account with reason and optional duration in days."
+					},
+					"response": []
+				},
+				{
+					"name": "Activate User",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}/activate",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}", "activate"]
+						},
+						"description": "Activate a suspended user account."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify User",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}/verify",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}", "verify"]
+						},
+						"description": "Manually verify a user's email address."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Account deletion requested by user\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "{{user_id}}"]
+						},
+						"description": "Soft delete a user account (marks as deleted)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/users/statistics/overview",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "users", "statistics", "overview"]
+						},
+						"description": "Get aggregated user statistics including total, by role, by status, and recent signups."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users (Users Controller)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users?page=1&limit=10&role=freelancer&isActive=true&search=",
+							"host": ["{{base_url}}"],
+							"path": ["users"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "role",
+									"value": "freelancer"
+								},
+								{
+									"key": "isActive",
+									"value": "true"
+								},
+								{
+									"key": "search",
+									"value": ""
+								}
+							]
+						},
+						"description": "Admin-only endpoint in users controller to get all users."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"isActive\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}", "status"]
+						},
+						"description": "Update user activation status."
+					},
+					"response": []
+				}
+			],
+			"description": "User management endpoints for admins"
+		},
+		{
+			"name": "Payment Management",
+			"item": [
+				{
+					"name": "Get All Payments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/payments?page=1&limit=20&status=completed&startDate=2025-01-01&endDate=2025-10-07&sortBy=createdAt&sortOrder=desc",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "payments"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "status",
+									"value": "completed",
+									"description": "Filter by status: pending, processing, completed, failed, refunded"
+								},
+								{
+									"key": "startDate",
+									"value": "2025-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07"
+								},
+								{
+									"key": "sortBy",
+									"value": "createdAt"
+								},
+								{
+									"key": "sortOrder",
+									"value": "desc"
+								}
+							]
+						},
+						"description": "Get paginated list of all payments with filtering."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Failed Payments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/payments/failed?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "payments", "failed"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get list of failed payments for investigation."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/payments/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "payments", "statistics"]
+						},
+						"description": "Get aggregated payment statistics grouped by status."
+					},
+					"response": []
+				},
+				{
+					"name": "Refund Payment",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Customer requested refund\",\n  \"amount\": 1000.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/payments/{{payment_id}}/refund",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "payments", "{{payment_id}}", "refund"]
+						},
+						"description": "Process a refund for a completed payment. Amount is optional for partial refunds."
+					},
+					"response": []
+				}
+			],
+			"description": "Payment management endpoints for admins"
+		},
+		{
+			"name": "Withdrawal Management",
+			"item": [
+				{
+					"name": "Get All Withdrawals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/withdrawals?page=1&limit=20&status=pending",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "withdrawals"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "status",
+									"value": "pending",
+									"description": "Filter by status: pending, processing, completed, failed, cancelled"
+								}
+							]
+						},
+						"description": "Get paginated list of all withdrawal requests."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Withdrawals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/withdrawals/pending",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "withdrawals", "pending"]
+						},
+						"description": "Get list of all pending withdrawal requests requiring action."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Withdrawal Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/withdrawals/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "withdrawals", "statistics"]
+						},
+						"description": "Get aggregated withdrawal statistics."
+					},
+					"response": []
+				},
+				{
+					"name": "Process Withdrawal",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stripeTransferId\": \"tr_1234567890\",\n  \"adminNotes\": \"Processing via Stripe\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/withdrawals/{{withdrawal_id}}/process",
+							"host": ["{{base_url}}"],
+							"path": ["withdrawals", "{{withdrawal_id}}", "process"]
+						},
+						"description": "Mark withdrawal as processing and initiate transfer."
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Withdrawal",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/withdrawals/{{withdrawal_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["withdrawals", "{{withdrawal_id}}", "complete"]
+						},
+						"description": "Mark withdrawal as completed."
+					},
+					"response": []
+				},
+				{
+					"name": "Fail Withdrawal",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"errorMessage\": \"Insufficient funds in Stripe account\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/withdrawals/{{withdrawal_id}}/fail",
+							"host": ["{{base_url}}"],
+							"path": ["withdrawals", "{{withdrawal_id}}", "fail"]
+						},
+						"description": "Mark withdrawal as failed with error message."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Withdrawal",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/withdrawals/{{withdrawal_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["withdrawals", "{{withdrawal_id}}"]
+						},
+						"description": "Cancel a pending withdrawal request."
+					},
+					"response": []
+				}
+			],
+			"description": "Withdrawal management endpoints for admins"
+		},
+		{
+			"name": "Job Management",
+			"item": [
+				{
+					"name": "Get All Jobs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/jobs?page=1&limit=20&status=open&flagged=false",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "jobs"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "status",
+									"value": "open",
+									"description": "Filter by status: draft, open, in-progress, completed, cancelled"
+								},
+								{
+									"key": "flagged",
+									"value": "false",
+									"description": "Filter flagged jobs"
+								}
+							]
+						},
+						"description": "Get paginated list of all jobs with filtering."
+					},
+					"response": []
+				},
+				{
+					"name": "Flag Job",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Contains inappropriate content\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/jobs/{{job_id}}/flag",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "jobs", "{{job_id}}", "flag"]
+						},
+						"description": "Flag a job posting as inappropriate or suspicious."
+					},
+					"response": []
+				},
+				{
+					"name": "Unflag Job",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/jobs/{{job_id}}/unflag",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "jobs", "{{job_id}}", "unflag"]
+						},
+						"description": "Remove flag from a job posting."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Job",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Violates platform policies\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/jobs/{{job_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "jobs", "{{job_id}}"]
+						},
+						"description": "Soft delete a job posting."
+					},
+					"response": []
+				}
+			],
+			"description": "Job management endpoints for admins"
+		},
+		{
+			"name": "Contract Management",
+			"item": [
+				{
+					"name": "Get All Contracts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/contracts?page=1&limit=20&status=active",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "contracts"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filter by status: pending_payment, active, completed, cancelled"
+								}
+							]
+						},
+						"description": "Get paginated list of all contracts."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Contract Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/contracts/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "contracts", "statistics"]
+						},
+						"description": "Get aggregated contract statistics."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Contract",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Policy violation by one party\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/contracts/{{contract_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "contracts", "{{contract_id}}", "cancel"]
+						},
+						"description": "Cancel a contract (admin override)."
+					},
+					"response": []
+				}
+			],
+			"description": "Contract management endpoints for admins"
+		},
+		{
+			"name": "Proposal Management",
+			"item": [
+				{
+					"name": "Get All Proposals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/proposals?page=1&limit=20&status=pending",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "proposals"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "status",
+									"value": "pending",
+									"description": "Filter by proposal status"
+								}
+							]
+						},
+						"description": "Get paginated list of all proposals."
+					},
+					"response": []
+				}
+			],
+			"description": "Proposal management endpoints for admins"
+		},
+		{
+			"name": "Review Management",
+			"item": [
+				{
+					"name": "Get All Reviews",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/reviews?page=1&limit=20&flagged=false",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "reviews"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "flagged",
+									"value": "false",
+									"description": "Filter flagged reviews"
+								}
+							]
+						},
+						"description": "Get paginated list of all reviews."
+					},
+					"response": []
+				},
+				{
+					"name": "Flag Review",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Contains offensive language\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/reviews/{{review_id}}/flag",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "reviews", "{{review_id}}", "flag"]
+						},
+						"description": "Flag a review as inappropriate."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Review (Admin Controller)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Violates community guidelines\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/reviews/{{review_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "reviews", "{{review_id}}"]
+						},
+						"description": "Delete a review (soft delete) from admin controller."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Review (Reviews Controller)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reviews/{{review_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "{{review_id}}"]
+						},
+						"description": "Delete a review from reviews controller (admin only)."
+					},
+					"response": []
+				}
+			],
+			"description": "Review management endpoints for admins"
+		},
+		{
+			"name": "Reports & Analytics",
+			"item": [
+				{
+					"name": "Get Users Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/reports/users?startDate=2025-01-01&endDate=2025-10-07&format=json",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "reports", "users"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07"
+								},
+								{
+									"key": "format",
+									"value": "json",
+									"description": "Response format: json or csv"
+								}
+							]
+						},
+						"description": "Generate user activity report."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Revenue Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/reports/revenue?startDate=2025-01-01&endDate=2025-10-07&format=json",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "reports", "revenue"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07"
+								},
+								{
+									"key": "format",
+									"value": "json",
+									"description": "Response format: json or csv"
+								}
+							]
+						},
+						"description": "Generate revenue report."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transactions Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/reports/transactions?startDate=2025-01-01&endDate=2025-10-07&format=json",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "reports", "transactions"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07"
+								},
+								{
+									"key": "format",
+									"value": "json",
+									"description": "Response format: json or csv"
+								}
+							]
+						},
+						"description": "Generate detailed transactions report."
+					},
+					"response": []
+				}
+			],
+			"description": "Report generation and analytics endpoints"
+		},
+		{
+			"name": "Settings & Configuration",
+			"item": [
+				{
+					"name": "Get Platform Settings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/settings/platform",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "settings", "platform"]
+						},
+						"description": "Get current platform settings."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Platform Settings",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"maintenanceMode\": false,\n  \"allowNewRegistrations\": true,\n  \"requireEmailVerification\": true,\n  \"minimumWithdrawalAmount\": 50.00,\n  \"supportEmail\": \"support@freelancehub.lk\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/settings/platform",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "settings", "platform"]
+						},
+						"description": "Update platform configuration settings."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Fee Settings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/settings/fees",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "settings", "fees"]
+						},
+						"description": "Get current platform fee configuration."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Fee Settings",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"platformFeePercentage\": 10,\n  \"minimumPlatformFee\": 5.00,\n  \"withdrawalFeePercentage\": 2,\n  \"minimumWithdrawalFee\": 1.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/settings/fees",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "settings", "fees"]
+						},
+						"description": "Update platform fee configuration."
+					},
+					"response": []
+				}
+			],
+			"description": "Platform settings and configuration endpoints"
+		},
+		{
+			"name": "Activity Logs",
+			"item": [
+				{
+					"name": "Get Activity Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/logs/activities?page=1&limit=50&userId=&action=&startDate=&endDate=",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "logs", "activities"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "userId",
+									"value": "",
+									"description": "Filter by user ID"
+								},
+								{
+									"key": "action",
+									"value": "",
+									"description": "Filter by action type"
+								},
+								{
+									"key": "startDate",
+									"value": ""
+								},
+								{
+									"key": "endDate",
+									"value": ""
+								}
+							]
+						},
+						"description": "Get system activity logs with filtering."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Error Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/logs/errors?page=1&limit=50&severity=",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "logs", "errors"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "severity",
+									"value": "",
+									"description": "Filter by severity level"
+								}
+							]
+						},
+						"description": "Get system error logs."
+					},
+					"response": []
+				}
+			],
+			"description": "Activity and error log endpoints"
+		},
+		{
+			"name": "Skills Management",
+			"item": [
+				{
+					"name": "Create Skill",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"React\",\n  \"category\": \"Frontend Development\",\n  \"description\": \"A JavaScript library for building user interfaces\",\n  \"difficulty\": \"intermediate\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/skills",
+							"host": ["{{base_url}}"],
+							"path": ["skills"]
+						},
+						"description": "Create a new skill (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Batch Create Skills",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"skills\": [\n    {\n      \"name\": \"React\",\n      \"category\": \"Frontend Development\",\n      \"difficulty\": \"intermediate\"\n    },\n    {\n      \"name\": \"Node.js\",\n      \"category\": \"Backend Development\",\n      \"difficulty\": \"intermediate\"\n    },\n    {\n      \"name\": \"MongoDB\",\n      \"category\": \"Database\",\n      \"difficulty\": \"intermediate\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/skills/batch",
+							"host": ["{{base_url}}"],
+							"path": ["skills", "batch"]
+						},
+						"description": "Create multiple skills at once (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Skill",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"React.js\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/skills/{{skill_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["skills", "{{skill_id}}"]
+						},
+						"description": "Update an existing skill (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Skill",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/skills/{{skill_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["skills", "{{skill_id}}"]
+						},
+						"description": "Delete a skill (Admin only)."
+					},
+					"response": []
+				}
+			],
+			"description": "Skills management endpoints for admins"
+		},
+		{
+			"name": "Payments Controller (Admin)",
+			"item": [
+				{
+					"name": "Get Payment by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "{{payment_id}}"]
+						},
+						"description": "Get specific payment details (Admin/Client/Freelancer)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Payment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"completed\",\n  \"metadata\": {\n    \"adminNote\": \"Manual update\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "{{payment_id}}"]
+						},
+						"description": "Update payment details (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Payment",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "{{payment_id}}"]
+						},
+						"description": "Delete a payment record (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Process Payment",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}/process",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "{{payment_id}}", "process"]
+						},
+						"description": "Manually trigger payment processing (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Payment",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stripePaymentIntentId\": \"pi_1234567890\",\n  \"stripeChargeId\": \"ch_1234567890\",\n  \"stripeTransferId\": \"tr_1234567890\",\n  \"stripeFee\": 30.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "{{payment_id}}", "complete"]
+						},
+						"description": "Mark payment as completed manually (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Fail Payment",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"errorMessage\": \"Insufficient funds\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}/fail",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "{{payment_id}}", "fail"]
+						},
+						"description": "Mark payment as failed (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/transactions/logs?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "transactions", "logs"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "sortBy",
+									"value": "createdAt"
+								},
+								{
+									"key": "sortOrder",
+									"value": "desc"
+								}
+							]
+						},
+						"description": "Get all transaction logs with filtering (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/transactions/{{transaction_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "transactions", "{{transaction_id}}"]
+						},
+						"description": "Get specific transaction log details (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction by Transaction ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/transactions/by-transaction-id/txn_1234567890",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "transactions", "by-transaction-id", "txn_1234567890"]
+						},
+						"description": "Get transaction by transaction ID string (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transactions by Date Range",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/transactions/date-range?startDate=2025-01-01&endDate=2025-10-07&groupBy=day",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "transactions", "date-range"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-07"
+								},
+								{
+									"key": "groupBy",
+									"value": "day",
+									"description": "Grouping: day, week, month"
+								}
+							]
+						},
+						"description": "Get transactions within a date range with grouping (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Transactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/transactions/pending",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "transactions", "pending"]
+						},
+						"description": "Get all pending transactions (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Failed Transactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/transactions/failed",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "transactions", "failed"]
+						},
+						"description": "Get all failed transactions (Admin only)."
+					},
+					"response": []
+				}
+			],
+			"description": "Payment-related admin endpoints from payments controller"
+		}
+	]
+}

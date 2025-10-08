@@ -406,15 +406,26 @@ export class AdminService {
     }
 
     const [payments, total] = await Promise.all([
-      this.paymentModel
+      JSON.parse(JSON.stringify(await this.paymentModel
         .find(query)
-        .populate('payerId', 'email profile')
-        .populate('payeeId', 'email profile')
-        .populate('contractId', 'title')
+        .populate({
+          path: 'payerId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'payeeId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'contractId',
+          select: 'title',
+          options: { strictPopulate: false }
+        })
         .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit))),
       this.paymentModel.countDocuments(query),
     ]);
 
@@ -433,14 +444,21 @@ export class AdminService {
     const skip = (page - 1) * limit;
 
     const [payments, total] = await Promise.all([
-      this.paymentModel
+      JSON.parse(JSON.stringify(await this.paymentModel
         .find({ status: PaymentStatus.FAILED })
-        .populate('payerId', 'email profile')
-        .populate('payeeId', 'email profile')
+        .populate({
+          path: 'payerId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'payeeId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit))),
       this.paymentModel.countDocuments({ status: PaymentStatus.FAILED }),
     ]);
 
@@ -511,13 +529,16 @@ export class AdminService {
     if (status) query.status = status;
 
     const [withdrawals, total] = await Promise.all([
-      this.withdrawalModel
+      JSON.parse(JSON.stringify(await this.withdrawalModel
         .find(query)
-        .populate('freelancerId', 'email profile')
+        .populate({
+          path: 'freelancerId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
         .sort({ requestedAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit))),
       this.withdrawalModel.countDocuments(query),
     ]);
 
@@ -573,16 +594,17 @@ export class AdminService {
       this.jobModel
         .find(query)
         .populate('clientId', 'email profile')
-        .populate('categoryId', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit),
       this.jobModel.countDocuments(query),
     ]);
 
+    // Properly serialize ObjectIds to avoid Buffer issues
+    const serializedJobs = JSON.parse(JSON.stringify(jobs));
+
     return {
-      jobs,
+      jobs: serializedJobs,
       pagination: {
         total,
         page,
@@ -656,15 +678,27 @@ export class AdminService {
     if (status) query.status = status;
 
     const [contracts, total] = await Promise.all([
-      this.contractModel
+      JSON.parse(JSON.stringify(await this.contractModel
         .find(query)
-        .populate('clientId', 'email profile')
-        .populate('freelancerId', 'email profile')
-        .populate('jobId', 'title')
+        .populate({
+          path: 'clientId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'freelancerId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'jobId',
+          select: 'title',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .lean(),
+        .lean())),
       this.contractModel.countDocuments(query),
     ]);
 
@@ -720,14 +754,21 @@ export class AdminService {
     if (status) query.status = status;
 
     const [proposals, total] = await Promise.all([
-      this.proposalModel
+      JSON.parse(JSON.stringify(await this.proposalModel
         .find(query)
-        .populate('freelancerId', 'email profile')
-        .populate('jobId', 'title')
+        .populate({
+          path: 'freelancerId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'jobId',
+          select: 'title',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit))),
       this.proposalModel.countDocuments(query),
     ]);
 
@@ -751,15 +792,26 @@ export class AdminService {
     if (status) query.status = status;
 
     const [disputes, total] = await Promise.all([
-      this.disputeModel
+      JSON.parse(JSON.stringify(await this.disputeModel
         .find(query)
-        .populate('raisedBy', 'email profile')
-        .populate('againstUser', 'email profile')
-        .populate('contractId', 'title')
+        .populate({
+          path: 'raisedBy',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'againstUser',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'contractId',
+          select: 'title',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit))),
       this.disputeModel.countDocuments(query),
     ]);
 
@@ -840,14 +892,21 @@ export class AdminService {
     if (flagged !== undefined) query['metadata.flagged'] = flagged;
 
     const [reviews, total] = await Promise.all([
-      this.reviewModel
+      JSON.parse(JSON.stringify(await this.reviewModel
         .find(query)
-        .populate('reviewerId', 'email profile')
-        .populate('revieweeId', 'email profile')
+        .populate({
+          path: 'reviewerId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'revieweeId',
+          select: 'email profile',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .lean(),
+        .limit(limit))),
       this.reviewModel.countDocuments(query),
     ]);
 
@@ -902,10 +961,10 @@ export class AdminService {
   async getUsersReport(startDate?: string, endDate?: string, format: 'json' | 'csv' = 'json') {
     const dateFilter = this.buildDateFilter(startDate, endDate);
 
-    const users = await this.userModel
+    const users = JSON.parse(JSON.stringify(await this.userModel
       .find({ ...dateFilter, deletedAt: null })
       .select('-password')
-      .lean();
+      .lean()));
 
     if (format === 'csv') {
       // Convert to CSV format (simplified)
@@ -949,11 +1008,18 @@ export class AdminService {
   async getTransactionsReport(startDate?: string, endDate?: string, format: 'json' | 'csv' = 'json') {
     const dateFilter = this.buildDateFilter(startDate, endDate);
 
-    const transactions = await this.paymentModel
+    const transactions = JSON.parse(JSON.stringify(await this.paymentModel
       .find(dateFilter)
-      .populate('payerId', 'email')
-      .populate('payeeId', 'email')
-      .lean();
+      .populate({
+        path: 'payerId',
+        select: 'email',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'payeeId',
+        select: 'email',
+        options: { strictPopulate: false }
+      })));
 
     return {
       transactions,

@@ -264,14 +264,16 @@ export class DashboardService {
       .limit(5)
       .lean();
 
-    return contracts.map((contract: any) => ({
-      id: contract._id.toString(),
-      jobTitle: contract.jobId.title,
-      freelancerName: `${contract.freelancerId.firstName} ${contract.freelancerId.lastName}`,
-      status: contract.status,
-      contractValue: contract.totalAmount,
-      startDate: contract.startDate,
-    }));
+    return contracts
+      .filter((contract: any) => contract.freelancerId && contract.jobId)
+      .map((contract: any) => ({
+        id: contract._id.toString(),
+        jobTitle: contract.jobId.title,
+        freelancerName: `${contract.freelancerId.firstName} ${contract.freelancerId.lastName}`,
+        status: contract.status,
+        contractValue: contract.totalAmount,
+        startDate: contract.startDate,
+      }));
   }
 
   private async getRecentProposals(freelancerId: string): Promise<RecentProposalDto[]> {
@@ -289,14 +291,16 @@ export class DashboardService {
       .limit(5)
       .lean();
 
-    return proposals.map((proposal: any) => ({
-      id: proposal._id.toString(),
-      jobTitle: proposal.jobId.title,
-      status: proposal.status,
-      proposedAmount: proposal.proposedRate.amount,
-      submittedAt: proposal.createdAt,
-      clientName: `${proposal.jobId.clientId.firstName} ${proposal.jobId.clientId.lastName}`,
-    }));
+    return proposals
+      .filter((proposal: any) => proposal.jobId)
+      .map((proposal: any) => ({
+        id: proposal._id.toString(),
+        jobTitle: proposal.jobId.title,
+        status: proposal.status,
+        proposedAmount: proposal.proposedRate.amount,
+        submittedAt: proposal.createdAt,
+        clientName: `${proposal.jobId.clientId.firstName} ${proposal.jobId.clientId.lastName}`,
+      }));
   }
 
   private async getActiveContracts(freelancerId: string): Promise<ActiveContractDto[]> {
@@ -310,15 +314,17 @@ export class DashboardService {
       .sort({ createdAt: -1 })
       .lean();
 
-    return contracts.map((contract: any) => ({
-      id: contract._id.toString(),
-      jobTitle: contract.jobId.title,
-      clientName: `${contract.clientId.firstName} ${contract.clientId.lastName}`,
-      status: contract.status,
-      contractValue: contract.totalAmount,
-      progress: Math.round((contract.completedMilestones || 0) / Math.max(contract.milestoneCount || 1, 1) * 100),
-      nextMilestoneDeadline: undefined, // This would need to be calculated from milestones
-    }));
+    return contracts
+      .filter((contract: any) => contract.clientId && contract.jobId)
+      .map((contract: any) => ({
+        id: contract._id.toString(),
+        jobTitle: contract.jobId.title,
+        clientName: `${contract.clientId.firstName} ${contract.clientId.lastName}`,
+        status: contract.status,
+        contractValue: contract.totalAmount,
+        progress: Math.round((contract.completedMilestones || 0) / Math.max(contract.milestoneCount || 1, 1) * 100),
+        nextMilestoneDeadline: undefined, // This would need to be calculated from milestones
+      }));
   }
 
   // ===================== NEW ANALYTICS METHODS =====================

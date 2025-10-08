@@ -12,6 +12,7 @@ import { Conversation } from '../../database/schemas/conversation.schema';
 import { Contract } from '../../database/schemas/contract.schema';
 import { User } from '../../database/schemas/user.schema';
 import { Milestone } from '../../database/schemas/milestone.schema';
+import { UserRole } from '../../common/enums/user-role.enum';
 import {
   CreateMessageDto,
   SendMessageDto,
@@ -97,28 +98,47 @@ export class MessagesService {
     createMessageDto: CreateMessageDto,
   ): Promise<MessageResponseDto> {
     try {
-      const { contractId, milestoneId, content, messageType, attachments } = createMessageDto;
+      const { contractId, milestoneId, content, messageType, attachments, receiverId } = createMessageDto;
 
       // Find or create conversation
       const conversation = await this.findOrCreateConversation(contractId, milestoneId);
 
-      // Validate user is part of the conversation
+      // Get user to check role
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Validate user is part of the conversation or is an admin
       const isClient = conversation.clientId.toString() === userId;
       const isFreelancer = conversation.freelancerId.toString() === userId;
+      const isAdmin = user.role === UserRole.ADMIN;
 
-      if (!isClient && !isFreelancer) {
+      if (!isClient && !isFreelancer && !isAdmin) {
         throw new ForbiddenException('You are not part of this conversation');
       }
 
       // Determine sender and receiver
       const senderId = new Types.ObjectId(userId);
-      const receiverId = isClient ? conversation.freelancerId : conversation.clientId;
+      let receiverIdObj: Types.ObjectId;
+
+      if (isAdmin && receiverId) {
+        // For admins, use the specified receiver if provided
+        receiverIdObj = new Types.ObjectId(receiverId);
+        // Validate that the receiver is part of this conversation
+        if (receiverId !== conversation.clientId.toString() && receiverId !== conversation.freelancerId.toString()) {
+          throw new BadRequestException('Receiver must be part of this conversation');
+        }
+      } else {
+        // For regular users, determine receiver based on sender
+        receiverIdObj = isClient ? conversation.freelancerId : conversation.clientId;
+      }
 
       // Create the message
       const message = await this.messageModel.create({
         conversationId: (conversation._id as Types.ObjectId).toString(),
         senderId,
-        receiverId,
+        receiverId: receiverIdObj,
         content,
         messageType: messageType || 'text',
         attachments: attachments || [],
@@ -131,10 +151,10 @@ export class MessagesService {
       conversation.lastMessageAt = message.sentAt;
       
       // Increment unread count for receiver
-      if (isClient) {
-        conversation.unreadCountFreelancer++;
-      } else {
+      if (receiverIdObj.equals(conversation.clientId)) {
         conversation.unreadCountClient++;
+      } else if (receiverIdObj.equals(conversation.freelancerId)) {
+        conversation.unreadCountFreelancer++;
       }
 
       await conversation.save();

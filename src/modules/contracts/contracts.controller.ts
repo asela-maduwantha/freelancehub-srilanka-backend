@@ -71,11 +71,13 @@ export class ContractsController {
   ): Promise<ContractResponseDto> {
     const contract = await this.contractsService.createContract(createContractDto, clientId);
     const requiresPayment = (contract as any).requiresPayment;
+    const platformFeePercentage = (contract as any).platformFeePercentage || 10;
+    
     return {
       success: true,
       message: requiresPayment 
-        ? 'Contract created successfully. Please complete payment to activate the contract.' 
-        : 'Contract created and payment initiated. Awaiting payment confirmation.',
+        ? `Contract created successfully. Please complete payment to activate the contract. Note: A ${platformFeePercentage}% platform fee will be added to the contract amount.` 
+        : `Contract created and payment initiated. Awaiting payment confirmation. Note: Total charge includes ${platformFeePercentage}% platform fee.`,
       data: contract,
     };
   }

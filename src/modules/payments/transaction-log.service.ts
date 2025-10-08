@@ -92,29 +92,45 @@ export class TransactionLogService {
 
     const transactionLog = await this.transactionLogModel
       .findOne({ _id: id, deletedAt: null })
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .exec();
 
     if (!transactionLog) {
       throw new NotFoundException('Transaction log not found');
     }
 
-    return transactionLog;
+    return JSON.parse(JSON.stringify(transactionLog));
   }
 
   async findByTransactionId(transactionId: string): Promise<TransactionLog> {
     const transactionLog = await this.transactionLogModel
       .findOne({ transactionId, deletedAt: null })
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .exec();
 
     if (!transactionLog) {
       throw new NotFoundException('Transaction log not found');
     }
 
-    return transactionLog;
+    return JSON.parse(JSON.stringify(transactionLog));
   }
 
   async findAll(
@@ -154,8 +170,16 @@ export class TransactionLogService {
     const [transactionLogs, total] = await Promise.all([
       this.transactionLogModel
         .find(query)
-        .populate('fromUserId', 'firstName lastName email')
-        .populate('toUserId', 'firstName lastName email')
+        .populate({
+          path: 'fromUserId',
+          select: 'email profile.firstName profile.lastName',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'toUserId',
+          select: 'email profile.firstName profile.lastName',
+          options: { strictPopulate: false }
+        })
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -165,7 +189,11 @@ export class TransactionLogService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return { transactionLogs, total, totalPages };
+    return { 
+      transactionLogs: JSON.parse(JSON.stringify(transactionLogs)), 
+      total, 
+      totalPages 
+    };
   }
 
   async updateById(id: string, updateTransactionLogDto: UpdateTransactionLogDto): Promise<TransactionLog> {
@@ -186,8 +214,16 @@ export class TransactionLogService {
         updateData,
         { new: true }
       )
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .exec();
 
     if (!transactionLog) {
@@ -195,7 +231,7 @@ export class TransactionLogService {
     }
 
     this.logger.log(`Transaction log updated: ${transactionLog.transactionId}`);
-    return transactionLog;
+    return JSON.parse(JSON.stringify(transactionLog));
   }
 
   async updateByTransactionId(transactionId: string, updateTransactionLogDto: UpdateTransactionLogDto): Promise<TransactionLog> {
@@ -212,8 +248,16 @@ export class TransactionLogService {
         updateData,
         { new: true }
       )
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .exec();
 
     if (!transactionLog) {
@@ -221,7 +265,7 @@ export class TransactionLogService {
     }
 
     this.logger.log(`Transaction log updated: ${transactionLog.transactionId}`);
-    return transactionLog;
+    return JSON.parse(JSON.stringify(transactionLog));
   }
 
   async updateByStripeId(stripeId: string, updateTransactionLogDto: UpdateTransactionLogDto): Promise<TransactionLog> {
@@ -238,8 +282,16 @@ export class TransactionLogService {
         updateData,
         { new: true }
       )
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .exec();
 
     if (!transactionLog) {
@@ -247,7 +299,7 @@ export class TransactionLogService {
     }
 
     this.logger.log(`Transaction log updated by Stripe ID: ${transactionLog.transactionId}`);
-    return transactionLog;
+    return JSON.parse(JSON.stringify(transactionLog));
   }
 
   async deleteById(id: string): Promise<void> {
@@ -304,8 +356,16 @@ export class TransactionLogService {
     const [transactionLogs, total] = await Promise.all([
       this.transactionLogModel
         .find(query)
-        .populate('fromUserId', 'firstName lastName email')
-        .populate('toUserId', 'firstName lastName email')
+        .populate({
+          path: 'fromUserId',
+          select: 'email profile.firstName profile.lastName',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'toUserId',
+          select: 'email profile.firstName profile.lastName',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -315,7 +375,11 @@ export class TransactionLogService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return { transactionLogs, total, totalPages };
+    return { 
+      transactionLogs: JSON.parse(JSON.stringify(transactionLogs)), 
+      total, 
+      totalPages 
+    };
   }
 
   async getUserTransactionSummary(
@@ -412,16 +476,26 @@ export class TransactionLogService {
       throw new BadRequestException('Invalid related entity ID');
     }
 
-    return this.transactionLogModel
+    const result = await this.transactionLogModel
       .find({
         relatedId: new Types.ObjectId(relatedId),
         relatedType,
         deletedAt: null,
       })
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: -1 })
       .exec();
+    
+    return JSON.parse(JSON.stringify(result));
   }
 
   async updateByRelatedEntity(
@@ -493,13 +567,23 @@ export class TransactionLogService {
       ];
     }
 
-    return this.transactionLogModel
+    const result = await this.transactionLogModel
       .find(query)
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: -1 })
       .limit(limit)
       .exec();
+    
+    return JSON.parse(JSON.stringify(result));
   }
 
   async getTransactionsByDateRange(
@@ -544,15 +628,25 @@ export class TransactionLogService {
   }
 
   async getPendingTransactions(): Promise<TransactionLog[]> {
-    return this.transactionLogModel
+    const result = await this.transactionLogModel
       .find({
         status: 'pending',
         deletedAt: null,
       })
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: 1 })
       .exec();
+    
+    return JSON.parse(JSON.stringify(result));
   }
 
   async getFailedTransactions(limit?: number): Promise<TransactionLog[]> {
@@ -561,15 +655,24 @@ export class TransactionLogService {
         status: 'failed',
         deletedAt: null,
       })
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: -1 });
 
     if (limit) {
       query.limit(limit);
     }
 
-    return query.exec();
+    const result = await query.exec();
+    return JSON.parse(JSON.stringify(result));
   }
 
   async getTransactionVolumeStats(
@@ -710,8 +813,16 @@ export class TransactionLogService {
     const [transactionLogs, total] = await Promise.all([
       this.transactionLogModel
         .find(searchQuery)
-        .populate('fromUserId', 'firstName lastName email')
-        .populate('toUserId', 'firstName lastName email')
+        .populate({
+          path: 'fromUserId',
+          select: 'email profile.firstName profile.lastName',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'toUserId',
+          select: 'email profile.firstName profile.lastName',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -721,7 +832,11 @@ export class TransactionLogService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return { transactionLogs, total, totalPages };
+    return { 
+      transactionLogs: JSON.parse(JSON.stringify(transactionLogs)), 
+      total, 
+      totalPages 
+    };
   }
 
   // Export methods for reporting
@@ -753,12 +868,22 @@ export class TransactionLogService {
       };
     }
 
-    return this.transactionLogModel
+    const result = await this.transactionLogModel
       .find(query)
-      .populate('fromUserId', 'firstName lastName email')
-      .populate('toUserId', 'firstName lastName email')
+      .populate({
+        path: 'fromUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'toUserId',
+        select: 'email profile.firstName profile.lastName',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: -1 })
       .exec();
+    
+    return JSON.parse(JSON.stringify(result));
   }
 
   // Cleanup methods

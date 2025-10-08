@@ -257,6 +257,11 @@ export class ContractsService {
     contract.endDate = contractData.endDate;
     contract.status = ContractStatus.PENDING_PAYMENT; // Start with PENDING_PAYMENT status
     contract.platformFeePercentage = 10;
+    
+    // Calculate platform fee and total client charge (contract amount + 10% platform fee)
+    contract.platformFeeAmount = (contract.totalAmount * contract.platformFeePercentage) / 100;
+    contract.totalClientCharge = contract.totalAmount + contract.platformFeeAmount;
+    
     contract.totalPaid = 0;
     contract.releasedAmount = 0;
     contract.milestoneCount = 0;
@@ -375,6 +380,17 @@ export class ContractsService {
     // Add payment information to response
     contractObject.paymentIntent = paymentIntentData;
     contractObject.requiresPayment = !paymentIntentData; // Indicates if client needs to initiate payment
+    
+    // Add clear payment breakdown for frontend
+    contractObject.paymentBreakdown = {
+      contractAmount: contract.totalAmount,
+      platformFeePercentage: contract.platformFeePercentage,
+      platformFeeAmount: contract.platformFeeAmount,
+      totalClientCharge: contract.totalClientCharge,
+      currency: contract.currency,
+      note: `Total charge includes ${contract.platformFeePercentage}% platform fee`
+    };
+    
     return contractObject;
   } catch (error) {
     this.logger.error(`Failed to create contract: ${error.message}`, error.stack, 'ContractsService');
@@ -487,12 +503,21 @@ export class ContractsService {
       }
 
       // Calculate platform fee and freelancer amount
-      const platformFee = (contract.totalAmount * contract.platformFeePercentage) / 100;
+      const platformFee = contract.platformFeeAmount || (contract.totalAmount * contract.platformFeePercentage) / 100;
+      const totalClientCharge = contract.totalClientCharge || (contract.totalAmount + platformFee);
       const freelancerAmount = contract.totalAmount - platformFee;
 
-      // Create payment intent
+      this.logger.log(
+        `Payment breakdown for contract ${contractId}: Contract Amount: ${contract.currency} ${contract.totalAmount}, ` +
+        `Platform Fee (${contract.platformFeePercentage}%): ${contract.currency} ${platformFee.toFixed(2)}, ` +
+        `Total Client Charge: ${contract.currency} ${totalClientCharge.toFixed(2)}, ` +
+        `Freelancer Amount: ${contract.currency} ${freelancerAmount.toFixed(2)}`,
+        'ContractsService'
+      );
+
+      // Create payment intent with total client charge (contract amount + platform fee)
       const paymentIntent = await this.stripeService.createPaymentIntent(
-        contract.totalAmount,
+        totalClientCharge,
         contract.currency,
         {
           contractId: contractId,
@@ -500,6 +525,9 @@ export class ContractsService {
           clientId: contract.clientId.toString(),
           freelancerId: contract.freelancerId.toString(),
           platformFeePercentage: contract.platformFeePercentage.toString(),
+          contractAmount: contract.totalAmount.toString(),
+          platformFeeAmount: platformFee.toFixed(2),
+          totalClientCharge: totalClientCharge.toFixed(2),
         },
         stripePaymentMethodId,
         client.stripeCustomerId
@@ -526,13 +554,16 @@ export class ContractsService {
         stripeFee: 0,
         freelancerAmount,
         status: PaymentStatus.PENDING,
-        description: `Upfront payment for contract: ${contract.title}`,
+        description: `Upfront payment for contract: ${contract.title} (includes ${contract.platformFeePercentage}% platform fee)`,
         metadata: {
           type: 'contract_upfront',
           paymentMethodId: paymentMethodId,
           contractId: contractId,
           jobId: contract.jobId.toString(),
           proposalId: contract.proposalId.toString(),
+          totalClientCharge: totalClientCharge.toFixed(2),
+          platformFeeAmount: platformFee.toFixed(2),
+          contractAmount: contract.totalAmount.toFixed(2),
         },
       });
 

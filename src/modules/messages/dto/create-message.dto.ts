@@ -34,6 +34,11 @@ export class CreateMessageDto {
   @IsOptional()
   milestoneId?: string;
 
+  @ApiPropertyOptional({ description: 'Receiver user ID (required for admins sending messages)' })
+  @IsMongoId()
+  @IsOptional()
+  receiverId?: string;
+
   @ApiProperty({ description: 'Message content', maxLength: 5000 })
   @IsString()
   @IsNotEmpty()
